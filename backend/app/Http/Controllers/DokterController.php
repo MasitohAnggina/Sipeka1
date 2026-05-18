@@ -9,28 +9,32 @@ use Illuminate\Http\Request;
 class DokterController extends Controller
 {
     public function getProfile(Request $request)
-    {
-        $user   = $request->user();
-        $dokter = Dokter::with('alamat')->where('id_user', $user->id_user)->first();
-
-        if (!$dokter) {
-            return response()->json(['message' => 'Profil dokter tidak ditemukan'], 404);
-        }
-
-        return response()->json([
-            'nama'                => $user->nama,
-            'email'               => $user->email,
-            'no_hp'               => $user->no_hp,
-            'spesialisasi'        => $dokter->spesialisasi,
-            'pendidikan_terakhir' => $dokter->pendidikan_terakhir,
-            'foto'                => $dokter->foto ? asset('storage/' . $dokter->foto) : null,
-            'provinsi'            => $dokter->alamat->provinsi       ?? '',
-            'kota'                => $dokter->alamat->kota           ?? '',
-            'kecamatan'           => $dokter->alamat->kecamatan      ?? '',
-            'kode_pos'            => $dokter->alamat->kode_pos       ?? '',
-            'alamat_lengkap'      => $dokter->alamat->alamat_lengkap ?? '',
+{
+    $user   = $request->user();
+    
+    // Auto-create data dokter kalau belum ada
+    $dokter = Dokter::with('alamat')->where('id_user', $user->id_user)->first();
+    if (!$dokter) {
+        $dokter = Dokter::create([
+            'id_user'    => $user->id_user,
+            'nama_dokter' => $user->nama,
         ]);
     }
+
+    return response()->json([
+        'nama'                => $user->nama,
+        'email'               => $user->email,
+        'no_hp'               => $user->no_hp,
+        'spesialisasi'        => $dokter->spesialisasi,
+        'pendidikan_terakhir' => $dokter->pendidikan_terakhir,
+        'foto'                => $dokter->foto ? asset('storage/' . $dokter->foto) : null,
+        'provinsi'            => $dokter->alamat->provinsi       ?? '',
+        'kota'                => $dokter->alamat->kota           ?? '',
+        'kecamatan'           => $dokter->alamat->kecamatan      ?? '',
+        'kode_pos'            => $dokter->alamat->kode_pos       ?? '',
+        'alamat_lengkap'      => $dokter->alamat->alamat_lengkap ?? '',
+    ]);
+}
 
     public function updateProfile(Request $request)
     {

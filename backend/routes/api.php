@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\BookingDokterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DokterController;
 use App\Http\Controllers\HewanController;
@@ -20,7 +21,8 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 
-// Layanan aktif — dipakai frontend booking untuk menampilkan pilihan layanan
+// ✅ PERBAIKAN: route publik harus di LUAR middleware auth
+// Layanan aktif — dipakai frontend booking owner untuk menampilkan pilihan layanan
 Route::get('/layanan/publik', [LayananController::class, 'publik']);
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -32,10 +34,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // ────────────────────────────────────────────────────────────────────────
-    //  PEMILIK HEWAN (role: user)
+    //  PEMILIK HEWAN (role: owner)
     // ────────────────────────────────────────────────────────────────────────
 
-    // Dashboard — satu endpoint untuk semua data dashboard
+    // Dashboard
     Route::get('owner_pet/dashboard', [DashboardController::class, 'index']);
 
     // Profil pemilik
@@ -46,28 +48,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Hewan peliharaan — CRUD
     Route::prefix('owner_pet/data_hewan')->group(function () {
-        Route::get('/',        [HewanController::class, 'index']);    // semua hewan user
-        Route::post('/',       [HewanController::class, 'store']);    // tambah hewan
-        Route::get('/{id}',    [HewanController::class, 'show']);     // detail
-        Route::put('/{id}',    [HewanController::class, 'update']);   // edit
-        Route::delete('/{id}', [HewanController::class, 'destroy']);  // hapus
+        Route::get('/',        [HewanController::class, 'index']);
+        Route::post('/',       [HewanController::class, 'store']);
+        Route::get('/{id}',    [HewanController::class, 'show']);
+        Route::put('/{id}',    [HewanController::class, 'update']);
+        Route::delete('/{id}', [HewanController::class, 'destroy']);
     });
 
-    // Booking — multi-hewan, multi-layanan, data tiap hewan terpisah
+    // Booking owner
     Route::prefix('booking')->group(function () {
-        Route::get('/',                [BookingController::class, 'index']);          // semua booking user
-        Route::post('/',               [BookingController::class, 'store']);          // buat booking baru
-        Route::get('/aktif',           [BookingController::class, 'aktif']);          // booking aktif (dashboard)
-        Route::get('/jadwal-tersedia', [BookingController::class, 'jadwalTersedia']); // jadwal dokter aktif
-        Route::get('/{id}',            [BookingController::class, 'show']);           // detail satu booking
-        Route::patch('/{id}/batal',    [BookingController::class, 'cancel']);         // batalkan
+        Route::get('/',                [BookingController::class, 'index']);
+        Route::post('/',               [BookingController::class, 'store']);
+        Route::get('/aktif',           [BookingController::class, 'aktif']);
+        Route::get('/jadwal-tersedia', [BookingController::class, 'jadwalTersedia']);
+        Route::get('/{id}',            [BookingController::class, 'show']);
+        Route::patch('/{id}/batal',    [BookingController::class, 'cancel']);
     });
 
     // Riwayat layanan
     Route::prefix('riwayat')->group(function () {
-        Route::get('/',      [RiwayatLayananController::class, 'index']); // daftar riwayat
-        Route::get('/stats', [RiwayatLayananController::class, 'stats']); // statistik per kategori
-        Route::get('/{id}',  [RiwayatLayananController::class, 'show']);  // detail + rincian obat/lab
+        Route::get('/',      [RiwayatLayananController::class, 'index']);
+        Route::get('/stats', [RiwayatLayananController::class, 'stats']);
+        Route::get('/{id}',  [RiwayatLayananController::class, 'show']);
     });
 
     // ────────────────────────────────────────────────────────────────────────
@@ -86,6 +88,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id_jadwal}',       [JadwalDokterController::class, 'destroy']);
     });
 
+    // ✅ Booking dokter — lihat booking yang masuk & update status
+    Route::get('/dokter/booking',               [BookingDokterController::class, 'index']);
+    Route::patch('/dokter/booking/{id}/status', [BookingDokterController::class, 'updateStatus']);
+
     // ────────────────────────────────────────────────────────────────────────
     //  ADMIN
     // ────────────────────────────────────────────────────────────────────────
@@ -95,13 +101,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/profile',  [AdminController::class, 'updateProfile']);
     Route::post('/admin/foto',    [AdminController::class, 'uploadFoto']);
 
-    // Layanan — CRUD (admin)
+    // Layanan — CRUD admin
+    // ✅ PENTING: /layanan/publik harus di LUAR group ini (sudah di atas)
     Route::get('/layanan',         [LayananController::class, 'index']);
     Route::post('/layanan',        [LayananController::class, 'store']);
     Route::put('/layanan/{id}',    [LayananController::class, 'update']);
     Route::delete('/layanan/{id}', [LayananController::class, 'destroy']);
 
-    // Obat — CRUD (admin/dokter)
+    // Obat — CRUD
     Route::get('/obat',         [ObatController::class, 'index']);
     Route::post('/obat',        [ObatController::class, 'store']);
     Route::put('/obat/{id}',    [ObatController::class, 'update']);
