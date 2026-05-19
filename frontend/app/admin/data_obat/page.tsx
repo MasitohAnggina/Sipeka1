@@ -227,7 +227,7 @@ export default function StokObatPage() {
   const [error,        setError]        = useState("");
   const [modalError,   setModalError]   = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : "";
 
   // ── Fetch ────────────────────────────────────────────────────────────────
   async function fetchObat() {

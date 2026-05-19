@@ -68,7 +68,7 @@ export default function KelolaJadwalAdmin() {
   const [error,        setError]        = useState("");
   const [search,       setSearch]       = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
   useEffect(() => {

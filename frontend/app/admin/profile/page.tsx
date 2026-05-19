@@ -78,7 +78,7 @@ export default function ProfileAdminPage() {
   const [fotoSuccess,  setFotoSuccess]  = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const authHeaders = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
   useEffect(() => {

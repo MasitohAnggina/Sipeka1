@@ -320,7 +320,7 @@ export default function DataBookingPage() {
   const [currentPage,   setCurrentPage]   = useState(1);
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
 
-  const token   = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const headers = { "Authorization": `Bearer ${token ?? ""}`, "Content-Type": "application/json" };
 
   useEffect(() => {

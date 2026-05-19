@@ -106,7 +106,7 @@ export default function ProfileDokterPage() {
   const fileInputRef                        = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     fetch("http://127.0.0.1:8000/api/dokter/profile", {
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -166,7 +166,7 @@ export default function ProfileDokterPage() {
     setFotoUploading(true);
 
     try {
-      const token = localStorage.getItem("token");
+      const token = sessionStorage.getItem("token");
       const formDataUpload = new FormData();
       formDataUpload.append("foto", file);
 
@@ -195,7 +195,7 @@ export default function ProfileDokterPage() {
   }
 
   async function handleSubmit() {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     setError("");
 
     try {

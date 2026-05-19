@@ -73,7 +73,7 @@ export default function DataLayananKlinikPage() {
   const [editTarget, setEditTarget] = useState<LayananAPI | null>(null);
   const [form,       setForm]       = useState<FormData>(defaultForm);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : "";
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : "";
 
   // ── Fetch semua layanan dari backend ────────────────────────────────────────
   async function fetchLayanan() {

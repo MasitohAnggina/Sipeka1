@@ -147,7 +147,7 @@ export default function KelolaJadwalDokter() {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
   // Fetch jadwal dari API
