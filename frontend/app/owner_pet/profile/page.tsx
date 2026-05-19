@@ -25,14 +25,11 @@ interface ProfileData {
   } | null;
 }
 
-interface FormAkun {
+interface FormData {
   nama: string;
   email: string;
   no_hp: string;
   kata_sandi: string;
-}
-
-interface FormAlamat {
   provinsi: string;
   kota: string;
   kecamatan: string;
@@ -49,29 +46,76 @@ const G = "#2e7d32";
 
 function getAuthToken(): string {
   return typeof window !== "undefined"
-    ? (localStorage.getItem("auth_token") ?? "") : "";
+    ? (localStorage.getItem("token") ?? "")
+    : "";
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const cardStyle: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 12,
+  border: "1px solid #f0f0f0",
+  padding: "20px 24px",
+  marginBottom: 18,
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 700,
+  color: G,
+  marginBottom: 16,
+  marginTop: 0,
+  paddingBottom: 10,
+  borderBottom: "1.5px solid #e8f5e9",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 12,
+  fontWeight: 600,
+  color: "#666",
+  marginBottom: 5,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  border: "1.5px solid #e0e0e0",
+  borderRadius: 8,
+  padding: "9px 12px",
+  fontSize: 13,
+  color: "#1a1a1a",
+  outline: "none",
+  boxSizing: "border-box",
+  fontFamily: "inherit",
+  background: "#fff",
+  transition: "border-color .15s",
+};
 
 // ── InputField ────────────────────────────────────────────────────────────────
 
-function InputField({ label, name, value, onChange, type = "text", placeholder = "" }: {
-  label: string; name: string; value: string;
+interface InputFieldProps {
+  label: string;
+  name: string;
+  value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
-  type?: string; placeholder?: string;
-}) {
+  type?: string;
+  placeholder?: string;
+}
+
+function InputField({ label, name, value, onChange, type = "text", placeholder = "" }: InputFieldProps) {
   return (
     <div>
-      <label style={{ display: "block", fontSize: 12, color: "#888", marginBottom: 6 }}>{label}</label>
+      <label style={labelStyle}>{label}</label>
       <input
-        type={type} name={name} value={value} onChange={onChange}
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
         placeholder={placeholder}
-        style={{
-          width: "100%", border: "1px solid #d1d5db", borderRadius: 12,
-          padding: "10px 16px", fontSize: 14, color: "#333", outline: "none",
-          boxSizing: "border-box", fontFamily: "inherit",
-        }}
+        style={inputStyle}
         onFocus={e => (e.currentTarget.style.borderColor = G)}
-        onBlur={e => (e.currentTarget.style.borderColor = "#d1d5db")}
+        onBlur={e => (e.currentTarget.style.borderColor = "#e0e0e0")}
       />
     </div>
   );
@@ -85,347 +129,340 @@ export default function ProfilePage() {
 
   const [profile,       setProfile]       = useState<ProfileData | null>(null);
   const [loading,       setLoading]       = useState(true);
-  const [savingAkun,    setSavingAkun]    = useState(false);
-  const [savingAlamat,  setSavingAlamat]  = useState(false);
+  const [saving,        setSaving]        = useState(false);
+  const [saved,         setSaved]         = useState(false);
   const [uploadingFoto, setUploadingFoto] = useState(false);
-  const [error,         setError]         = useState<string | null>(null);
-  const [successMsg,    setSuccessMsg]    = useState<string | null>(null);
+  const [error,         setError]         = useState("");
+  const [fotoError,     setFotoError]     = useState("");
+  const [fotoSuccess,   setFotoSuccess]   = useState("");
 
-  const [formAkun, setFormAkun] = useState<FormAkun>({
-    nama: "", email: "", no_hp: "", kata_sandi: "",
-  });
-
-  const [formAlamat, setFormAlamat] = useState<FormAlamat>({
-    provinsi: "", kota: "", kecamatan: "", kode_pos: "", alamat_lengkap: "",
+  const [formData, setFormData] = useState<FormData>({
+    nama:           "",
+    email:          "",
+    no_hp:          "",
+    kata_sandi:     "",
+    provinsi:       "",
+    kota:           "",
+    kecamatan:      "",
+    kode_pos:       "",
+    alamat_lengkap: "",
   });
 
   const token = getAuthToken();
 
-  // ✅ FIX Ln 138: Async IIFE langsung di dalam useEffect
-  // Menghilangkan "setState synchronously within an effect"
-  // dan exhaustive-deps untuk fetchProfile, router, token
-  useEffect(() => {
-    if (!token) { router.push("/login"); return; }
-
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const r = await fetch(`${API_URL}/api/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!r.ok) throw new Error();
-        const res = await r.json();
-        if (!cancelled && res.success) {
-          const d: ProfileData = res.data;
-          setProfile(d);
-          setFormAkun({
-            nama:       d.nama ?? "",
-            email:      d.email ?? "",
-            no_hp:      d.no_hp ?? "",
-            kata_sandi: "",
-          });
-          if (d.alamat) {
-            setFormAlamat({
-              provinsi:       d.alamat.provinsi ?? "",
-              kota:           d.alamat.kota ?? "",
-              kecamatan:      d.alamat.kecamatan ?? "",
-              kode_pos:       d.alamat.kode_pos ?? "",
-              alamat_lengkap: d.alamat.alamat_lengkap ?? "",
-            });
-          }
-        }
-      } catch {
-        if (!cancelled) setError("Gagal memuat profil.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [token, router]);
-
-  // ── fetchProfile untuk dipanggil manual setelah save/upload ──────────────
-  const fetchProfile = async () => {
+  // ── Fetch profile ────────────────────────────────────────────────────────
+  const fetchProfile = async (signal?: AbortSignal) => {
     try {
-      const r = await fetch(`${API_URL}/api/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const r = await fetch(`${API_URL}/api/owner_pet/profile`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+        signal,
       });
       if (!r.ok) throw new Error();
       const res = await r.json();
       if (res.success) {
         const d: ProfileData = res.data;
         setProfile(d);
-        setFormAkun(f => ({
-          ...f,
-          nama:  d.nama ?? "",
-          email: d.email ?? "",
-          no_hp: d.no_hp ?? "",
-        }));
-        if (d.alamat) {
-          setFormAlamat({
-            provinsi:       d.alamat.provinsi ?? "",
-            kota:           d.alamat.kota ?? "",
-            kecamatan:      d.alamat.kecamatan ?? "",
-            kode_pos:       d.alamat.kode_pos ?? "",
-            alamat_lengkap: d.alamat.alamat_lengkap ?? "",
-          });
-        }
+        setFormData({
+          nama:           d.nama            ?? "",
+          email:          d.email           ?? "",
+          no_hp:          d.no_hp           ?? "",
+          kata_sandi:     "",
+          provinsi:       d.alamat?.provinsi        ?? "",
+          kota:           d.alamat?.kota            ?? "",
+          kecamatan:      d.alamat?.kecamatan       ?? "",
+          kode_pos:       d.alamat?.kode_pos        ?? "",
+          alamat_lengkap: d.alamat?.alamat_lengkap  ?? "",
+        });
       }
     } catch {
-      setError("Gagal memuat profil.");
+      if (!signal?.aborted) setError("Gagal memuat profil.");
     }
   };
 
-  const showSuccess = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 3000);
-  };
+  useEffect(() => {
+    if (!token) { router.push("/auth/login_dokter"); return; }
 
-  // ── Simpan informasi akun ─────────────────────────────────────────────────
-  const handleSaveAkun = async () => {
-    setSavingAkun(true);
-    setError(null);
+    const controller = new AbortController();
+    (async () => {
+      setLoading(true);
+      await fetchProfile(controller.signal);
+      setLoading(false);
+    })();
+
+    return () => controller.abort();
+  }, [token, router]);
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  function handleChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    setSaved(false);
+  }
+
+  // Simpan semua (akun + alamat) dalam satu klik
+  async function handleSubmit() {
+    setSaving(true);
+    setError("");
     try {
-      const body: Record<string, string> = {};
-      if (formAkun.nama)       body.nama       = formAkun.nama;
-      if (formAkun.email)      body.email      = formAkun.email;
-      if (formAkun.no_hp)      body.no_hp      = formAkun.no_hp;
-      if (formAkun.kata_sandi) body.kata_sandi = formAkun.kata_sandi;
+      // 1. Simpan informasi akun
+      const bodyAkun: Record<string, string> = {
+        nama:  formData.nama,
+        email: formData.email,
+        no_hp: formData.no_hp,
+      };
+      if (formData.kata_sandi) bodyAkun.kata_sandi = formData.kata_sandi;
 
-      const res  = await fetch(`${API_URL}/api/profile`, {
+      const resAkun = await fetch(`${API_URL}/api/owner_pet/profile`, {
         method:  "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body:    JSON.stringify(body),
+        body:    JSON.stringify(bodyAkun),
       });
-      const data = await res.json();
-      if (data.success) {
-        showSuccess("Informasi akun berhasil diperbarui.");
-        setFormAkun(f => ({ ...f, kata_sandi: "" }));
-        fetchProfile();
-      } else {
-        setError(data.message ?? "Gagal menyimpan informasi akun.");
-      }
-    } catch {
-      setError("Tidak dapat terhubung ke server.");
-    } finally {
-      setSavingAkun(false);
-    }
-  };
+      const dataAkun = await resAkun.json();
+      if (!dataAkun.success) throw new Error(dataAkun.message ?? "Gagal menyimpan informasi akun.");
 
-  // ── Simpan alamat ─────────────────────────────────────────────────────────
-  const handleSaveAlamat = async () => {
-    setSavingAlamat(true);
-    setError(null);
-    try {
-      const res  = await fetch(`${API_URL}/api/profile/alamat`, {
+      // 2. Simpan alamat
+      const resAlamat = await fetch(`${API_URL}/api/owner_pet/profile/alamat`, {
         method:  "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body:    JSON.stringify(formAlamat),
+        body:    JSON.stringify({
+          provinsi:       formData.provinsi,
+          kota:           formData.kota,
+          kecamatan:      formData.kecamatan,
+          kode_pos:       formData.kode_pos,
+          alamat_lengkap: formData.alamat_lengkap,
+        }),
       });
-      const data = await res.json();
-      if (data.success) {
-        showSuccess("Alamat berhasil diperbarui.");
-        fetchProfile();
-      } else {
-        setError(data.message ?? "Gagal menyimpan alamat.");
-      }
-    } catch {
-      setError("Tidak dapat terhubung ke server.");
-    } finally {
-      setSavingAlamat(false);
-    }
-  };
+      const dataAlamat = await resAlamat.json();
+      if (!dataAlamat.success) throw new Error(dataAlamat.message ?? "Gagal menyimpan alamat.");
 
-  // ── Upload foto profil ─────────────────────────────────────────────────────
-  const handleFotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
+      setSaved(true);
+      setFormData(f => ({ ...f, kata_sandi: "" }));
+      setTimeout(() => setSaved(false), 3000);
+      fetchProfile();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Tidak dapat terhubung ke server.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Upload foto
+  async function handleFotoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      setFotoError("Format file harus JPEG, PNG, atau WEBP");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setFotoError("Ukuran file maksimal 2MB");
+      return;
+    }
+
+    setFotoError("");
+    setFotoSuccess("");
     setUploadingFoto(true);
-    setError(null);
+
     try {
-      const formData = new FormData();
-      formData.append("foto", file);
-      const res  = await fetch(`${API_URL}/api/profile/foto`, {
+      const formDataUpload = new FormData();
+      formDataUpload.append("foto", file);
+
+      const res  = await fetch(`${API_URL}/api/owner_pet/profile/foto`, {
         method:  "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body:    formData,
+        body:    formDataUpload,
       });
       const data = await res.json();
       if (data.success) {
-        showSuccess("Foto profil berhasil diperbarui.");
+        setFotoSuccess("Foto berhasil diperbarui");
+        setTimeout(() => setFotoSuccess(""), 3000);
         fetchProfile();
       } else {
-        setError(data.message ?? "Gagal upload foto.");
+        setFotoError(data.message ?? "Gagal upload foto.");
       }
     } catch {
-      setError("Tidak dapat terhubung ke server.");
+      setFotoError("Terjadi kesalahan saat upload foto.");
     } finally {
       setUploadingFoto(false);
+      e.target.value = "";
     }
-  };
+  }
 
-  // ── Loading ────────────────────────────────────────────────────────────────
+  // ── Loading ───────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{ display: "flex", height: "100vh", background: "#f5f5f5", fontFamily: "Segoe UI, sans-serif" }}>
-        <Sidebar activePage="profile" />
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ textAlign: "center", color: "#888" }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
-            <div>Memuat profil...</div>
-          </div>
-        </div>
+      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins', sans-serif", background: "#f9f9f9" }}>
+        <p style={{ color: "#888" }}>Memuat profil...</p>
       </div>
     );
   }
 
-  // ✅ FIX Ln 275: Tentukan src avatar sekali, lalu pakai di <Image>
   const avatarSrc = profile?.foto_profile
-    ?? `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(profile?.nama ?? "user")}`;
+    ?? `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(formData.nama || "user")}`;
 
   return (
-    <div style={{ display: "flex", height: "100vh", backgroundColor: "#f5f5f5", fontFamily: "Segoe UI, sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Poppins', sans-serif", background: "#f9f9f9" }}>
       <Sidebar activePage="profile" />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
         <Header
           title="Profile Saya"
           subtitle="Kelola Informasi Profile Anda Sebagai Pemilik Hewan Peliharaan"
         />
 
-        <main style={{ flex: 1, padding: "24px", overflowY: "auto" }}>
+        <main style={{ flex: 1, padding: "22px 28px" }}>
 
-          {/* Notifikasi */}
+          {/* Error */}
           {error && (
-            <div style={{ padding: "10px 14px", background: "#fce4ec", borderRadius: 8, color: "#c62828", fontSize: 13, marginBottom: 16 }}>
+            <div style={{ background: "#ffebee", border: "1px solid #ffcdd2", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#c62828" }}>
               ⚠️ {error}
-            </div>
-          )}
-          {successMsg && (
-            <div style={{ padding: "10px 14px", background: "#e8f5e9", borderRadius: 8, color: G, fontSize: 13, marginBottom: 16 }}>
-              ✅ {successMsg}
             </div>
           )}
 
           {/* ── Avatar Card ── */}
-          <div style={{
-            backgroundColor: "#ffffff", borderRadius: 16, padding: "24px",
-            marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
-            display: "flex", flexDirection: "row", alignItems: "center",
-          }}>
-            {/* ✅ FIX Ln 275: Ganti <img> → <Image> dengan width/height eksplisit */}
-            <div style={{ position: "relative", width: 80, height: 80, flexShrink: 0 }}>
+          <div style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 20 }}>
+            <div style={{ position: "relative", flexShrink: 0 }}>
               <Image
                 src={avatarSrc}
                 alt="Avatar"
                 width={80}
                 height={80}
                 unoptimized
-                style={{ borderRadius: "50%", objectFit: "cover", backgroundColor: "#e5e7eb" }}
+                style={{
+                  borderRadius: "50%", objectFit: "cover",
+                  background: "#e8f5e9", border: `2.5px solid ${G}`,
+                  opacity: uploadingFoto ? 0.5 : 1, transition: "opacity .2s",
+                }}
+              />
+              {uploadingFoto && (
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 22, height: 22, border: `3px solid ${G}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+                </div>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,image/webp"
+                style={{ display: "none" }}
+                onChange={handleFotoChange}
               />
               <button
                 onClick={() => fileRef.current?.click()}
                 disabled={uploadingFoto}
+                title="Ganti foto profil"
                 style={{
                   position: "absolute", bottom: 0, right: 0,
-                  backgroundColor: uploadingFoto ? "#e0e0e0" : "#fff",
-                  border: "1px solid #d1d5db", borderRadius: "50%",
-                  padding: 4, cursor: uploadingFoto ? "not-allowed" : "pointer",
+                  background: "#fff", border: "1.5px solid #e0e0e0",
+                  borderRadius: "50%", width: 26, height: 26,
+                  cursor: uploadingFoto ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                  boxShadow: "0 1px 4px rgba(0,0,0,.1)",
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth={2}>
+                <svg xmlns="http://www.w3.org/2000/svg" width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth={2}>
                   <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
                   <circle cx="12" cy="13" r="4" />
                 </svg>
               </button>
-              <input ref={fileRef} type="file" accept="image/jpg,image/jpeg,image/png,image/webp"
-                style={{ display: "none" }} onChange={handleFotoChange} />
             </div>
-            <div style={{ marginLeft: 20 }}>
-              <p style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a", margin: 0 }}>{profile?.nama}</p>
-              <p style={{ fontSize: 14, color: "#888", margin: "4px 0 0" }}>Pemilik Hewan</p>
-              {uploadingFoto && <p style={{ fontSize: 12, color: G, margin: "4px 0 0" }}>Mengupload foto...</p>}
+
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a1a" }}>{formData.nama || "-"}</div>
+              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>
+                Pemilik Hewan
+                {formData.kota && ` · 📍 ${formData.kota}${formData.provinsi ? ", " + formData.provinsi : ""}`}
+              </div>
+              {fotoError   && <div style={{ marginTop: 6, fontSize: 11, color: "#c62828" }}>⚠ {fotoError}</div>}
+              {fotoSuccess && <div style={{ marginTop: 6, fontSize: 11, color: G }}>✓ {fotoSuccess}</div>}
+              {uploadingFoto && <div style={{ marginTop: 6, fontSize: 11, color: "#888" }}>Mengupload foto...</div>}
             </div>
           </div>
 
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
           {/* ── Informasi Akun ── */}
-          <div style={{ backgroundColor: "#ffffff", borderRadius: 16, padding: "24px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", marginBottom: 20, marginTop: 0 }}>
-              Informasi Akun
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-              <InputField label="Nama Lengkap" name="nama" value={formAkun.nama}
-                onChange={e => setFormAkun(f => ({ ...f, nama: e.target.value }))} />
-              <InputField label="Email" name="email" type="email" value={formAkun.email}
-                onChange={e => setFormAkun(f => ({ ...f, email: e.target.value }))} />
-              <InputField label="No. Telepon" name="no_hp" value={formAkun.no_hp}
-                onChange={e => setFormAkun(f => ({ ...f, no_hp: e.target.value }))} />
-              <InputField label="Kata Sandi Baru" name="kata_sandi" type="password"
-                value={formAkun.kata_sandi}
-                onChange={e => setFormAkun(f => ({ ...f, kata_sandi: e.target.value }))}
-                placeholder="Kosongkan jika tidak ingin ubah" />
-            </div>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                onClick={handleSaveAkun} disabled={savingAkun}
-                style={{
-                  backgroundColor: savingAkun ? "rgba(116,249,109,0.2)" : "rgba(116,249,109,0.4)",
-                  color: "#1a5c1a", boxShadow: "0 2px 8px rgba(116,249,109,0.3)",
-                  fontSize: 14, fontWeight: 600, padding: "10px 32px",
-                  borderRadius: 999, border: "none",
-                  cursor: savingAkun ? "not-allowed" : "pointer",
-                }}
-              >
-                {savingAkun ? "Menyimpan..." : "Simpan Informasi Akun"}
-              </button>
+          <div style={cardStyle}>
+            <h2 style={sectionTitleStyle}>👤 Informasi Akun</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <InputField
+                label="Nama Lengkap" name="nama" value={formData.nama}
+                onChange={handleChange}
+              />
+              <InputField
+                label="Email" name="email" type="email" value={formData.email}
+                onChange={handleChange}
+              />
+              <InputField
+                label="No. Telepon" name="no_hp" value={formData.no_hp}
+                onChange={handleChange}
+              />
+              <InputField
+                label="Kata Sandi Baru" name="kata_sandi" type="password"
+                value={formData.kata_sandi}
+                onChange={handleChange}
+                placeholder="Kosongkan jika tidak ingin ubah"
+              />
             </div>
           </div>
 
           {/* ── Alamat ── */}
-          <div style={{ backgroundColor: "#ffffff", borderRadius: 16, padding: "24px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", marginBottom: 20, marginTop: 0 }}>
-              Alamat
-            </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-              <InputField label="Provinsi" name="provinsi" value={formAlamat.provinsi}
-                onChange={e => setFormAlamat(f => ({ ...f, provinsi: e.target.value }))} />
-              <InputField label="Kota/Kabupaten" name="kota" value={formAlamat.kota}
-                onChange={e => setFormAlamat(f => ({ ...f, kota: e.target.value }))} />
-              <InputField label="Kecamatan" name="kecamatan" value={formAlamat.kecamatan}
-                onChange={e => setFormAlamat(f => ({ ...f, kecamatan: e.target.value }))} />
-              <InputField label="Kode Pos" name="kode_pos" value={formAlamat.kode_pos}
-                onChange={e => setFormAlamat(f => ({ ...f, kode_pos: e.target.value }))} />
+          <div style={cardStyle}>
+            <h2 style={sectionTitleStyle}>📍 Alamat</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <InputField label="Provinsi"       name="provinsi"  value={formData.provinsi}  onChange={handleChange} />
+              <InputField label="Kota/Kabupaten" name="kota"      value={formData.kota}      onChange={handleChange} />
+              <InputField label="Kecamatan"      name="kecamatan" value={formData.kecamatan} onChange={handleChange} />
+              <InputField label="Kode Pos"       name="kode_pos"  value={formData.kode_pos}  onChange={handleChange} />
               <div style={{ gridColumn: "1 / -1" }}>
-                <label style={{ display: "block", fontSize: 12, color: "#888", marginBottom: 6 }}>Alamat Lengkap</label>
+                <label style={labelStyle}>Alamat Lengkap</label>
                 <textarea
-                  name="alamat_lengkap" value={formAlamat.alamat_lengkap} rows={3}
-                  onChange={e => setFormAlamat(f => ({ ...f, alamat_lengkap: e.target.value }))}
-                  style={{
-                    width: "100%", border: "1px solid #d1d5db", borderRadius: 12,
-                    padding: "10px 16px", fontSize: 14, color: "#333", outline: "none",
-                    boxSizing: "border-box", resize: "none", fontFamily: "inherit",
-                  }}
+                  name="alamat_lengkap"
+                  value={formData.alamat_lengkap}
+                  onChange={handleChange}
+                  rows={3}
+                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
+                  onFocus={e => (e.currentTarget.style.borderColor = G)}
+                  onBlur={e => (e.currentTarget.style.borderColor = "#e0e0e0")}
                 />
               </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                onClick={handleSaveAlamat} disabled={savingAlamat}
-                style={{
-                  backgroundColor: savingAlamat ? "rgba(116,249,109,0.2)" : "rgba(116,249,109,0.4)",
-                  color: "#1a5c1a", boxShadow: "0 2px 8px rgba(116,249,109,0.3)",
-                  fontSize: 14, fontWeight: 600, padding: "10px 32px",
-                  borderRadius: 999, border: "none",
-                  cursor: savingAlamat ? "not-allowed" : "pointer",
-                }}
-              >
-                {savingAlamat ? "Menyimpan..." : "Simpan Alamat"}
-              </button>
-            </div>
+          </div>
+
+          {/* ── Tombol ── */}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingBottom: 24 }}>
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: "10px 22px", borderRadius: 9, border: `1.5px solid ${G}`,
+                background: "#fff", color: G, fontSize: 13, fontWeight: 700,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#e8f5e9")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
+            >
+              Batalkan
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              style={{
+                padding: "10px 26px", borderRadius: 9, border: "none",
+                background: saved ? "#4caf50" : saving ? "#a5d6a7" : G,
+                color: "#fff", fontSize: 13, fontWeight: 700,
+                cursor: saving ? "not-allowed" : "pointer",
+                fontFamily: "inherit", display: "flex", alignItems: "center",
+                gap: 7, transition: "background .2s",
+              }}
+              onMouseEnter={e => { if (!saved && !saving) e.currentTarget.style.background = "#1b5e20"; }}
+              onMouseLeave={e => { if (!saved && !saving) e.currentTarget.style.background = G; }}
+            >
+              {saved ? <>✓ Tersimpan!</> : saving ? <>Menyimpan...</> : <>💾 Simpan Perubahan</>}
+            </button>
           </div>
 
         </main>
