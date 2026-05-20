@@ -15,7 +15,7 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        // Auto-create alamat kalau belum ada (sama seperti dokter auto-create)
+        // Auto-create alamat kalau belum ada
         $alamat = Alamat::where('id_user', $user->id_user)->first();
         if (!$alamat) {
             $alamat = Alamat::create([
@@ -57,14 +57,28 @@ class ProfileController extends Controller
 
         $request->validate([
             'nama'           => 'required|string|max:255',
-            'email'          => 'required|email|unique:users,email,' . $user->id_user . ',id_user',
-            'no_hp'          => 'nullable|string',
-            'kata_sandi'     => 'nullable|string|min:6',
-            'provinsi'       => 'nullable|string',
-            'kota'           => 'nullable|string',
-            'kecamatan'      => 'nullable|string',
-            'kode_pos'       => 'nullable|string',
-            'alamat_lengkap' => 'nullable|string',
+            // email:rfc  → validasi ketat sesuai standar RFC 5321/5322
+            // email:dns  → domain harus punya DNS record aktif (MX/A)
+            // Gabungan: zaza@gmail ditolak, zaza@gmail.com diterima
+            'email'          => 'required|email:rfc,dns|unique:users,email,' . $user->id_user . ',id_user',
+            'no_hp'          => 'nullable|string|max:20',
+            'kata_sandi'     => 'nullable|string|min:8',
+            'provinsi'       => 'nullable|string|max:100',
+            'kota'           => 'nullable|string|max:100',
+            'kecamatan'      => 'nullable|string|max:100',
+            'kode_pos'       => 'nullable|string|max:10',
+            'alamat_lengkap' => 'nullable|string|max:500',
+        ], [
+            // Pesan error kustom dalam Bahasa Indonesia
+            'nama.required'      => 'Nama lengkap wajib diisi.',
+            'nama.max'           => 'Nama maksimal 255 karakter.',
+            'email.required'     => 'Email wajib diisi.',
+            'email.email'        => 'Format email tidak valid. Contoh: nama@gmail.com',
+            'email.unique'       => 'Email sudah digunakan oleh akun lain.',
+            'kata_sandi.min'     => 'Kata sandi minimal 8 karakter.',
+            'no_hp.max'          => 'Nomor telepon maksimal 20 karakter.',
+            'kode_pos.max'       => 'Kode pos maksimal 10 karakter.',
+            'alamat_lengkap.max' => 'Alamat lengkap maksimal 500 karakter.',
         ]);
 
         // Update data user
@@ -103,6 +117,11 @@ class ProfileController extends Controller
     {
         $request->validate([
             'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ], [
+            'foto.required' => 'File foto wajib dipilih.',
+            'foto.image'    => 'File harus berupa gambar.',
+            'foto.mimes'    => 'Format foto harus JPEG, PNG, atau WEBP.',
+            'foto.max'      => 'Ukuran foto maksimal 2 MB.',
         ]);
 
         $user = $request->user();

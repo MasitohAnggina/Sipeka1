@@ -97,7 +97,7 @@ const ITEMS_PAGE = 4;
 
 function getAuthToken(): string {
   return typeof window !== "undefined"
-    ? (localStorage.getItem("auth_token") ?? "") : "";
+    ? (sessionStorage.getItem("auth_token") ?? "") : "";
 }
 
 const toRp = (n: number) =>
@@ -693,7 +693,7 @@ export default function RiwayatLayananPage() {
 
   // ✅ FIX Ln 665: Async IIFE dalam useEffect — hilangkan setState synchronously error
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    const token = typeof window !== "undefined" ? sessionStorage.getItem("auth_token") : null;
     if (!token) { router.push("/login"); return; }
     const t = searchParams.get("tab");
     if (t === "rincian" || t === "layanan") setTab(t);

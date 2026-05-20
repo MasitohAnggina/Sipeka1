@@ -17,7 +17,6 @@ class BookingDokterController extends Controller
 
     // =========================================================================
     //  GET /api/dokter/booking
-    //  Ambil semua booking yang dijadwalkan ke dokter yang login
     // =========================================================================
     public function index(Request $request): JsonResponse
     {
@@ -37,7 +36,6 @@ class BookingDokterController extends Controller
 
     // =========================================================================
     //  PATCH /api/dokter/booking/{id}/status
-    //  Update status booking — perubahan langsung terlihat di sisi owner
     // =========================================================================
     public function updateStatus(Request $request, int $idBooking): JsonResponse
     {
@@ -50,8 +48,9 @@ class BookingDokterController extends Controller
             ->where('id_booking', $idBooking)
             ->firstOrFail();
 
+        // ✅ DIPERBAIKI: 'diproses' → 'dikonfirmasi' (sesuai ENUM di migration)
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['Menunggu', 'Diproses', 'Selesai', 'Dibatalkan'])],
+            'status' => ['required', Rule::in(['menunggu', 'dikonfirmasi', 'selesai', 'dibatalkan'])],
         ]);
 
         $booking->update(['status' => $validated['status']]);
@@ -79,12 +78,9 @@ class BookingDokterController extends Controller
             'status'          => $b->status,
             'catatan'         => $b->catatan,
 
-            // ✅ PERBAIKAN: pakai null-safe operator + fallback lengkap
-            // Sesuaikan field 'nama' dengan kolom di tabel users kamu
             'nama_pemilik'    => $b->user?->nama    ?? $b->user?->name    ?? '-',
             'no_hp'           => $b->user?->no_hp   ?? '-',
 
-            // ✅ PERBAIKAN: pakai null-safe operator + fallback field nama_hewan / name
             'nama_hewan'      => $b->hewan?->nama_hewan ?? $b->hewan?->name  ?? '-',
             'jenis_hewan'     => $b->hewan?->jenis      ?? $b->hewan?->type  ?? '-',
             'ras_hewan'       => $b->hewan?->ras        ?? $b->hewan?->breed ?? '-',

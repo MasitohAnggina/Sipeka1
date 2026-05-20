@@ -30,13 +30,12 @@ type Layanan = {
   deskripsi?: string;
 };
 
-// Jadwal dari dokter (GET /api/booking/jadwal-tersedia)
 type JadwalTersedia = {
   id_jadwal: number;
-  tanggal: string;       // "2026-05-22"
-  hari: string;          // "Sabtu"
-  jam_mulai: string;     // "08:00"
-  jam_selesai: string;   // "17:00"
+  tanggal: string;
+  hari: string;
+  jam_mulai: string;
+  jam_selesai: string;
   nama_dokter?: string;
 };
 
@@ -49,51 +48,11 @@ type ConditionPhoto = {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const STORAGE_URL = `${API_URL}/storage/`;
 
-// Urutan preferensi kategori — dipakai untuk sorting tampilan
-// Tidak perlu exact match; kategori dari backend yang tidak ada di sini
-// tetap ditampilkan di bagian bawah secara dinamis
 const KATEGORI_PREFERRED_ORDER = ["Medis", "Vaksin", "Vaksinasi", "Grooming", "Rawat Inap", "Hotel", "Bedah"];
 
-// Icon fallback berdasarkan kata kunci dalam nama kategori (case-insensitive)
-function getKategoriIcon(kategori: string): string {
-  const k = kategori.toLowerCase();
-  if (k.includes("medis") || k.includes("periksa"))    return "🩺";
-  if (k.includes("vaksin"))                            return "💉";
-  if (k.includes("groom"))                             return "✂️";
-  if (k.includes("inap") || k.includes("hotel") || k.includes("titip")) return "🏠";
-  if (k.includes("bedah") || k.includes("operasi"))   return "🔪";
-  return "🐾";
-}
-
-// Warna berdasarkan kata kunci dalam nama kategori
-function getKategoriColor(kategori: string): { bg: string; text: string } {
-  const k = kategori.toLowerCase();
-  if (k.includes("medis") || k.includes("periksa"))    return { bg: "#e3f2fd", text: "#1565c0" };
-  if (k.includes("vaksin"))                            return { bg: "#fce4ec", text: "#c62828" };
-  if (k.includes("groom"))                             return { bg: "#f3e5f5", text: "#6a1b9a" };
-  if (k.includes("inap") || k.includes("hotel") || k.includes("titip")) return { bg: "#e0f2f1", text: "#00695c" };
-  if (k.includes("bedah") || k.includes("operasi"))   return { bg: "#fff3e0", text: "#e65100" };
-  return { bg: "#f5f5f5", text: "#555" };
-}
-
-// Helper: ambil kategori unik dari services, urutkan sesuai preferensi
-function getKategoriList(services: Layanan[]): string[] {
-  const unique = [...new Set(services.map(s => s.kategori))];
-  return unique.sort((a, b) => {
-    const ia = KATEGORI_PREFERRED_ORDER.findIndex(k => k.toLowerCase() === a.toLowerCase());
-    const ib = KATEGORI_PREFERRED_ORDER.findIndex(k => k.toLowerCase() === b.toLowerCase());
-    const ra = ia === -1 ? 99 : ia;
-    const rb = ib === -1 ? 99 : ib;
-    return ra - rb;
-  });
-}
-
-
-
-// Slot jam yang ditawarkan dalam jadwal dokter
 const JAM_SLOTS = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
-
 const STEPS = ["Pilih Hewan", "Pilih Layanan", "Foto Kondisi", "Jadwal", "Persetujuan", "Konfirmasi"];
 const CONSENTS = [
   "Saya menyetujui bahwa tindakan medis yang diperlukan dapat dilakukan oleh dokter/paramedis yang bertugas.",
@@ -107,13 +66,57 @@ const TOTAL_STEPS = STEPS.length;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * FIX #1: Ambil token dari sessionStorage ATAU localStorage secara konsisten.
+ * Coba sessionStorage dulu (sama seperti halaman dokter), fallback ke localStorage.
+ */
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem("token") ?? localStorage.getItem("token");
+}
+
+/**
+ * FIX #2: Normalisasi URL foto hewan dari backend.
+ * Tangani berbagai format: URL lengkap, path relatif, atau null.
+ */
+function normalizeFotoUrl(foto: string | null | undefined): string | undefined {
+  if (!foto) return undefined;
+  if (foto.startsWith("http://") || foto.startsWith("https://")) return foto;
+  return STORAGE_URL + foto.replace(/^\//, "");
+}
+
+function getKategoriIcon(kategori: string): string {
+  const k = kategori.toLowerCase();
+  if (k.includes("medis") || k.includes("periksa"))                     return "🩺";
+  if (k.includes("vaksin"))                                              return "💉";
+  if (k.includes("groom"))                                               return "✂️";
+  if (k.includes("inap") || k.includes("hotel") || k.includes("titip")) return "🏠";
+  if (k.includes("bedah") || k.includes("operasi"))                     return "🔪";
+  return "🐾";
+}
+
+function getKategoriColor(kategori: string): { bg: string; text: string } {
+  const k = kategori.toLowerCase();
+  if (k.includes("medis") || k.includes("periksa"))                     return { bg: "#e3f2fd", text: "#1565c0" };
+  if (k.includes("vaksin"))                                              return { bg: "#fce4ec", text: "#c62828" };
+  if (k.includes("groom"))                                               return { bg: "#f3e5f5", text: "#6a1b9a" };
+  if (k.includes("inap") || k.includes("hotel") || k.includes("titip")) return { bg: "#e0f2f1", text: "#00695c" };
+  if (k.includes("bedah") || k.includes("operasi"))                     return { bg: "#fff3e0", text: "#e65100" };
+  return { bg: "#f5f5f5", text: "#555" };
+}
+
+function getKategoriList(services: Layanan[]): string[] {
+  const unique = [...new Set(services.map(s => s.kategori))];
+  return unique.sort((a, b) => {
+    const ia = KATEGORI_PREFERRED_ORDER.findIndex(k => k.toLowerCase() === a.toLowerCase());
+    const ib = KATEGORI_PREFERRED_ORDER.findIndex(k => k.toLowerCase() === b.toLowerCase());
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+}
+
 const fmtDate = (d: string) =>
   d
-    ? new Date(d).toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).replace(/\//g, "-")
+    ? new Date(d).toLocaleDateString("id-ID", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\//g, "-")
     : "–";
 
 function fileToBase64(file: File): Promise<string> {
@@ -137,18 +140,35 @@ const cardStyle = (active: boolean): React.CSSProperties => ({
 // ── PetAvatar ─────────────────────────────────────────────────────────────────
 
 function PetAvatar({ pet, size = 42 }: { pet: Pet; size?: number }) {
-  if (pet.photo) {
+  const [imgError, setImgError] = useState(false);
+
+  if (pet.photo && !imgError) {
     return (
       <div style={{
         width: size, height: size, borderRadius: 8, background: "#f5f5f5",
         border: "1.5px solid #e0e0e0", display: "flex", alignItems: "center",
         justifyContent: "center", overflow: "hidden", flexShrink: 0,
       }}>
-        <img src={pet.photo} alt={pet.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+        <img
+          src={pet.photo}
+          alt={pet.name}
+          style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+          onError={() => setImgError(true)}
+        />
       </div>
     );
   }
-  return <span style={{ fontSize: size * 0.6, flexShrink: 0 }}>{pet.emoji}</span>;
+
+  const emoji = pet.emoji || "🐾";
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 8,
+      background: "#e8f5e9", display: "flex", alignItems: "center",
+      justifyContent: "center", fontSize: size * 0.55, flexShrink: 0,
+    }}>
+      {emoji}
+    </div>
+  );
 }
 
 // ── StepBar ───────────────────────────────────────────────────────────────────
@@ -247,11 +267,8 @@ function Step1({ pets, sel, toggle }: { pets: Pet[]; sel: string[]; toggle(id: s
                   <Check size={12} color="#fff" strokeWidth={3} />
                 </div>
               )}
-              <div style={{ width: 80, height: 80, margin: "6px auto 8px", borderRadius: 12, background: p.photo ? "#f5f5f5" : "transparent", border: p.photo ? `2px solid ${on ? G : "#e0e0e0"}` : "none", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                {p.photo
-                  ? <img src={p.photo} alt={p.name} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
-                  : <div style={{ fontSize: 52 }}>{p.emoji}</div>
-                }
+              <div style={{ width: 80, height: 80, margin: "6px auto 8px", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                <PetAvatar pet={p} size={80} />
               </div>
               <div style={{ fontWeight: 700 }}>{p.name}</div>
               <div style={{ fontSize: 12, color: "#666" }}>{p.type} · {p.breed}</div>
@@ -269,9 +286,7 @@ function Step1({ pets, sel, toggle }: { pets: Pet[]; sel: string[]; toggle(id: s
   );
 }
 
-// ── Step 2: Pilih Kategori Layanan ────────────────────────────────────────────
-// svc menyimpan { petId: string[] } di mana string[] = nama kategori
-// Layanan per kategori diambil dari `services` (real-time dari backend)
+// ── Step 2: Pilih Layanan ─────────────────────────────────────────────────────
 
 function Step2({ pets, sel, svc, notes, onToggleSvc, onNote, services }: {
   pets: Pet[];
@@ -285,9 +300,6 @@ function Step2({ pets, sel, svc, notes, onToggleSvc, onNote, services }: {
   const [tab, setTab] = useState(sel[0]);
   const pet = pets.find(p => p.id === tab)!;
   const selected = svc[tab] ?? [];
-
-  // Kategori dinamis dari backend — tidak hardcoded
-  // Apapun yang admin tambahkan di backend akan otomatis muncul di sini
   const availableKategori = getKategoriList(services);
 
   return (
@@ -309,18 +321,12 @@ function Step2({ pets, sel, svc, notes, onToggleSvc, onNote, services }: {
               background: tab === id ? G : "#e8f5e9", color: tab === id ? "#fff" : G,
               display: "flex", alignItems: "center", gap: 6,
             }}>
-              {p.photo
-                ? <img src={p.photo} alt={p.name} style={{ width: 20, height: 20, borderRadius: 4, objectFit: "contain" }} />
-                : <span style={{ fontSize: 16 }}>{p.emoji}</span>
-              }
+              <PetAvatar pet={p} size={20} />
               {p.name}
               {cnt > 0 && (
-                <span style={{
-                  background: tab === id ? "#fff" : G, color: tab === id ? G : "#fff",
-                  borderRadius: "50%", width: 18, height: 18,
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, fontWeight: 800,
-                }}>{cnt}</span>
+                <span style={{ background: tab === id ? "#fff" : G, color: tab === id ? G : "#fff", borderRadius: "50%", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800 }}>
+                  {cnt}
+                </span>
               )}
             </button>
           );
@@ -354,22 +360,12 @@ function Step2({ pets, sel, svc, notes, onToggleSvc, onNote, services }: {
                 background: checked ? "#f1f8f1" : "#fff",
                 transition: "background .12s",
               }}>
-                {/* Checkbox */}
-                <div style={{
-                  width: 20, height: 20, borderRadius: 5, flexShrink: 0,
-                  border: checked ? `2px solid ${G}` : "1.5px solid #d0d0d0",
-                  background: checked ? G : "#fff",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  transition: "all .12s",
-                }}>
+                <div style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, border: checked ? `2px solid ${G}` : "1.5px solid #d0d0d0", background: checked ? G : "#fff", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .12s" }}>
                   {checked && <Check size={11} color="#fff" strokeWidth={3} />}
                 </div>
                 <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1 }}>{katIcon}</span>
                 <span style={{ flex: 1, fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>{kat}</span>
-                <span style={{
-                  fontSize: 11, fontWeight: 600, padding: "3px 12px", borderRadius: 20,
-                  background: katColor.bg, color: katColor.text, flexShrink: 0,
-                }}>{kat}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 12px", borderRadius: 20, background: katColor.bg, color: katColor.text, flexShrink: 0 }}>{kat}</span>
               </div>
             );
           })}
@@ -443,8 +439,8 @@ function Step3FotoKondisi({ pets, sel, condPhotos, setCondPhotos }: {
 }) {
   const [tab, setTab] = useState(sel[0]);
   const beforeRef = useRef<HTMLInputElement | null>(null);
-  const afterRef = useRef<HTMLInputElement | null>(null);
-  const pet = pets.find(p => p.id === tab)!;
+  const afterRef  = useRef<HTMLInputElement | null>(null);
+  const pet    = pets.find(p => p.id === tab)!;
   const photos = condPhotos[tab] ?? [];
 
   const handleFile = async (file: File | null, label: "before" | "after") => {
@@ -460,7 +456,7 @@ function Step3FotoKondisi({ pets, sel, condPhotos, setCondPhotos }: {
     setCondPhotos(prev => ({ ...prev, [tab]: (prev[tab] ?? []).filter(p => p.label !== label) }));
 
   const beforePhoto = photos.find(p => p.label === "before") ?? null;
-  const afterPhoto = photos.find(p => p.label === "after") ?? null;
+  const afterPhoto  = photos.find(p => p.label === "after")  ?? null;
 
   return (
     <div>
@@ -474,11 +470,11 @@ function Step3FotoKondisi({ pets, sel, condPhotos, setCondPhotos }: {
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {sel.map(id => {
-          const p = pets.find(x => x.id === id)!;
+          const p   = pets.find(x => x.id === id)!;
           const cnt = (condPhotos[id] ?? []).length;
           return (
             <button key={id} onClick={() => setTab(id)} style={{ padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontWeight: 600, fontSize: 13, background: tab === id ? G : "#e8f5e9", color: tab === id ? "#fff" : G, display: "flex", alignItems: "center", gap: 6 }}>
-              {p.photo ? <img src={p.photo} alt={p.name} style={{ width: 20, height: 20, borderRadius: 4, objectFit: "contain" }} /> : <span style={{ fontSize: 16 }}>{p.emoji}</span>}
+              <PetAvatar pet={p} size={20} />
               {p.name}
               {cnt > 0 && <span style={{ background: tab === id ? "#fff" : G, color: tab === id ? G : "#fff", borderRadius: "50%", width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800 }}>{cnt}</span>}
             </button>
@@ -515,7 +511,7 @@ function Step3FotoKondisi({ pets, sel, condPhotos, setCondPhotos }: {
   );
 }
 
-// ── Step 4: Jadwal (Integrasi dengan Jadwal Dokter) ────────────────────────────
+// ── Step 4: Jadwal ────────────────────────────────────────────────────────────
 
 function Step4Jadwal({ pets, sel, svc, services, jadwalList, selectedJadwal, setSelectedJadwal, selectedJam, setSelectedJam }: {
   pets: Pet[];
@@ -528,7 +524,6 @@ function Step4Jadwal({ pets, sel, svc, services, jadwalList, selectedJadwal, set
   selectedJam: string;
   setSelectedJam(t: string): void;
 }) {
-  // Generate slot jam yang valid dalam rentang jadwal dokter
   const availableJam = selectedJadwal
     ? JAM_SLOTS.filter(t => {
         if (!selectedJadwal.jam_mulai || !selectedJadwal.jam_selesai) return false;
@@ -540,7 +535,6 @@ function Step4Jadwal({ pets, sel, svc, services, jadwalList, selectedJadwal, set
     <div>
       <h2 style={{ color: G, fontSize: 17, fontWeight: 700, marginBottom: 16 }}>Pilih Jadwal Kunjungan</h2>
 
-      {/* Pilih dari jadwal dokter yang tersedia */}
       <div style={{ marginBottom: 24 }}>
         <label style={{ fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 6, marginBottom: 10, color: "#333" }}>
           <Calendar size={16} color={G} /> Pilih Tanggal Tersedia
@@ -556,12 +550,7 @@ function Step4Jadwal({ pets, sel, svc, services, jadwalList, selectedJadwal, set
             {jadwalList.map(j => {
               const active = selectedJadwal?.id_jadwal === j.id_jadwal;
               return (
-                <div key={j.id_jadwal} onClick={() => { setSelectedJadwal(j); setSelectedJam(""); }} style={{
-                  padding: "12px 14px", borderRadius: 10, cursor: "pointer", transition: "all .15s",
-                  border: active ? `2px solid ${G}` : "1.5px solid #e0e0e0",
-                  background: active ? "#f1f8f1" : "#fff",
-                  position: "relative",
-                }}>
+                <div key={j.id_jadwal} onClick={() => { setSelectedJadwal(j); setSelectedJam(""); }} style={{ padding: "12px 14px", borderRadius: 10, cursor: "pointer", transition: "all .15s", border: active ? `2px solid ${G}` : "1.5px solid #e0e0e0", background: active ? "#f1f8f1" : "#fff", position: "relative" }}>
                   {active && (
                     <div style={{ position: "absolute", top: 8, right: 8, background: G, borderRadius: "50%", width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <Check size={10} color="#fff" strokeWidth={3} />
@@ -569,14 +558,8 @@ function Step4Jadwal({ pets, sel, svc, services, jadwalList, selectedJadwal, set
                   )}
                   <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>{j.hari}</div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: active ? G : "#1a1a1a" }}>{fmtDate(j.tanggal)}</div>
-                  {j.nama_dokter && (
-                    <div style={{ fontSize: 11, color: "#666", marginTop: 3 }}>👨‍⚕️ {j.nama_dokter}</div>
-                  )}
-                  {j.jam_mulai && j.jam_selesai && (
-                    <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
-                      🕐 {j.jam_mulai} – {j.jam_selesai}
-                    </div>
-                  )}
+                  {j.nama_dokter && <div style={{ fontSize: 11, color: "#666", marginTop: 3 }}>👨‍⚕️ {j.nama_dokter}</div>}
+                  {j.jam_mulai && j.jam_selesai && <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>🕐 {j.jam_mulai} – {j.jam_selesai}</div>}
                 </div>
               );
             })}
@@ -584,7 +567,6 @@ function Step4Jadwal({ pets, sel, svc, services, jadwalList, selectedJadwal, set
         )}
       </div>
 
-      {/* Pilih jam — hanya muncul jika jadwal sudah dipilih */}
       {selectedJadwal && (
         <div style={{ marginBottom: 24 }}>
           <label style={{ fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 6, marginBottom: 10, color: "#333" }}>
@@ -595,27 +577,22 @@ function Step4Jadwal({ pets, sel, svc, services, jadwalList, selectedJadwal, set
           ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {availableJam.map(t => (
-                <button key={t} onClick={() => setSelectedJam(t)} style={{
-                  padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13,
-                  border: selectedJam === t ? `2px solid ${G}` : "1.5px solid #e0e0e0",
-                  background: selectedJam === t ? "#e8f5e9" : "#fff",
-                  color: selectedJam === t ? G : "#333",
-                  fontWeight: selectedJam === t ? 700 : 400,
-                }}>{t}</button>
+                <button key={t} onClick={() => setSelectedJam(t)} style={{ padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, border: selectedJam === t ? `2px solid ${G}` : "1.5px solid #e0e0e0", background: selectedJam === t ? "#e8f5e9" : "#fff", color: selectedJam === t ? G : "#333", fontWeight: selectedJam === t ? 700 : 400 }}>
+                  {t}
+                </button>
               ))}
             </div>
           )}
         </div>
       )}
 
-      {/* Ringkasan Layanan per Hewan */}
       <h3 style={{ color: G, fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Ringkasan Layanan</h3>
       <div style={{ borderRadius: 10, overflow: "hidden", border: "1.5px solid #e0e0e0" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", background: G, color: "#fff", padding: "11px 16px", fontWeight: 700, fontSize: 13 }}>
           <span>Hewan</span><span>Layanan Dipilih</span>
         </div>
         {sel.map(id => {
-          const p = pets.find(x => x.id === id)!;
+          const p       = pets.find(x => x.id === id)!;
           const kategori = svc[id] ?? [];
           return (
             <div key={id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "12px 16px", borderTop: "1px solid #f0f0f0", fontSize: 13, alignItems: "center", gap: 8 }}>
@@ -633,7 +610,6 @@ function Step4Jadwal({ pets, sel, svc, services, jadwalList, selectedJadwal, set
                     <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
                       <span>{getKategoriIcon(k)}</span>
                       <span style={{ fontWeight: 500 }}>{k}</span>
-                      {/* Tampilkan nama layanan spesifik dalam kategori */}
                       <span style={{ color: "#aaa" }}>
                         ({services.filter(s => s.kategori === k).map(s => s.name).join(", ")})
                       </span>
@@ -695,12 +671,8 @@ function Step6Konfirmasi({ pets, selectedJadwal, selectedJam, sel, svc, condPhot
           <span style={{ fontSize: 22 }}>📅</span>
           <div>
             <div style={{ fontSize: 12, color: "#888" }}>Tanggal</div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>
-              {selectedJadwal ? `${selectedJadwal.hari}, ${fmtDate(selectedJadwal.tanggal)}` : "–"}
-            </div>
-            {selectedJadwal?.nama_dokter && (
-              <div style={{ fontSize: 11, color: "#666" }}>👨‍⚕️ {selectedJadwal.nama_dokter}</div>
-            )}
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{selectedJadwal ? `${selectedJadwal.hari}, ${fmtDate(selectedJadwal.tanggal)}` : "–"}</div>
+            {selectedJadwal?.nama_dokter && <div style={{ fontSize: 11, color: "#666" }}>👨‍⚕️ {selectedJadwal.nama_dokter}</div>}
           </div>
         </div>
         <div style={{ flex: 1, padding: "12px 15px", borderRadius: 10, border: "1.5px solid #e0e0e0", display: "flex", alignItems: "center", gap: 10 }}>
@@ -714,9 +686,9 @@ function Step6Konfirmasi({ pets, selectedJadwal, selectedJam, sel, svc, condPhot
 
       <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>Detail per Hewan ({sel.length} hewan)</div>
       {sel.map(id => {
-        const p = pets.find(x => x.id === id)!;
+        const p       = pets.find(x => x.id === id)!;
         const kategori = svc[id] ?? [];
-        const cphs = condPhotos[id] ?? [];
+        const cphs    = condPhotos[id] ?? [];
         return (
           <div key={id} style={{ borderRadius: 10, border: "1.5px solid #e0e0e0", overflow: "hidden", marginBottom: 10 }}>
             <div style={{ padding: "11px 15px", display: "flex", alignItems: "center", gap: 10, background: "#fafafa", borderBottom: "1px solid #f0f0f0" }}>
@@ -732,7 +704,7 @@ function Step6Konfirmasi({ pets, selectedJadwal, selectedJam, sel, svc, condPhot
                 ? <span style={{ fontSize: 13, color: "#aaa" }}>–</span>
                 : <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {kategori.map(k => {
-                    const katColor = getKategoriColor(k);
+                    const katColor        = getKategoriColor(k);
                     const layananDalamKat = services.filter(s => s.kategori === k);
                     return (
                       <div key={k} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -805,8 +777,8 @@ function Success({ pets, bookings, selectedJadwal, selectedJam, sel, svc, servic
       </div>
 
       {sel.map(id => {
-        const p = pets.find(x => x.id === id)!;
-        const kategori = svc[id] ?? [];
+        const p              = pets.find(x => x.id === id)!;
+        const kategori       = svc[id] ?? [];
         const layananDipilih = services.filter(s => kategori.includes(s.kategori));
         return (
           <div key={id} style={{ padding: 14, borderRadius: 12, border: "1.5px solid #e0e0e0", textAlign: "left", marginBottom: 10 }}>
@@ -843,88 +815,123 @@ function Success({ pets, bookings, selectedJadwal, selectedJam, sel, svc, servic
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function BookingPage() {
-  const [pets, setPets] = useState<Pet[]>([]);
-  const [services, setServices] = useState<Layanan[]>([]);
-  const [jadwalList, setJadwalList] = useState<JadwalTersedia[]>([]);
+  const [pets,        setPets]        = useState<Pet[]>([]);
+  const [services,    setServices]    = useState<Layanan[]>([]);
+  const [jadwalList,  setJadwalList]  = useState<JadwalTersedia[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [fetchError,  setFetchError]  = useState<string | null>(null);
 
-  const [step, setStep] = useState(1);
-  const [done, setDone] = useState(false);
+  const [step,    setStep]    = useState(1);
+  const [done,    setDone]    = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error,   setError]   = useState<string | null>(null);
 
   const [apiBookings, setApiBookings] = useState<Array<{ no_booking: string; no_antrian: number; id_hewan: number }>>([]);
 
-  const [sel, setSel] = useState<string[]>([]);
-  // svc = { petId: string[] } => string[] = nama kategori yang dipilih
-  const [svc, setSvc] = useState<Record<string, string[]>>({});
-  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [sel,        setSel]        = useState<string[]>([]);
+  const [svc,        setSvc]        = useState<Record<string, string[]>>({});
+  const [notes,      setNotes]      = useState<Record<string, string>>({});
   const [condPhotos, setCondPhotos] = useState<Record<string, ConditionPhoto[]>>({});
 
-  // State jadwal (menggantikan date + time + jadwalId terpisah)
   const [selectedJadwal, setSelectedJadwal] = useState<JadwalTersedia | null>(null);
-  const [selectedJam, setSelectedJam] = useState("");
+  const [selectedJam,    setSelectedJam]    = useState("");
 
   const { downloadPDF } = useBookingPDF();
 
-  // ── Fetch semua data awal ──────────────────────────────────────────────────
+  // ── FIX #1: Fetch dengan token yang benar ────────────────────────────────
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = getAuthToken(); // sessionStorage ?? localStorage
 
     const fetchAll = async () => {
       setLoadingData(true);
+      setFetchError(null);
+
       try {
-        // 1. Fetch hewan milik owner
+        // ── 1. Fetch hewan ────────────────────────────────────────────────
         const hewanRes = await fetch(`${API_URL}/api/owner_pet/data_hewan`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token ?? ""}` },
         });
+
+        // FIX: Cek HTTP status sebelum parse JSON
+        if (!hewanRes.ok) {
+          const msg = hewanRes.status === 401
+            ? "Sesi login habis. Silakan login ulang."
+            : `Gagal memuat data hewan (${hewanRes.status})`;
+          setFetchError(msg);
+          setLoadingData(false);
+          return;
+        }
+
         const hewanData = await hewanRes.json();
+
+        // FIX: Debug log — hapus setelah confirmed berjalan
+        console.log("[DEBUG] Response hewan:", hewanData);
+
         if (hewanData.success && Array.isArray(hewanData.data)) {
-          setPets(hewanData.data.map((h: any) => ({
-            id: String(h.id_hewan),
-            id_hewan: h.id_hewan,
-            name: h.name,
-            type: h.type,
-            breed: h.breed,
-            age: h.age,
-            weight: h.weight,
-            emoji: h.emoji,
-            photo: h.photo ?? undefined,
-          })));
+          setPets(
+            hewanData.data.map((h: any) => ({
+              id:      String(h.id_hewan ?? h.id),
+              id_hewan: h.id_hewan ?? h.id,
+              // FIX #2: Dukung nama field dari Laravel (snake_case) DAN camelCase
+              name:    h.nama_hewan  ?? h.name  ?? "-",
+              type:    h.jenis_hewan ?? h.type  ?? "-",
+              breed:   h.ras_hewan   ?? h.breed ?? "-",
+              age:     h.umur        ?? h.age   ?? "-",
+              weight:  h.berat       ?? h.weight ?? "-",
+              emoji:   h.emoji       ?? "🐾",
+              // FIX #3: Normalisasi URL foto supaya tampil dari storage Laravel
+              photo:   normalizeFotoUrl(h.foto_hewan ?? h.photo),
+            }))
+          );
+        } else {
+          // FIX: Tampilkan error jika success false, bukan diam-diam kosong
+          console.warn("[DEBUG] Data hewan gagal:", hewanData);
+          setFetchError(hewanData.message ?? "Gagal memuat data hewan dari server.");
         }
 
-        // 2. Fetch layanan aktif dari backend (real-time — admin tambah langsung muncul)
-        const layananRes = await fetch(`${API_URL}/api/layanan/publik`);
+        // ── 2. Fetch layanan aktif ────────────────────────────────────────
+        const layananRes  = await fetch(`${API_URL}/api/layanan/publik`);
         const layananData = await layananRes.json();
+
+        console.log("[DEBUG] Response layanan:", layananData);
+
         if (layananData.success && Array.isArray(layananData.data)) {
-          setServices(layananData.data.map((l: any) => ({
-            id: String(l.id_layanan),
-            id_layanan: l.id_layanan,
-            name: l.nama_layanan ?? l.name ?? "-",
-            icon: l.icon ?? getKategoriIcon(l.kategori),
-            kategori: l.kategori,
-            harga: Number(l.harga),
-            deskripsi: l.deskripsi ?? undefined,
-          })));
+          setServices(
+            layananData.data.map((l: any) => ({
+              id:         String(l.id_layanan ?? l.id),
+              id_layanan: l.id_layanan ?? l.id,
+              name:       l.nama_layanan ?? l.name ?? "-",
+              icon:       l.icon ?? getKategoriIcon(l.kategori ?? ""),
+              kategori:   l.kategori ?? "-",
+              harga:      Number(l.harga ?? 0),
+              deskripsi:  l.deskripsi ?? undefined,
+            }))
+          );
         }
 
-        // 3. Fetch jadwal dokter yang tersedia (real-time — dokter set jadwal langsung muncul)
-        const jadwalRes = await fetch(`${API_URL}/api/booking/jadwal-tersedia`, {
-          headers: { Authorization: `Bearer ${token}` },
+        // ── 3. Fetch jadwal dokter ────────────────────────────────────────
+        const jadwalRes  = await fetch(`${API_URL}/api/booking/jadwal-tersedia`, {
+          headers: { Authorization: `Bearer ${token ?? ""}` },
         });
         const jadwalData = await jadwalRes.json();
+
+        console.log("[DEBUG] Response jadwal:", jadwalData);
+
         if (jadwalData.success && Array.isArray(jadwalData.data)) {
-          setJadwalList(jadwalData.data.map((j: any) => ({
-            id_jadwal: j.id_jadwal,
-            tanggal: j.tanggal,
-            hari: j.hari,
-            jam_mulai: j.jam_mulai,
-            jam_selesai: j.jam_selesai,
-            nama_dokter: j.nama_dokter ?? undefined,
-          })));
+          setJadwalList(
+            jadwalData.data.map((j: any) => ({
+              id_jadwal:   j.id_jadwal,
+              tanggal:     j.tanggal,
+              hari:        j.hari,
+              jam_mulai:   j.jam_mulai,
+              jam_selesai: j.jam_selesai,
+              nama_dokter: j.nama_dokter ?? undefined,
+            }))
+          );
         }
       } catch (e) {
-        console.error("Gagal fetch data awal:", e);
+        console.error("[DEBUG] Fetch error:", e);
+        setFetchError("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
       } finally {
         setLoadingData(false);
       }
@@ -952,7 +959,7 @@ export default function BookingPage() {
     (step === 4 && (!selectedJadwal || !selectedJam))
   );
 
-  // ── Konfirmasi Booking ─────────────────────────────────────────────────────
+  // ── Konfirmasi Booking ────────────────────────────────────────────────────
   const confirm = async () => {
     if (!selectedJadwal || !selectedJam) {
       setError("Pilih tanggal dan jam kunjungan terlebih dahulu.");
@@ -962,40 +969,34 @@ export default function BookingPage() {
     setLoading(true);
     setError(null);
 
-    const token = localStorage.getItem("token");
+    const token = getAuthToken(); // FIX: pakai helper yang konsisten
 
-    // Buat payload: id_layanans = semua id layanan dari kategori yang dipilih
     const payload = {
       tanggal_booking: selectedJadwal.tanggal,
-      jam: selectedJam,
-      id_jadwal: selectedJadwal.id_jadwal,
+      jam:             selectedJam,
+      id_jadwal:       selectedJadwal.id_jadwal,
       items: sel.map(id => {
-        const pet = pets.find(p => p.id === id)!;
+        const pet              = pets.find(p => p.id === id)!;
         const selectedKategori = svc[id] ?? [];
-        const photos = condPhotos[id] ?? [];
-
-        // Konversi kategori → array id_layanan (PERBAIKAN UTAMA)
-        const id_layanans = selectedKategori.flatMap(kat =>
-          services
-            .filter(s => s.kategori === kat)
-            .map(s => s.id_layanan)
+        const photos           = condPhotos[id] ?? [];
+        const id_layanans      = selectedKategori.flatMap(kat =>
+          services.filter(s => s.kategori === kat).map(s => s.id_layanan)
         );
-
         return {
-          id_hewan: pet.id_hewan ?? Number(pet.id),
+          id_hewan:     pet.id_hewan ?? Number(pet.id),
           id_layanans,
-          catatan: notes[id] ?? "",
-          foto_before: photos.find(p => p.label === "before")?.dataUrl,
-          foto_after: photos.find(p => p.label === "after")?.dataUrl,
+          catatan:      notes[id] ?? "",
+          foto_before:  photos.find(p => p.label === "before")?.dataUrl,
+          foto_after:   photos.find(p => p.label === "after")?.dataUrl,
         };
       }),
     };
 
     try {
       const res = await fetch(`${API_URL}/api/booking`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
+        method:  "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token ?? ""}` },
+        body:    JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -1016,19 +1017,19 @@ export default function BookingPage() {
     const first = apiBookings[0];
     const data: BookingPDFData = {
       bookingNumber: first.no_booking,
-      date: selectedJadwal?.tanggal ?? "",
-      time: selectedJam,
-      queueNumber: first.no_antrian,
+      date:          selectedJadwal?.tanggal ?? "",
+      time:          selectedJam,
+      queueNumber:   first.no_antrian,
       pets: sel.map(id => {
-        const p = pets.find(x => x.id === id)!;
-        const kategori = svc[id] ?? [];
+        const p              = pets.find(x => x.id === id)!;
+        const kategori       = svc[id] ?? [];
         const layananDipilih = services.filter(s => kategori.includes(s.kategori));
         return {
-          name: p.name,
-          breed: p.breed,
-          type: p.type,
+          name:        p.name,
+          breed:       p.breed,
+          type:        p.type,
           serviceName: layananDipilih.map(s => s.name).join(", "),
-          note: notes[id] ?? "",
+          note:        notes[id] ?? "",
         };
       }),
     };
@@ -1042,6 +1043,7 @@ export default function BookingPage() {
     setApiBookings([]); setError(null);
   };
 
+  // ── Loading Screen ────────────────────────────────────────────────────────
   if (loadingData) {
     return (
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -1056,6 +1058,29 @@ export default function BookingPage() {
     );
   }
 
+  // ── Fetch Error Screen ────────────────────────────────────────────────────
+  if (fetchError) {
+    return (
+      <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+        <Sidebar activePage="booking" />
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#f9f9f9" }}>
+          <div style={{ textAlign: "center", padding: 32, maxWidth: 400 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>⚠️</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: "#c62828", marginBottom: 8 }}>Gagal Memuat Data</div>
+            <div style={{ fontSize: 14, color: "#666", marginBottom: 20 }}>{fetchError}</div>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ padding: "10px 24px", borderRadius: 8, border: "none", background: G, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}
+            >
+              Coba Lagi
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main Render ───────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       <Sidebar activePage="booking" />

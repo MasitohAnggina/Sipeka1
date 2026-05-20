@@ -5,9 +5,7 @@ import { Eye, ChevronDown, X } from "lucide-react";
 import Sidebar from "@/components/Sidebar_dokter";
 import Header from "@/components/Header";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type BookingStatus = "Selesai" | "Diproses" | "Menunggu" | "Dibatalkan";
+type BookingStatus = "selesai" | "dikonfirmasi" | "menunggu" | "dibatalkan";
 
 interface LayananItem {
   id_layanan:         number;
@@ -36,33 +34,35 @@ interface Booking {
   layanans:        LayananItem[];
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
 const G              = "#2e7d32";
 const API            = "http://127.0.0.1:8000/api";
 const STORAGE_URL    = "http://127.0.0.1:8000/storage/";
 const ITEMS_PER_PAGE = 7;
-const ALL_STATUSES: BookingStatus[] = ["Menunggu", "Diproses", "Selesai", "Dibatalkan"];
+const ALL_STATUSES: BookingStatus[] = ["menunggu", "dikonfirmasi", "selesai", "dibatalkan"];
+
+const STATUS_LABEL: Record<BookingStatus, string> = {
+  menunggu:     "Menunggu",
+  dikonfirmasi: "Dikonfirmasi",
+  selesai:      "Selesai",
+  dibatalkan:   "Dibatalkan",
+};
 
 const statusStyle: Record<BookingStatus, { bg: string; color: string; border: string }> = {
-  Selesai:    { bg: "#e8f5e9", color: "#2e7d32", border: "#2e7d3230" },
-  Diproses:   { bg: "#e3f2fd", color: "#1565c0", border: "#1565c030" },
-  Menunggu:   { bg: "#fff8e1", color: "#e65100", border: "#e6510030" },
-  Dibatalkan: { bg: "#ffebee", color: "#c62828", border: "#c6282830" },
+  selesai:      { bg: "#e8f5e9", color: "#2e7d32", border: "#2e7d3230" },
+  dikonfirmasi: { bg: "#e3f2fd", color: "#1565c0", border: "#1565c030" },
+  menunggu:     { bg: "#fff8e1", color: "#e65100", border: "#e6510030" },
+  dibatalkan:   { bg: "#ffebee", color: "#c62828", border: "#c6282830" },
 };
 
 const fallbackStyle  = { bg: "#f5f5f5", color: "#555", border: "#55555530" };
 const getStatusStyle = (v: string) => statusStyle[v as BookingStatus] ?? fallbackStyle;
 
 function normalizeStatus(raw: string): BookingStatus {
-  const map: Record<string, BookingStatus> = {
-    menunggu: "Menunggu", diproses: "Diproses",
-    selesai: "Selesai",   dibatalkan: "Dibatalkan",
-  };
-  return map[raw?.toLowerCase()] ?? (raw as BookingStatus) ?? "Menunggu";
+  const lower = raw?.toLowerCase();
+  const valid: BookingStatus[] = ["menunggu", "dikonfirmasi", "selesai", "dibatalkan"];
+  return valid.includes(lower as BookingStatus) ? (lower as BookingStatus) : "menunggu";
 }
 
-// ✅ Normalisasi URL foto — handle path relatif dari Laravel storage
 function normalizeFotoUrl(foto: string | null): string | null {
   if (!foto) return null;
   if (foto.startsWith("http://") || foto.startsWith("https://")) return foto;
@@ -81,9 +81,6 @@ const inputStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = { fontSize: 14, display: "block", marginBottom: 6 };
 
-// ── Foto Hewan ────────────────────────────────────────────────────────────────
-
-// ✅ Komponen dengan onError fallback ke emoji kalau gambar gagal load
 function FotoHewan({ foto, nama, jenis, size = 38 }: {
   foto: string | null; nama: string; jenis: string; size?: number;
 }) {
@@ -95,42 +92,27 @@ function FotoHewan({ foto, nama, jenis, size = 38 }: {
   if (fotoUrl && !imgError) {
     return (
       <img
-        src={fotoUrl}
-        alt={nama}
+        src={fotoUrl} alt={nama}
         style={{ width: size, height: size, objectFit: "cover", borderRadius: radius, display: "block" }}
         onError={() => setImgError(true)}
       />
     );
   }
-
   return (
-    <div style={{
-      width: size, height: size, borderRadius: radius,
-      background: "#e8f5e9", display: "flex",
-      alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.48,
-    }}>
+    <div style={{ width: size, height: size, borderRadius: radius, background: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.48 }}>
       {emoji}
     </div>
   );
 }
 
-// ── Status Badge ──────────────────────────────────────────────────────────────
-
 function StatusBadge({ value }: { value: string }) {
   const st = getStatusStyle(value);
   return (
-    <span style={{
-      display: "inline-block", padding: "4px 12px", borderRadius: 20,
-      fontSize: 12, background: st.bg, color: st.color,
-      border: `1.5px solid ${st.border}`, whiteSpace: "nowrap",
-    }}>
-      {value ?? "-"}
+    <span style={{ display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 12, background: st.bg, color: st.color, border: `1.5px solid ${st.border}`, whiteSpace: "nowrap" }}>
+      {STATUS_LABEL[value as BookingStatus] ?? value}
     </span>
   );
 }
-
-// ── Status Dropdown ───────────────────────────────────────────────────────────
 
 function StatusDropdown({ value, onChange }: {
   value: BookingStatus; onChange: (s: BookingStatus) => void;
@@ -149,30 +131,16 @@ function StatusDropdown({ value, onChange }: {
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
-      <button onClick={() => setOpen(o => !o)} style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        padding: "5px 12px", borderRadius: 20, background: st.bg,
-        color: st.color, border: `1.5px solid ${st.border}`,
-        fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-      }}>
-        {value} <ChevronDown size={11} style={{ opacity: 0.7 }} />
+      <button onClick={() => setOpen(o => !o)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: st.bg, color: st.color, border: `1.5px solid ${st.border}`, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+        {STATUS_LABEL[value] ?? value} <ChevronDown size={11} style={{ opacity: 0.7 }} />
       </button>
       {open && (
-        <div style={{
-          position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 100,
-          background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 10,
-          boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 152,
-        }}>
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 100, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 152 }}>
           {ALL_STATUSES.map(s => {
             const ss = getStatusStyle(s);
             return (
-              <button key={s} onClick={() => { onChange(s); setOpen(false); }} style={{
-                display: "flex", alignItems: "center", width: "100%",
-                padding: "9px 14px", background: s === value ? "#f5f5f5" : "transparent",
-                border: "none", cursor: "pointer", fontSize: 13,
-                color: ss.color, fontFamily: "inherit", textAlign: "left",
-              }}>
-                {s}
+              <button key={s} onClick={() => { onChange(s); setOpen(false); }} style={{ display: "flex", alignItems: "center", width: "100%", padding: "9px 14px", background: s === value ? "#f5f5f5" : "transparent", border: "none", cursor: "pointer", fontSize: 13, color: ss.color, fontFamily: "inherit", textAlign: "left" }}>
+                {STATUS_LABEL[s]}
               </button>
             );
           })}
@@ -181,8 +149,6 @@ function StatusDropdown({ value, onChange }: {
     </div>
   );
 }
-
-// ── Detail Modal ──────────────────────────────────────────────────────────────
 
 function DetailModal({ booking, onClose, onStatusChange }: {
   booking: Booking; onClose: () => void;
@@ -201,8 +167,6 @@ function DetailModal({ booking, onClose, onStatusChange }: {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", maxHeight: "90vh", overflowY: "auto" }}>
-
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
             <h2 style={{ fontSize: 18, margin: 0, fontWeight: "normal" }}>Detail Booking</h2>
@@ -213,14 +177,12 @@ function DetailModal({ booking, onClose, onStatusChange }: {
           </button>
         </div>
 
-        {/* No Booking + No Antrian */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f0faf2", border: "1.5px solid #c8e6c9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <span style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 2 }}>No. Booking</span>
               <span style={{ fontSize: 14, color: G, fontWeight: 600 }}>{booking.no_booking}</span>
             </div>
-            {/* ✅ No. Antrian di modal */}
             <div style={{ textAlign: "center", background: G, borderRadius: 10, padding: "8px 20px" }}>
               <span style={{ fontSize: 10, color: "#c8e6c9", display: "block" }}>No. Antrian</span>
               <span style={{ fontSize: 26, color: "#fff", fontWeight: 800, lineHeight: 1.1 }}>
@@ -230,7 +192,6 @@ function DetailModal({ booking, onClose, onStatusChange }: {
           </div>
         </div>
 
-        {/* Pet Info */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
           <FotoHewan foto={booking.foto_hewan} nama={booking.nama_hewan} jenis={booking.jenis_hewan} size={52} />
           <div>
@@ -239,7 +200,6 @@ function DetailModal({ booking, onClose, onStatusChange }: {
           </div>
         </div>
 
-        {/* Detail Rows */}
         <div style={{ display: "flex", flexDirection: "column" }}>
           {[
             { label: "Pemilik",         value: booking.nama_pemilik },
@@ -255,7 +215,6 @@ function DetailModal({ booking, onClose, onStatusChange }: {
             </div>
           ))}
 
-          {/* Layanan */}
           <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
             <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>Layanan</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -270,14 +229,12 @@ function DetailModal({ booking, onClose, onStatusChange }: {
             </div>
           </div>
 
-          {/* Status */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
             <span style={{ fontSize: 13, color: "#888" }}>Status</span>
             <StatusDropdown value={localStatus} onChange={setLocalStatus} />
           </div>
         </div>
 
-        {/* Footer */}
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 20 }}>
           <button onClick={onClose} style={{ padding: "10px 26px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
             Batal
@@ -290,8 +247,6 @@ function DetailModal({ booking, onClose, onStatusChange }: {
     </div>
   );
 }
-
-// ── Summary Card ──────────────────────────────────────────────────────────────
 
 function SummaryCard({ icon, label, value, sub, iconBg }: {
   icon: React.ReactNode; label: string; value: number; sub: string; iconBg: string;
@@ -307,8 +262,6 @@ function SummaryCard({ icon, label, value, sub, iconBg }: {
     </div>
   );
 }
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DataBookingPage() {
   const [bookings,      setBookings]      = useState<Booking[]>([]);
@@ -340,17 +293,22 @@ export default function DataBookingPage() {
 
   const handleStatusChange = async (id: number, status: BookingStatus) => {
     try {
-      const res  = await fetch(`${API}/dokter/booking/${id}/status`, {
-        method: "PATCH", headers, body: JSON.stringify({ status }),
+      const res = await fetch(`${API}/dokter/booking/${id}/status`, {
+        method: "PATCH", headers,
+        body: JSON.stringify({ status }),
       });
+
       const data = await res.json();
+
       if (data.success) {
         setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
         setDetailBooking(prev => prev?.id === id ? { ...prev, status } : prev);
       } else {
         setError(data.message ?? "Gagal update status");
       }
-    } catch { setError("Gagal update status booking"); }
+    } catch (e) {
+      setError("Gagal update status booking");
+    }
   };
 
   const filtered = bookings.filter(b =>
@@ -364,9 +322,9 @@ export default function DataBookingPage() {
 
   useEffect(() => { setCurrentPage(1); }, [filterPemilik, filterTanggal, filterStatus]);
 
-  const totalBooking = bookings.length;
-  const menunggu     = bookings.filter(b => b.status === "Menunggu").length;
-  const dijadwalkan  = bookings.filter(b => b.status === "Diproses").length;
+  const totalBooking   = bookings.length;
+  const menunggu       = bookings.filter(b => b.status === "menunggu").length;
+  const dikonfirmasi   = bookings.filter(b => b.status === "dikonfirmasi").length;
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -383,17 +341,15 @@ export default function DataBookingPage() {
             </div>
           )}
 
-          {/* Summary Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
             <SummaryCard iconBg="#e8f5e9" label="Total Booking" value={totalBooking} sub="Reservasi layanan"
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} />
             <SummaryCard iconBg="#fff8e1" label="Menunggu" value={menunggu} sub="Belum dikonfirmasi"
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
-            <SummaryCard iconBg="#e3f2fd" label="Diproses" value={dijadwalkan} sub="Sedang ditangani"
+            <SummaryCard iconBg="#e3f2fd" label="Dikonfirmasi" value={dikonfirmasi} sub="Sedang ditangani"
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1565c0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>} />
           </div>
 
-          {/* Filter */}
           <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, padding: "20px", marginBottom: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
               <div>
@@ -408,13 +364,12 @@ export default function DataBookingPage() {
                 <label style={labelStyle}>Status Booking</label>
                 <select style={inputStyle} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                   <option value="">Semua Status</option>
-                  {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  {ALL_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Table */}
           <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             {loading ? (
               <div style={{ padding: 40, textAlign: "center", color: "#888" }}>Memuat data booking...</div>
@@ -423,7 +378,6 @@ export default function DataBookingPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: G }}>
-                      {/* ✅ Kolom No. Antrian ditambahkan */}
                       {["No. Antrian", "No. Booking", "Hewan", "Pemilik", "Tanggal", "Jam", "Layanan", "Status", "Aksi"].map(h => (
                         <th key={h} style={{ padding: "12px 16px", fontSize: 13, fontWeight: "normal", color: "#fff", textAlign: "left", whiteSpace: "nowrap", fontFamily: "inherit" }}>{h}</th>
                       ))}
@@ -443,26 +397,16 @@ export default function DataBookingPage() {
                         onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
-                        {/* ✅ No. Antrian */}
                         <td style={{ padding: "10px 16px" }}>
-                          <div style={{
-                            width: 40, height: 40, borderRadius: 8,
-                            background: G, color: "#fff",
-                            display: "flex", alignItems: "center",
-                            justifyContent: "center", fontSize: 13, fontWeight: 700,
-                          }}>
+                          <div style={{ width: 40, height: 40, borderRadius: 8, background: G, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>
                             {String(b.no_antrian ?? 0).padStart(3, "0")}
                           </div>
                         </td>
-
-                        {/* No Booking */}
                         <td style={{ padding: "10px 16px" }}>
                           <span style={{ fontSize: 12, color: G, background: "#f0faf2", padding: "3px 8px", borderRadius: 6, border: "1px solid #c8e6c9", whiteSpace: "nowrap" }}>
                             {b.no_booking}
                           </span>
                         </td>
-
-                        {/* ✅ Hewan — pakai FotoHewan dengan fallback */}
                         <td style={{ padding: "10px 16px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 38, height: 38, borderRadius: 10, overflow: "hidden", flexShrink: 0 }}>
@@ -474,19 +418,15 @@ export default function DataBookingPage() {
                             </div>
                           </div>
                         </td>
-
                         <td style={{ padding: "10px 16px", fontSize: 14 }}>{b.nama_pemilik}</td>
                         <td style={{ padding: "10px 16px", fontSize: 13 }}>{b.tanggal_booking}</td>
                         <td style={{ padding: "10px 16px", fontSize: 14 }}>{b.jam}</td>
-
                         <td style={{ padding: "10px 16px", fontSize: 13, maxWidth: 180 }}>
                           {b.layanans?.length > 0 ? b.layanans.map(l => l.nama_layanan).join(", ") : "-"}
                         </td>
-
                         <td style={{ padding: "10px 16px" }}>
                           <StatusBadge value={b.status} />
                         </td>
-
                         <td style={{ padding: "10px 16px" }}>
                           <button
                             onClick={() => setDetailBooking(b)}
@@ -504,7 +444,6 @@ export default function DataBookingPage() {
               </div>
             )}
 
-            {/* Pagination */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "16px", borderTop: "1.5px solid #e0e0e0" }}>
               <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}
                 style={{ padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer", opacity: currentPage === 1 ? 0.4 : 1, fontFamily: "inherit" }}>
