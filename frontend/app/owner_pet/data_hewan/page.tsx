@@ -63,6 +63,20 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+// ── usePressedState hook ──────────────────────────────────────────────────────
+
+function usePressedState() {
+  const [pressed, setPressed] = useState(false);
+  const pressProps = {
+    onMouseDown: () => setPressed(true),
+    onMouseUp:   () => setPressed(false),
+    onMouseLeave:() => setPressed(false),
+    onTouchStart:() => setPressed(true),
+    onTouchEnd:  () => setPressed(false),
+  };
+  return { pressed, pressProps };
+}
+
 // ── Form Modal ────────────────────────────────────────────────────────────────
 
 function PetForm({
@@ -91,6 +105,11 @@ function PetForm({
   const [previewPhoto, setPreviewPhoto] = useState<string>(initial?.photo ?? "");
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // pressed states untuk tombol di form
+  const cancelPress = usePressedState();
+  const savePress   = usePressedState();
+  const removePhotoPress = usePressedState();
 
   const set =
     (k: keyof FormData) =>
@@ -221,18 +240,22 @@ function PetForm({
                       Klik untuk ganti foto
                     </span>
                   </div>
+                  {/* ── Tombol hapus foto ── */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setPreviewPhoto("");
                       setForm((f) => ({ ...f, foto_base64: "" }));
                     }}
+                    {...removePhotoPress.pressProps}
                     style={{
                       position: "absolute",
                       top: 8,
                       right: 8,
                       zIndex: 2,
-                      background: "rgba(0,0,0,0.6)",
+                      background: removePhotoPress.pressed
+                        ? "rgba(0,0,0,0.85)"
+                        : "rgba(0,0,0,0.6)",
                       border: "none",
                       borderRadius: "50%",
                       width: 28,
@@ -241,6 +264,8 @@ function PetForm({
                       alignItems: "center",
                       justifyContent: "center",
                       cursor: "pointer",
+                      transform: removePhotoPress.pressed ? "scale(0.9)" : "scale(1)",
+                      transition: "background 0.1s, transform 0.1s",
                     }}
                   >
                     <X size={13} color="#fff" />
@@ -333,36 +358,47 @@ function PetForm({
             marginTop: 24,
           }}
         >
+          {/* ── Tombol Batal ── */}
           <button
             onClick={onCancel}
             disabled={saving}
+            {...cancelPress.pressProps}
             style={{
               padding: "10px 26px",
               borderRadius: 8,
               border: `1.5px solid ${G}`,
-              background: "#fff",
-              color: G,
+              background: cancelPress.pressed ? G : "#fff",
+              color: cancelPress.pressed ? "#fff" : G,
               fontWeight: 700,
               fontSize: 14,
               cursor: "pointer",
               fontFamily: "inherit",
+              transition: "background 0.15s, color 0.15s",
             }}
           >
             Batal
           </button>
+
+          {/* ── Tombol Simpan ── */}
           <button
             onClick={() => valid && onSave(form)}
             disabled={!valid || saving}
+            {...savePress.pressProps}
             style={{
               padding: "10px 26px",
               borderRadius: 8,
               border: "none",
-              background: valid && !saving ? G : "#a5d6a7",
+              background: !valid || saving
+                ? "#a5d6a7"
+                : savePress.pressed
+                ? "#1b5e20"
+                : G,
               color: "#fff",
               fontWeight: 700,
               fontSize: 14,
               cursor: valid && !saving ? "pointer" : "not-allowed",
               fontFamily: "inherit",
+              transition: "background 0.15s",
             }}
           >
             {saving ? "Menyimpan..." : "Simpan"}
@@ -387,6 +423,12 @@ function PetCard({
   onDelete(): void;
 }) {
   const [confirm, setConfirm] = useState(false);
+
+  const editPress    = usePressedState();
+  const bookingPress = usePressedState();
+  const hapusPress   = usePressedState();
+  const batalPress   = usePressedState();
+  const hapusFinalPress = usePressedState();
 
   return (
     <div
@@ -426,16 +468,8 @@ function PetCard({
       </div>
 
       {/* Nama & Jenis */}
-      <div
-        style={{
-          background: G,
-          textAlign: "center",
-          padding: "10px 12px",
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: 16, color: "#fff" }}>
-          {pet.name}
-        </div>
+      <div style={{ background: G, textAlign: "center", padding: "10px 12px" }}>
+        <div style={{ fontWeight: 700, fontSize: 16, color: "#fff" }}>{pet.name}</div>
         <div style={{ fontSize: 12, color: "#c8e6c9", marginTop: 2 }}>
           {pet.type} · {pet.breed}
         </div>
@@ -451,17 +485,10 @@ function PetCard({
           borderTop: "1px solid #e0e0e0",
         }}
       >
-        {[
-          ["Usia", pet.age],
-          ["Berat", pet.weight],
-        ].map(([label, val]) => (
+        {[["Usia", pet.age], ["Berat", pet.weight]].map(([label, val]) => (
           <div
             key={label}
-            style={{
-              background: "#fafafa",
-              padding: "10px 12px",
-              textAlign: "center",
-            }}
+            style={{ background: "#fafafa", padding: "10px 12px", textAlign: "center" }}
           >
             <div style={{ fontSize: 11, color: "#888" }}>{label}</div>
             <div style={{ fontWeight: 700, fontSize: 14 }}>{val}</div>
@@ -470,42 +497,43 @@ function PetCard({
       </div>
 
       {/* Tombol Edit & Booking */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 8,
-          padding: "12px",
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "12px" }}>
+
+        {/* ── Edit ── */}
         <button
           onClick={onEdit}
+          {...editPress.pressProps}
           style={{
             padding: "8px 0",
             borderRadius: 8,
             border: `1.5px solid ${G}`,
-            background: "#fff",
-            color: G,
+            background: editPress.pressed ? G : "#fff",
+            color: editPress.pressed ? "#fff" : G,
             fontWeight: 700,
             fontSize: 13,
             cursor: "pointer",
             fontFamily: "inherit",
+            transition: "background 0.15s, color 0.15s",
           }}
         >
           Edit
         </button>
+
+        {/* ── Booking ── */}
         <button
           onClick={onBooking}
+          {...bookingPress.pressProps}
           style={{
             padding: "8px 0",
             borderRadius: 8,
             border: "none",
-            background: G,
+            background: bookingPress.pressed ? "#1b5e20" : G,
             color: "#fff",
             fontWeight: 700,
             fontSize: 13,
             cursor: "pointer",
             fontFamily: "inherit",
+            transition: "background 0.15s",
           }}
         >
           Booking
@@ -515,55 +543,65 @@ function PetCard({
       {/* Tombol Hapus */}
       <div style={{ padding: "0 12px 12px" }}>
         {!confirm ? (
+          // ── Hapus (pertama) ──
           <button
             onClick={() => setConfirm(true)}
+            {...hapusPress.pressProps}
             style={{
               width: "100%",
               padding: "7px 0",
               borderRadius: 8,
               border: "1.5px solid #e53935",
-              background: "#fff",
-              color: "#e53935",
+              background: hapusPress.pressed ? "#e53935" : "#fff",
+              color: hapusPress.pressed ? "#fff" : "#e53935",
               fontWeight: 600,
               fontSize: 13,
               cursor: "pointer",
               fontFamily: "inherit",
+              transition: "background 0.15s, color 0.15s",
             }}
           >
             Hapus
           </button>
         ) : (
           <div style={{ display: "flex", gap: 6 }}>
+            {/* ── Batal (konfirmasi) ── */}
             <button
               onClick={() => setConfirm(false)}
+              {...batalPress.pressProps}
               style={{
                 flex: 1,
                 padding: "7px 0",
                 borderRadius: 8,
                 border: "1.5px solid #e0e0e0",
-                background: "#fff",
+                background: batalPress.pressed ? "#e0e0e0" : "#fff",
                 color: "#555",
                 fontWeight: 600,
                 fontSize: 13,
                 cursor: "pointer",
                 fontFamily: "inherit",
+                transition: "background 0.15s",
               }}
             >
               Batal
             </button>
+
+            {/* ── Hapus! (konfirmasi) ── */}
             <button
               onClick={onDelete}
+              {...hapusFinalPress.pressProps}
               style={{
                 flex: 1,
                 padding: "7px 0",
                 borderRadius: 8,
                 border: "none",
-                background: "#e53935",
+                background: hapusFinalPress.pressed ? "#b71c1c" : "#e53935",
                 color: "#fff",
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: "pointer",
                 fontFamily: "inherit",
+                transition: "background 0.15s",
               }}
             >
               Hapus!
@@ -585,12 +623,12 @@ export default function HewanPage() {
   const [showForm, setShowForm] = useState(false);
   const [editPet,  setEditPet]  = useState<Pet | null>(null);
 
-  // ── Toast ──────────────────────────────────────────────────────────────────
   const { toasts, toast, removeToast } = useToast();
-
   const token = getAuthToken();
 
-  // ── Fetch semua hewan ──────────────────────────────────────────────────────
+  // pressed state untuk tombol Tambah Hewan
+  const tambahPress = usePressedState();
+
   const fetchPets = async (signal?: AbortSignal) => {
     setLoading(true);
     try {
@@ -622,7 +660,6 @@ export default function HewanPage() {
   const openEdit  = (pet: Pet) => { setEditPet(pet); setShowForm(true); };
   const closeForm = () => { setShowForm(false); setEditPet(null); };
 
-  // ── Simpan (tambah / edit) ─────────────────────────────────────────────────
   const handleSave = async (form: FormData) => {
     setSaving(true);
     try {
@@ -639,7 +676,7 @@ export default function HewanPage() {
       const url    = isEdit ? `${HEWAN_URL}/${editPet!.id_hewan}` : HEWAN_URL;
       const method = isEdit ? "PUT" : "POST";
 
-      const r   = await fetch(url, {
+      const r = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
@@ -652,24 +689,13 @@ export default function HewanPage() {
       if (data.success) {
         closeForm();
         await fetchPets();
-
-        // ✅ Toast sesuai aksi
         if (isEdit) {
-          toast.success(
-            "Data hewan diperbarui!",
-            `${form.nama_hewan} berhasil disimpan.`
-          );
+          toast.success("Data hewan diperbarui!", `${form.nama_hewan} berhasil disimpan.`);
         } else {
-          toast.success(
-            "Hewan berhasil ditambahkan!",
-            `${form.nama_hewan} sudah masuk ke daftar hewan Anda.`
-          );
+          toast.success("Hewan berhasil ditambahkan!", `${form.nama_hewan} sudah masuk ke daftar hewan Anda.`);
         }
       } else {
-        toast.error(
-          "Gagal menyimpan data",
-          data.message ?? "Terjadi kesalahan saat menyimpan."
-        );
+        toast.error("Gagal menyimpan data", data.message ?? "Terjadi kesalahan saat menyimpan.");
       }
     } catch {
       toast.error("Gagal terhubung ke server", "Periksa koneksi internet Anda.");
@@ -678,7 +704,6 @@ export default function HewanPage() {
     }
   };
 
-  // ── Hapus ─────────────────────────────────────────────────────────────────
   const handleDelete = async (pet: Pet) => {
     try {
       const r    = await fetch(`${HEWAN_URL}/${pet.id_hewan}`, {
@@ -689,16 +714,9 @@ export default function HewanPage() {
 
       if (data.success) {
         setPets((p) => p.filter((x) => x.id_hewan !== pet.id_hewan));
-        // ✅ Toast hapus
-        toast.info(
-          "Hewan dihapus",
-          `${pet.nama_hewan} telah dihapus dari daftar Anda.`
-        );
+        toast.info("Hewan dihapus", `${pet.nama_hewan} telah dihapus dari daftar Anda.`);
       } else {
-        toast.error(
-          "Gagal menghapus",
-          data.message ?? "Terjadi kesalahan saat menghapus data."
-        );
+        toast.error("Gagal menghapus", data.message ?? "Terjadi kesalahan saat menghapus data.");
       }
     } catch {
       toast.error("Gagal terhubung ke server", "Periksa koneksi internet Anda.");
@@ -710,7 +728,6 @@ export default function HewanPage() {
     router.push("/owner_pet/booking_layanan");
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
       <Sidebar activePage="hewan" />
@@ -728,47 +745,40 @@ export default function HewanPage() {
 
         <div style={{ padding: "24px 28px" }}>
 
-          {/* Tombol Tambah */}
+          {/* ── Tombol Tambah Hewan ── */}
           <button
             onClick={openAdd}
+            {...tambahPress.pressProps}
             style={{
               padding: "10px 20px",
               borderRadius: 8,
               border: `2px solid ${G}`,
-              background: "#fff",
-              color: G,
+              background: tambahPress.pressed ? G : "#fff",
+              color: tambahPress.pressed ? "#fff" : G,
               fontWeight: 700,
               fontSize: 14,
               cursor: "pointer",
               marginBottom: 24,
               fontFamily: "inherit",
+              transition: "background 0.15s, color 0.15s",
             }}
           >
             + Tambah Hewan
           </button>
 
-          {/* Loading */}
           {loading ? (
-            <div
-              style={{ textAlign: "center", padding: "60px 0", color: "#888" }}
-            >
+            <div style={{ textAlign: "center", padding: "60px 0", color: "#888" }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
               <div style={{ fontSize: 14 }}>Memuat data hewan...</div>
             </div>
-
-          /* Empty state */
           ) : pets.length === 0 ? (
-            <div
-              style={{ textAlign: "center", padding: "60px 0", color: "#999" }}
-            >
+            <div style={{ textAlign: "center", padding: "60px 0", color: "#999" }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🐾</div>
               <div style={{ fontSize: 16, fontWeight: 600 }}>Belum ada hewan</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>
                 Klik + Tambah Hewan untuk menambahkan hewan peliharaan
               </div>
             </div>
-
-          /* Grid kartu */
           ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
               {pets.map((pet) => (
@@ -785,7 +795,6 @@ export default function HewanPage() {
         </div>
       </div>
 
-      {/* Modal Form */}
       {showForm && (
         <PetForm
           initial={editPet}
@@ -795,7 +804,6 @@ export default function HewanPage() {
         />
       )}
 
-      {/* ── Toast Notifications ── */}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );

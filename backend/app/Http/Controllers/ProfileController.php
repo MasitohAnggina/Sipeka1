@@ -57,9 +57,6 @@ class ProfileController extends Controller
 
         $request->validate([
             'nama'           => 'required|string|max:255',
-            // email:rfc  → validasi ketat sesuai standar RFC 5321/5322
-            // email:dns  → domain harus punya DNS record aktif (MX/A)
-            // Gabungan: zaza@gmail ditolak, zaza@gmail.com diterima
             'email'          => 'required|email:rfc,dns|unique:users,email,' . $user->id_user . ',id_user',
             'no_hp'          => 'nullable|string|max:20',
             'kata_sandi'     => 'nullable|string|min:8',
@@ -69,7 +66,6 @@ class ProfileController extends Controller
             'kode_pos'       => 'nullable|string|max:10',
             'alamat_lengkap' => 'nullable|string|max:500',
         ], [
-            // Pesan error kustom dalam Bahasa Indonesia
             'nama.required'      => 'Nama lengkap wajib diisi.',
             'nama.max'           => 'Nama maksimal 255 karakter.',
             'email.required'     => 'Email wajib diisi.',
@@ -81,7 +77,6 @@ class ProfileController extends Controller
             'alamat_lengkap.max' => 'Alamat lengkap maksimal 500 karakter.',
         ]);
 
-        // Update data user
         $updateUser = [
             'nama'  => $request->nama,
             'email' => $request->email,
@@ -92,7 +87,6 @@ class ProfileController extends Controller
         }
         $user->update($updateUser);
 
-        // Update atau buat alamat
         Alamat::updateOrCreate(
             ['id_user' => $user->id_user],
             [
@@ -138,6 +132,36 @@ class ProfileController extends Controller
             'success' => true,
             'message' => 'Foto profil berhasil diupload',
             'url'     => asset('storage/' . $path),
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  DELETE /api/owner_pet/profile/foto
+    // ─────────────────────────────────────────────────────────────────────────
+    public function hapusFoto(Request $request)
+    {
+        $user = $request->user();
+
+        // Tidak ada foto — kembalikan sukses saja
+        if (!$user->foto_profile) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Tidak ada foto profil untuk dihapus.',
+            ]);
+        }
+
+        // Hapus file fisik dari storage (path tersimpan: "foto_profil/namafile.jpg")
+        $filePath = storage_path('app/public/' . $user->foto_profile);
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+
+        // Set kolom foto_profile → null
+        $user->update(['foto_profile' => null]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Foto profil berhasil dihapus.',
         ]);
     }
 }

@@ -31,22 +31,57 @@ class DashboardController extends Controller
                 'photo'    => $h->foto ? asset('storage/' . $h->foto) : null,
             ]);
 
-        // ── Booking aktif (menunggu / dikonfirmasi) — per hewan terpisah ─────
-        // Ambil semua booking aktif, bukan hanya satu, agar dashboard akurat
-        $bookingAktifList = Booking::with(['hewan', 'jadwal', 'layanans'])
+        // ── Cari tanggal booking terbaru milik user ───────────────────────────
+        $bookingTerbaru = Booking::where('id_user', $idUser)
+            ->orderBy('tanggal_booking', 'desc')
+            ->value('tanggal_booking');
+
+        // ── Semua booking pada tanggal terbaru tersebut ───────────────────────
+        $bookingsHariIni = collect();
+
+        if ($bookingTerbaru) {
+            $tanggalTerbaru = \Carbon\Carbon::parse($bookingTerbaru)->toDateString();
+
+            $bookingsHariIni = Booking::with(['hewan', 'jadwal', 'layanans'])
+                ->where('id_user', $idUser)
+                ->whereDate('tanggal_booking', $tanggalTerbaru)
+                ->orderByRaw("FIELD(status, 'diproses', 'dikonfirmasi', 'menunggu', 'selesai', 'dibatalkan')")
+                ->orderBy('no_antrian', 'asc')
+                ->get()
+                ->map(function ($b) {
+                    $layanans = $b->layanans ?? collect();
+                    return [
+                        'id_booking'      => $b->id_booking,
+                        'no_booking'      => $b->no_booking,
+                        'no_antrian'      => $b->no_antrian,
+                        'tanggal_booking' => $b->tanggal_booking?->format('Y-m-d'),
+                        'jam'             => $b->jam
+                            ?? ($b->jadwal?->jam_mulai ? substr($b->jadwal->jam_mulai, 0, 5) : '-'),
+                        'status'          => $b->status,
+                        'hewan_nama'      => $b->hewan?->nama_hewan ?? '-',
+                        'layanan_nama'    => $layanans->pluck('nama_layanan')->join(', ') ?: '-',
+                        'updated_at'      => $b->updated_at?->format('Y-m-d H:i:s'),
+                    ];
+                });
+        }
+
+        // ── Booking aktif (untuk polling notifikasi status) ───────────────────
+        $bookingAktif = Booking::with(['hewan', 'jadwal', 'layanans'])
             ->where('id_user', $idUser)
-            ->whereIn('status', ['menunggu', 'dikonfirmasi'])
+            ->where(function ($q) {
+                $q->whereIn('status', ['menunggu', 'dikonfirmasi', 'diproses'])
+                  ->orWhere(function ($q2) {
+                      $q2->whereIn('status', ['selesai', 'dibatalkan'])
+                         ->where('updated_at', '>=', now()->subDays(7));
+                  });
+            })
+            ->orderByRaw("FIELD(status, 'menunggu', 'dikonfirmasi', 'diproses', 'selesai', 'dibatalkan')")
             ->orderBy('tanggal_booking', 'asc')
-            ->get();
+            ->first();
 
-        // Untuk tampilan dashboard: ambil yang pertama sebagai "aktif"
-        $bookingAktif = $bookingAktifList->first();
         $bookingAktifData = null;
-
         if ($bookingAktif) {
-            $layanans    = $bookingAktif->layanans ?? collect();
-            $layananNama = $layanans->pluck('nama_layanan')->join(', ');
-
+            $layanans = $bookingAktif->layanans ?? collect();
             $bookingAktifData = [
                 'id_booking'      => $bookingAktif->id_booking,
                 'no_booking'      => $bookingAktif->no_booking,
@@ -57,40 +92,77 @@ class DashboardController extends Controller
                         ? substr($bookingAktif->jadwal->jam_mulai, 0, 5) : '-'),
                 'status'          => $bookingAktif->status,
                 'hewan_nama'      => $bookingAktif->hewan?->nama_hewan ?? '-',
-                'layanan_nama'    => $layananNama ?: '-',
+                'layanan_nama'    => $layanans->pluck('nama_layanan')->join(', ') ?: '-',
+                'updated_at'      => $bookingAktif->updated_at?->format('Y-m-d H:i:s'),
             ];
         }
 
-        // ── Total kunjungan (booking selesai) ─────────────────────────────────
+        // ── Total kunjungan ───────────────────────────────────────────────────
         $totalKunjungan = Booking::where('id_user', $idUser)
             ->where('status', 'selesai')
             ->count();
 
-        // ── Riwayat 3 terakhir ─────────────────────────────────────────────
-        $riwayat = RiwayatLayanan::with([
+        // ── Riwayat 10 terakhir (gabungan riwayat_layanan + booking selesai) ──
+        $riwayatDariTabel = RiwayatLayanan::with([
             'booking.hewan',
             'booking.layanans',
         ])
             ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
             ->orderBy('tanggal', 'desc')
-            ->limit(3)
+            ->limit(10) // ← ubah dari 5
             ->get()
             ->map(function ($r) {
                 $tanggal  = $r->tanggal ? \Carbon\Carbon::parse($r->tanggal) : null;
                 $booking  = $r->booking;
                 $layanans = $booking?->layanans ?? collect();
-
                 return [
-                    'id_riwayat'    => $r->id_riwayat,
-                    'tanggal'       => $tanggal?->format('d'),
-                    'bulan'         => $tanggal?->translatedFormat('M Y'),
-                    'hewan_nama'    => $booking?->hewan?->nama_hewan ?? '-',
-                    'layanan_utama' => $layanans->first()?->nama_layanan ?? '-',
-                    // Untuk riwayat_detail: gabung semua layanan
-                    'layanan_detail'=> $layanans->pluck('nama_layanan')->join(', '),
-                    'status'        => $booking?->status ?? 'selesai',
+                    'id_riwayat'     => $r->id_riwayat,
+                    'id_booking_ref' => $booking?->id_booking,
+                    'tanggal'        => $tanggal?->format('d'),
+                    'bulan'          => $tanggal?->translatedFormat('M Y'),
+                    'hewan_nama'     => $booking?->hewan?->nama_hewan ?? '-',
+                    'layanan_utama'  => $layanans->first()?->nama_layanan ?? '-',
+                    'layanan_detail' => $layanans->pluck('nama_layanan')->join(', '),
+                    'status'         => 'selesai',
+                    'tanggal_sort'   => $r->tanggal ? $r->tanggal->format('Y-m-d') : '1970-01-01',
                 ];
             });
+
+        $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
+            'booking', fn($q) => $q->where('id_user', $idUser)
+        )->pluck('id_booking')->toArray();
+
+        $riwayatDariBooking = Booking::with(['hewan', 'layanans'])
+            ->where('id_user', $idUser)
+            ->where('status', 'selesai')
+            ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
+            ->orderBy('tanggal_booking', 'desc')
+            ->limit(10) // ← ubah dari 5
+            ->get()
+            ->map(function ($b) {
+                $layanans = $b->layanans ?? collect();
+                $tanggal  = $b->tanggal_booking
+                    ? \Carbon\Carbon::parse($b->tanggal_booking)
+                    : null;
+                return [
+                    'id_riwayat'     => -$b->id_booking,
+                    'id_booking_ref' => $b->id_booking,
+                    'tanggal'        => $tanggal?->format('d'),
+                    'bulan'          => $tanggal?->translatedFormat('M Y'),
+                    'hewan_nama'     => $b->hewan?->nama_hewan ?? '-',
+                    'layanan_utama'  => $layanans->first()?->nama_layanan ?? '-',
+                    'layanan_detail' => $layanans->pluck('nama_layanan')->join(', '),
+                    'status'         => 'selesai',
+                    'tanggal_sort'   => $tanggal?->format('Y-m-d') ?? '1970-01-01',
+                ];
+            });
+
+        $riwayat = collect($riwayatDariTabel)
+            ->merge(collect($riwayatDariBooking))
+            ->unique('id_booking_ref')
+            ->sortByDesc('tanggal_sort')
+            ->take(10) // ← ubah dari 3
+            ->values();
 
         return response()->json([
             'success' => true,
@@ -100,10 +172,11 @@ class DashboardController extends Controller
                     'foto_profile' => $user->foto_profile
                         ? asset('storage/' . $user->foto_profile) : null,
                 ],
-                'hewan'            => $hewan,
-                'booking_aktif'    => $bookingAktifData,
-                'total_kunjungan'  => $totalKunjungan,
-                'riwayat_terakhir' => $riwayat,
+                'hewan'             => $hewan,
+                'booking_aktif'     => $bookingAktifData,
+                'bookings_hari_ini' => $bookingsHariIni,
+                'total_kunjungan'   => $totalKunjungan,
+                'riwayat_terakhir'  => $riwayat,
             ],
         ]);
     }

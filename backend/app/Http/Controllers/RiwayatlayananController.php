@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Booking;
 use App\Models\RiwayatLayanan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ class RiwayatLayananController extends Controller
 
         $riwayat = RiwayatLayanan::with([
             'booking.hewan',
-            'booking.layanans',   // many-to-many
+            'booking.layanans',
+            'booking.jadwal.dokter',
             'pembayaran',
         ])
             ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
@@ -23,7 +25,28 @@ class RiwayatLayananController extends Controller
             ->get()
             ->map(fn($r) => $this->fmt($r));
 
-        return response()->json(['success' => true, 'data' => $riwayat]);
+        $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
+            'booking', fn($q) => $q->where('id_user', $idUser)
+        )->pluck('id_booking');
+
+        $bookingTanpaRiwayat = Booking::with([
+            'hewan',
+            'layanans',
+            'jadwal.dokter',
+        ])
+            ->where('id_user', $idUser)
+            ->where('status', 'selesai')
+            ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
+            ->orderBy('tanggal_booking', 'desc')
+            ->get()
+            ->map(fn($b) => $this->fmtFromBooking($b));
+
+        $merged = collect($riwayat)
+            ->merge(collect($bookingTanpaRiwayat))
+            ->sortByDesc('tanggal')
+            ->values();
+
+        return response()->json(['success' => true, 'data' => $merged]);
     }
 
     // GET /api/riwayat/stats
@@ -31,26 +54,46 @@ class RiwayatLayananController extends Controller
     {
         $idUser = $request->user()->id_user;
 
+        // ✅ Disesuaikan dengan kategori di DB: Medis, Bedah, Grooming, Rawat Inap
+        $stats = [
+            'total'      => 0,
+            'Medis'      => 0,
+            'Bedah'      => 0,
+            'Grooming'   => 0,
+            'Rawat Inap' => 0,
+            'Lainnya'    => 0,
+        ];
+
         $rows = RiwayatLayanan::with('booking.layanans')
             ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
             ->get();
 
-        $stats = [
-            'total'            => $rows->count(),
-            'Vaksinasi'        => 0,
-            'Grooming'         => 0,
-            'Perawatan Medis'  => 0,
-            'Hotel'            => 0,
-            'Lainnya'          => 0,
-        ];
-
         foreach ($rows as $r) {
-            // Hitung berdasarkan kategori dari semua layanan yang ada di booking
             $kategoris = $r->booking?->layanans?->pluck('kategori')->unique() ?? collect();
             foreach ($kategoris as $kat) {
                 $key = array_key_exists($kat, $stats) ? $kat : 'Lainnya';
                 $stats[$key]++;
             }
+            $stats['total']++;
+        }
+
+        $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
+            'booking', fn($q) => $q->where('id_user', $idUser)
+        )->pluck('id_booking');
+
+        $bookingTanpaRiwayat = Booking::with('layanans')
+            ->where('id_user', $idUser)
+            ->where('status', 'selesai')
+            ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
+            ->get();
+
+        foreach ($bookingTanpaRiwayat as $b) {
+            $kategoris = $b->layanans?->pluck('kategori')->unique() ?? collect();
+            foreach ($kategoris as $kat) {
+                $key = array_key_exists($kat, $stats) ? $kat : 'Lainnya';
+                $stats[$key]++;
+            }
+            $stats['total']++;
         }
 
         return response()->json(['success' => true, 'data' => $stats]);
@@ -64,6 +107,7 @@ class RiwayatLayananController extends Controller
         $riwayat = RiwayatLayanan::with([
             'booking.hewan',
             'booking.layanans',
+            'booking.jadwal.dokter',
             'rincianLayanan.layanan',
             'rincianLayanan.obat',
             'rekamMedis.dokter',
@@ -78,7 +122,31 @@ class RiwayatLayananController extends Controller
         ]);
     }
 
-    // ── Format ────────────────────────────────────────────────────────────────
+    // ── Helper: ambil dokter dari jadwal ─────────────────────────────────────
+
+    private function getDokterDariJadwal(Booking $booking): ?array
+    {
+        $jadwal = $booking->jadwal;
+        if (!$jadwal) return null;
+
+        if ($jadwal->dokter) {
+            return [
+                'nama_dokter'  => $jadwal->dokter->nama_dokter,
+                'spesialisasi' => $jadwal->dokter->spesialisasi ?? '-',
+            ];
+        }
+
+        if (!empty($jadwal->nama_dokter)) {
+            return [
+                'nama_dokter'  => $jadwal->nama_dokter,
+                'spesialisasi' => $jadwal->spesialisasi ?? '-',
+            ];
+        }
+
+        return null;
+    }
+
+    // ── Format dari RiwayatLayanan ────────────────────────────────────────────
 
     private function fmt(RiwayatLayanan $r, bool $detail = false): array
     {
@@ -87,20 +155,28 @@ class RiwayatLayananController extends Controller
         $layanans = $booking?->layanans ?? collect();
         $bayar    = $r->pembayaran;
         $tanggal  = $r->tanggal ? \Carbon\Carbon::parse($r->tanggal) : null;
+        $rekam    = $r->rekamMedis ?? null;
+
+        $dokterDariJadwal = $booking ? $this->getDokterDariJadwal($booking) : null;
+        $dokterFinal = ($rekam?->dokter)
+            ? ['nama_dokter' => $rekam->dokter->nama_dokter, 'spesialisasi' => $rekam->dokter->spesialisasi ?? '-']
+            : $dokterDariJadwal;
 
         $base = [
-            'id_riwayat'       => $r->id_riwayat,
-            'tanggal'          => $tanggal?->format('Y-m-d'),
-            'tanggal_dd'       => $tanggal?->format('d'),
-            'bulan'            => $tanggal?->translatedFormat('M Y'),
-            'hari'             => $tanggal?->translatedFormat('l'),
-            'jam'              => $booking?->jam ?? '-',
-            'grand_total'      => (float) $r->grand_total,
-            'status_bayar'     => $bayar?->status ?? 'menunggu',
-            'catatan'          => $r->catatan,
-            'no_booking'       => $booking?->no_booking,
-            'no_antrian'       => $booking?->no_antrian,
-            'status_booking'   => $booking?->status,
+            'id_riwayat'          => $r->id_riwayat,
+            'tanggal'             => $tanggal?->format('Y-m-d'),
+            'tanggal_dd'          => $tanggal?->format('d'),
+            'bulan'               => $tanggal?->translatedFormat('M Y'),
+            'hari'                => $tanggal?->translatedFormat('l'),
+            'jam'                 => $booking?->jam ?? '-',
+            'grand_total'         => (float) $r->grand_total,
+            'status_bayar'        => $bayar?->status ?? 'menunggu',
+            'catatan'             => $r->catatan,
+            'no_booking'          => $booking?->no_booking,
+            'no_antrian'          => $booking?->no_antrian,
+            'status_booking'      => $booking?->status,
+            'nama_dokter'         => $dokterFinal['nama_dokter'] ?? '-',
+            'spesialisasi_dokter' => $dokterFinal['spesialisasi'] ?? '-',
             'hewan' => $hewan ? [
                 'id_hewan' => $hewan->id_hewan,
                 'nama'     => $hewan->nama_hewan,
@@ -110,16 +186,14 @@ class RiwayatLayananController extends Controller
                 'berat'    => $hewan->berat !== null ? $hewan->berat . ' Kg' : '-',
                 'foto'     => $hewan->foto ? asset('storage/' . $hewan->foto) : null,
             ] : null,
-            // Array layanan — bisa lebih dari 1, per hewan terpisah
             'layanans' => $layanans->map(fn($l) => [
                 'id_layanan'         => $l->id_layanan,
                 'nama_layanan'       => $l->nama_layanan,
                 'kategori'           => $l->kategori,
                 'harga_saat_booking' => (float) $l->pivot->harga_saat_booking,
             ])->values(),
-            // Untuk kolom "Layanan" di tabel riwayat (tampilkan yang pertama)
             'layanan_utama'    => $layanans->first()?->nama_layanan ?? '-',
-            'layanan_kategori' => $layanans->first()?->kategori     ?? '-',
+            'layanan_kategori' => $layanans->first()?->kategori ?? '-',
         ];
 
         if ($detail) {
@@ -142,14 +216,16 @@ class RiwayatLayananController extends Controller
                     : null,
             ])->values();
 
-            $rekam = $r->rekamMedis;
             $base['rekam_medis'] = $rekam ? [
                 'diagnosa'         => $rekam->diagnosa,
                 'diagnosa_lengkap' => $rekam->diagnosa_lengkap,
                 'catatan_dokter'   => $rekam->catatan_dokter,
-                'dokter'           => $rekam->dokter
-                    ? ['nama_dokter' => $rekam->dokter->nama_dokter, 'spesialisasi' => $rekam->dokter->spesialisasi]
-                    : null,
+                'dokter'           => $dokterFinal,
+                'tindakanList'     => $rekam->tindakans?->map(fn($t) => [
+                    'id'         => $t->id,
+                    'penanganan' => $t->penanganan,
+                    'durasi'     => $t->durasi,
+                ])->toArray() ?? [],
             ] : null;
 
             $base['pembayaran'] = $bayar ? [
@@ -168,9 +244,56 @@ class RiwayatLayananController extends Controller
             $base['foto_before'] = $booking?->foto_before
                 ? asset('storage/' . $booking->foto_before) : null;
             $base['foto_after']  = $booking?->foto_after
-                ? asset('storage/' . $booking->foto_after)  : null;
+                ? asset('storage/' . $booking->foto_after) : null;
         }
 
         return $base;
+    }
+
+    // ── Format dari Booking langsung ─────────────────────────────────────────
+
+    private function fmtFromBooking(Booking $b): array
+    {
+        $hewan      = $b->hewan;
+        $layanans   = $b->layanans ?? collect();
+        $tanggal    = $b->tanggal_booking ? \Carbon\Carbon::parse($b->tanggal_booking) : null;
+        $grandTotal = $layanans->sum(fn($l) => (float) $l->pivot->harga_saat_booking);
+
+        $dokterDariJadwal = $this->getDokterDariJadwal($b);
+
+        return [
+            'id_riwayat'          => -$b->id_booking,
+            'tanggal'             => $tanggal?->format('Y-m-d'),
+            'tanggal_dd'          => $tanggal?->format('d'),
+            'bulan'               => $tanggal?->translatedFormat('M Y'),
+            'hari'                => $tanggal?->translatedFormat('l'),
+            'jam'                 => $b->jam ?? '-',
+            'grand_total'         => $grandTotal,
+            'status_bayar'        => 'menunggu',
+            'catatan'             => null,
+            'no_booking'          => $b->no_booking,
+            'no_antrian'          => $b->no_antrian,
+            'status_booking'      => $b->status,
+            'nama_dokter'         => $dokterDariJadwal['nama_dokter'] ?? '-',
+            'spesialisasi_dokter' => $dokterDariJadwal['spesialisasi'] ?? '-',
+            'hewan' => $hewan ? [
+                'id_hewan' => $hewan->id_hewan,
+                'nama'     => $hewan->nama_hewan,
+                'jenis'    => $hewan->jenis,
+                'ras'      => $hewan->ras,
+                'umur'     => $hewan->umur !== null ? $hewan->umur . ' Tahun' : '-',
+                'berat'    => $hewan->berat !== null ? $hewan->berat . ' Kg' : '-',
+                'foto'     => $hewan->foto ? asset('storage/' . $hewan->foto) : null,
+            ] : null,
+            'layanans' => $layanans->map(fn($l) => [
+                'id_layanan'         => $l->id_layanan,
+                'nama_layanan'       => $l->nama_layanan,
+                'kategori'           => $l->kategori,
+                'harga_saat_booking' => (float) $l->pivot->harga_saat_booking,
+            ])->values(),
+            'layanan_utama'    => $layanans->first()?->nama_layanan ?? '-',
+            'layanan_kategori' => $layanans->first()?->kategori ?? '-',
+            'rekam_medis'      => null,
+        ];
     }
 }

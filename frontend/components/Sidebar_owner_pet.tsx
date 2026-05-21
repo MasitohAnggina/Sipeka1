@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   LucideIcon,
   LayoutDashboard,
@@ -24,16 +25,24 @@ interface SidebarProps {
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard",        href: "/owner_pet/dashboard",         icon: LayoutDashboard, key: "dashboard" },
-  { label: "Data Hewan",       href: "/owner_pet/data_hewan",             icon: Cat,             key: "hewan" },
-  { label: "Booking Layanan",  href: "/owner_pet/booking_layanan",   icon: CalendarCheck,   key: "booking" },
-  { label: "Riwayat Layanan",  href: "/owner_pet/riwayat_layanan",   icon: ClipboardList,   key: "riwayat" },
-  { label: "Profile",          href: "/owner_pet/profile",           icon: UserCircle,      key: "profile" },
+  { label: "Dashboard",       href: "/owner_pet/dashboard",       icon: LayoutDashboard, key: "dashboard" },
+  { label: "Data Hewan",      href: "/owner_pet/data_hewan",      icon: Cat,             key: "hewan"     },
+  { label: "Booking Layanan", href: "/owner_pet/booking_layanan", icon: CalendarCheck,   key: "booking"   },
+  { label: "Riwayat Layanan", href: "/owner_pet/riwayat_layanan", icon: ClipboardList,   key: "riwayat"   },
+  { label: "Profile",         href: "/owner_pet/profile",         icon: UserCircle,      key: "profile"   },
 ];
 
 const G = "#2e7d32";
 
 export default function Sidebar({ activePage }: SidebarProps) {
+  const router = useRouter();
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("token");
+    localStorage.removeItem("token");
+    router.push("/auth/login_dokter");
+  };
+
   return (
     <aside
       style={{
@@ -81,9 +90,12 @@ export default function Sidebar({ activePage }: SidebarProps) {
             borderRadius: 20,
             padding: "3px 10px",
             letterSpacing: ".03em",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
           }}
         >
-          🐾 Pemilik Hewan
+          <Cat size={11} color="#6b21a8" /> Pemilik Hewan
         </span>
       </div>
 
@@ -142,6 +154,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
       {/* Logout */}
       <div style={{ padding: "10px", borderTop: "1.5px solid #e0e0e0", flexShrink: 0 }}>
         <button
+          onClick={handleLogout}
           style={{
             width: "100%",
             display: "flex",

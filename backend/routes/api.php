@@ -21,8 +21,6 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 
-// ✅ PERBAIKAN: route publik harus di LUAR middleware auth
-// Layanan aktif — dipakai frontend booking owner untuk menampilkan pilihan layanan
 Route::get('/layanan/publik', [LayananController::class, 'publik']);
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -37,14 +35,14 @@ Route::middleware('auth:sanctum')->group(function () {
     //  PEMILIK HEWAN (role: owner)
     // ────────────────────────────────────────────────────────────────────────
 
-    // Dashboard
     Route::get('owner_pet/dashboard', [DashboardController::class, 'index']);
 
     // Profil pemilik
-    Route::get('owner_pet/profile',        [ProfileController::class, 'getProfile']);
-    Route::put('owner_pet/profile',        [ProfileController::class, 'updateProfile']);
-    Route::put('owner_pet/profile/alamat', [ProfileController::class, 'updateAlamat']);
-    Route::post('owner_pet/profile/foto',  [ProfileController::class, 'uploadFoto']);
+    Route::get('owner_pet/profile',          [ProfileController::class, 'getProfile']);
+    Route::put('owner_pet/profile',          [ProfileController::class, 'updateProfile']);
+    Route::put('owner_pet/profile/alamat',   [ProfileController::class, 'updateAlamat']);
+    Route::post('owner_pet/profile/foto',    [ProfileController::class, 'uploadFoto']);
+    Route::delete('owner_pet/profile/foto',  [ProfileController::class, 'hapusFoto']); // ✅ BARU
 
     // Hewan peliharaan — CRUD
     Route::prefix('owner_pet/data_hewan')->group(function () {
@@ -88,7 +86,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id_jadwal}',       [JadwalDokterController::class, 'destroy']);
     });
 
-    // ✅ Booking dokter — lihat booking yang masuk & update status
     Route::get('/dokter/booking',               [BookingDokterController::class, 'index']);
     Route::patch('/dokter/booking/{id}/status', [BookingDokterController::class, 'updateStatus']);
 
@@ -101,14 +98,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/admin/profile',  [AdminController::class, 'updateProfile']);
     Route::post('/admin/foto',    [AdminController::class, 'uploadFoto']);
 
-    // Layanan — CRUD admin
-    // ✅ PENTING: /layanan/publik harus di LUAR group ini (sudah di atas)
     Route::get('/layanan',         [LayananController::class, 'index']);
     Route::post('/layanan',        [LayananController::class, 'store']);
     Route::put('/layanan/{id}',    [LayananController::class, 'update']);
     Route::delete('/layanan/{id}', [LayananController::class, 'destroy']);
 
-    // Obat — CRUD
     Route::get('/obat',         [ObatController::class, 'index']);
     Route::post('/obat',        [ObatController::class, 'store']);
     Route::put('/obat/{id}',    [ObatController::class, 'update']);
