@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -34,18 +33,14 @@ import {
   X,
   RefreshCw,
 } from "lucide-react";
-
 const API_URL    = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const G          = "#2e7d32";
 const ITEMS_PAGE = 4;
-
 function getAuthToken(): string {
   return typeof window !== "undefined" ? (sessionStorage.getItem("token") ?? "") : "";
 }
-
 const toRp = (n: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
-
 function AnimalIcon({ jenis, size = 22 }: { jenis: string; size?: number }) {
   const props = { size, color: G };
   switch (jenis?.toLowerCase()) {
@@ -57,7 +52,6 @@ function AnimalIcon({ jenis, size = 22 }: { jenis: string; size?: number }) {
     default:        return <PawPrint {...props} />;
   }
 }
-
 interface HewanInfo {
   id_hewan: number;
   nama: string;
@@ -67,25 +61,21 @@ interface HewanInfo {
   berat: string;
   foto: string | null;
 }
-
 interface LayananInfo {
   id_layanan: number;
   nama_layanan: string;
   kategori: string;
   harga_saat_booking: number;
 }
-
 interface DokterInfo {
   nama_dokter: string;
   spesialisasi: string;
 }
-
 interface TindakanItem {
   id: number;
   penanganan: string;
   durasi: string;
 }
-
 interface RekamMedisDetail {
   diagnosa: string | null;
   diagnosa_lengkap: string | null;
@@ -93,7 +83,6 @@ interface RekamMedisDetail {
   dokter: DokterInfo | null;
   tindakanList?: TindakanItem[];
 }
-
 interface RiwayatItem {
   id_riwayat: number;
   tanggal: string;
@@ -117,16 +106,14 @@ interface RiwayatItem {
   foto_before?: string | null;
   foto_after?: string | null;
 }
-
 interface StatsData {
   total: number;
   Medis: number;
   Bedah: number;
   Grooming: number;
-  "Rawat Inap": number;
+  "Hotel Hewan": number;
   Lainnya: number;
 }
-
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { bg: string; color: string }> = {
     selesai:             { bg: "#e8f5e9", color: G },
@@ -144,7 +131,6 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-
 function LoadingRows() {
   return (
     <>
@@ -159,7 +145,6 @@ function LoadingRows() {
     </>
   );
 }
-
 function HewanAvatar({ foto, jenis, nama, size = 44 }: { foto: string | null; jenis?: string; nama: string; size?: number }) {
   if (foto) {
     return (
@@ -174,9 +159,7 @@ function HewanAvatar({ foto, jenis, nama, size = 44 }: { foto: string | null; je
     </div>
   );
 }
-
 const G_LIGHT = "#e8f5e9";
-
 function ModalInfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
@@ -190,7 +173,6 @@ function ModalInfoRow({ icon, label, value }: { icon: React.ReactNode; label: st
     </div>
   );
 }
-
 function RekamMedisPlaceholder({ dokter }: { dokter?: DokterInfo | null }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -229,7 +211,6 @@ function RekamMedisPlaceholder({ dokter }: { dokter?: DokterInfo | null }) {
     </div>
   );
 }
-
 function DetailModal({
   item,
   loadingDetail,
@@ -241,30 +222,25 @@ function DetailModal({
 }) {
   const hewan = item.hewan;
   const rm    = item.rekam_medis;
-
   const dokterModal: DokterInfo | null =
     rm?.dokter ??
     (item.nama_dokter && item.nama_dokter !== '-'
       ? { nama_dokter: item.nama_dokter, spesialisasi: item.spesialisasi_dokter ?? '-' }
       : null);
-
   const tanggalFmt = item.tanggal
     ? new Date(item.tanggal + "T00:00:00").toLocaleDateString("id-ID", {
         weekday: "long", day: "numeric", month: "long", year: "numeric",
       })
     : "-";
-
   const cardS: React.CSSProperties = {
     background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
     padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
   };
-
   const secTitle = (icon: React.ReactNode, label: string) => (
     <div style={{ fontWeight: 700, fontSize: 13, color: G, paddingBottom: 10, borderBottom: "1.5px solid #e8f5e9", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
       {icon} {label}
     </div>
   );
-
   return (
     <div
       onClick={onClose}
@@ -300,7 +276,6 @@ function DetailModal({
             <X size={16} color="#888" />
           </button>
         </div>
-
         {/* Body */}
         <div style={{ padding: "18px 20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: G_LIGHT, border: "1.5px solid #a5d6a7", borderRadius: 10, padding: "11px 16px", marginBottom: 18 }}>
@@ -316,7 +291,6 @@ function DetailModal({
               <div style={{ fontSize: 15, fontWeight: 700, color: G }}>{toRp(item.grand_total)}</div>
             </div>
           </div>
-
           {loadingDetail ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {[180, 120, 160].map((h, i) => (
@@ -336,7 +310,6 @@ function DetailModal({
                   <ModalInfoRow icon={<Bookmark size={14} color={G} />}    label="NO. BOOKING" value={`#${item.no_booking}`} />
                   <ModalInfoRow icon={<Hash size={14} color={G} />}        label="NO. ANTRIAN" value={String(item.no_antrian).padStart(3, "0")} />
                 </div>
-
                 <div style={cardS}>
                   {secTitle(<Building2 size={14} color={G} />, "Layanan")}
                   {item.layanans.length === 0 ? (
@@ -359,7 +332,6 @@ function DetailModal({
                     <span style={{ fontSize: 14, fontWeight: 700, color: G }}>{toRp(item.grand_total)}</span>
                   </div>
                 </div>
-
                 {(item.foto_before || item.foto_after) && (
                   <div style={cardS}>
                     {secTitle(<Camera size={14} color={G} />, "Foto Before / After")}
@@ -382,7 +354,6 @@ function DetailModal({
                   </div>
                 )}
               </div>
-
               {/* KANAN */}
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {rm ? (
@@ -457,7 +428,6 @@ function DetailModal({
     </div>
   );
 }
-
 function RiwayatLayananContent() {
   const [riwayat,       setRiwayat]       = useState<RiwayatItem[]>([]);
   const [stats,         setStats]         = useState<StatsData | null>(null);
@@ -468,9 +438,7 @@ function RiwayatLayananContent() {
   const [currentPage,   setCurrentPage]   = useState(1);
   const [modalItem,     setModalItem]     = useState<RiwayatItem | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-
   const token = getAuthToken();
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -492,7 +460,6 @@ function RiwayatLayananContent() {
     })();
     return () => { cancelled = true; };
   }, [token]);
-
   const handleOpenDetail = async (item: RiwayatItem) => {
     setModalItem(item);
     if (item.id_riwayat < 0) {
@@ -514,29 +481,29 @@ function RiwayatLayananContent() {
       setLoadingDetail(false);
     }
   };
-
   const filtered = riwayat.filter(r => {
-    const matchKat   = filterKat === "Semua" || r.layanans.some(l => l.kategori === filterKat);
+    const matchKat =
+      filterKat === "Semua" ||
+      r.layanans.some(l =>
+        l.kategori === filterKat ||
+        (filterKat === "Hotel Hewan" && l.kategori === "Hotel Hewan")
+      );
     const matchHewan = filterHewan === "Semua Hewan" || r.hewan?.jenis === filterHewan;
     return matchKat && matchHewan;
   });
-
   const totalPages = Math.ceil(filtered.length / ITEMS_PAGE);
   const paginated  = filtered.slice((currentPage - 1) * ITEMS_PAGE, currentPage * ITEMS_PAGE);
-
   const statCards = [
-    { icon: <Calendar size={22} color={G} />,    label: "Total Layanan", value: stats?.total ?? 0,          key: "Semua"      },
-    { icon: <Building2 size={22} color={G} />,   label: "Medis",         value: stats?.Medis ?? 0,          key: "Medis"      },
-    { icon: <Syringe size={22} color={G} />,     label: "Bedah",         value: stats?.Bedah ?? 0,          key: "Bedah"      },
-    { icon: <Scissors size={22} color={G} />,    label: "Grooming",      value: stats?.Grooming ?? 0,       key: "Grooming"   },
-    { icon: <BedDouble size={22} color={G} />,   label: "Rawat Inap",    value: stats?.["Rawat Inap"] ?? 0, key: "Rawat Inap" },
+    { icon: <Calendar size={22} color={G} />,    label: "Total Layanan", value: stats?.total ?? 0,          key: "Semua"        },
+    { icon: <Building2 size={22} color={G} />,   label: "Medis",         value: stats?.Medis ?? 0,          key: "Medis"        },
+    { icon: <Syringe size={22} color={G} />,     label: "Bedah",         value: stats?.Bedah ?? 0,          key: "Bedah"        },
+    { icon: <Scissors size={22} color={G} />,    label: "Grooming",      value: stats?.Grooming ?? 0,       key: "Grooming"     },
+    { icon: <BedDouble size={22} color={G} />,   label: "Hotel Hewan",   value: stats?.["Hotel Hewan"] ?? 0, key: "Hotel Hewan"  },
   ];
-
   const jenisHewanList = [
     "Semua Hewan",
     ...Array.from(new Set(riwayat.map(r => r.hewan?.jenis).filter(Boolean) as string[])),
   ];
-
   return (
     <>
       {modalItem && (
@@ -546,7 +513,6 @@ function RiwayatLayananContent() {
           onClose={() => { setModalItem(null); setLoadingDetail(false); }}
         />
       )}
-
       {/* Stat Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, marginBottom: 20 }}>
         {statCards.map(s => {
@@ -568,7 +534,6 @@ function RiwayatLayananContent() {
           );
         })}
       </div>
-
       {/* Filter Bar */}
       <div style={{ background: "#fff", borderRadius: 12, padding: "12px 18px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: "#444", marginRight: 4, display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -578,7 +543,7 @@ function RiwayatLayananContent() {
           {
             label: "Jenis Layanan",
             value: filterKat,
-            options: ["Semua", "Medis", "Bedah", "Grooming", "Rawat Inap"],
+            options: ["Semua", "Medis", "Bedah", "Grooming", "Hotel Hewan"],
             onChange: (v: string) => { setFilterKat(v); setCurrentPage(1); },
           },
           {
@@ -602,7 +567,6 @@ function RiwayatLayananContent() {
           <RotateCcw size={13} color="#c62828" /> Reset
         </button>
       </div>
-
       {/* Table */}
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0" }}>
@@ -610,7 +574,6 @@ function RiwayatLayananContent() {
             <span key={h} style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>{h}</span>
           ))}
         </div>
-
         {loading ? (
           <LoadingRows />
         ) : error ? (
@@ -633,7 +596,6 @@ function RiwayatLayananContent() {
                 <p style={{ margin: 0, fontSize: 13, color: "#555" }}>{item.bulan}</p>
                 <p style={{ margin: 0, fontSize: 11, color: "#aaa" }}>{item.hari}</p>
               </div>
-
               {/* Hewan */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <HewanAvatar foto={item.hewan?.foto ?? null} jenis={item.hewan?.jenis} nama={item.hewan?.nama ?? "hewan"} />
@@ -643,7 +605,6 @@ function RiwayatLayananContent() {
                   <p style={{ margin: 0, fontSize: 12, color: "#888" }}>{item.hewan?.umur} · {item.hewan?.berat}</p>
                 </div>
               </div>
-
               {/* Layanan */}
               <div>
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{item.layanan_utama}</p>
@@ -652,7 +613,6 @@ function RiwayatLayananContent() {
                 )}
                 <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: G }}>{toRp(item.grand_total)}</p>
               </div>
-
               {/* Dokter / Petugas */}
               <div>
                 {item.nama_dokter && item.nama_dokter !== '-' ? (
@@ -668,10 +628,8 @@ function RiwayatLayananContent() {
                   <p style={{ margin: 0, fontSize: 12, color: "#bbb", fontStyle: "italic" }}>–</p>
                 )}
               </div>
-
               {/* Status */}
               <StatusBadge status={item.status_booking} />
-
               {/* Aksi */}
               <div>
                 <button
@@ -687,7 +645,6 @@ function RiwayatLayananContent() {
           ))
         )}
       </div>
-
       {/* Pagination */}
       {totalPages > 1 && (
         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 16 }}>
@@ -719,15 +676,12 @@ function RiwayatLayananContent() {
     </>
   );
 }
-
 export default function RiwayatLayananPage() {
   const router = useRouter();
-
   useEffect(() => {
     const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
     if (!token) router.push("/auth/login");
   }, [router]);
-
   return (
     <div style={{ display: "flex", height: "100vh", backgroundColor: "#f5f5f5", fontFamily: "Segoe UI, sans-serif" }}>
       <Sidebar activePage="riwayat" />

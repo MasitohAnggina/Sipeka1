@@ -8,7 +8,7 @@ import Sidebar from "@/components/Sidebar_admin";
 const API_URL = "http://127.0.0.1:8000/api";
 
 type LayananStatus   = "Aktif" | "Nonaktif";
-type LayananKategori = "Medis" | "Bedah" | "Grooming" | "Rawat Inap";
+type LayananKategori = "Medis" | "Bedah" | "Grooming" | "Hotel Hewan";
 
 // ── Sesuai response dari backend ──────────────────────────────────────────────
 interface LayananAPI {
@@ -52,7 +52,7 @@ const kategoriStyle: Record<LayananKategori, { bg: string; color: string }> = {
   Medis:        { bg: "#e3f2fd", color: "#1565c0" },
   Bedah:        { bg: "#fce4ec", color: "#c62828" },
   Grooming:     { bg: "#f3e5f5", color: "#6a1b9a" },
-  "Rawat Inap": { bg: "#e0f2f1", color: "#00695c" },
+  "Hotel Hewan": { bg: "#e0f2f1", color: "#00695c" },
 };
 
 function formatHarga(harga: string | number) {
@@ -269,7 +269,7 @@ setAllLayanan(result.data); // ⭐ ambil ARRAY nya
               <label style={filterLabel}>Kategori</label>
               <select style={inputStyle} value={filterKategori} onChange={(e) => setFilterKategori(e.target.value)}>
                 <option value="">Semua Kategori</option>
-                {(["Medis", "Bedah", "Grooming", "Rawat Inap"] as LayananKategori[]).map((k) => (
+                {(["Medis", "Bedah", "Grooming", "Hotel Hewan"] as LayananKategori[]).map((k) => (
                   <option key={k} value={k}>{k}</option>
                 ))}
               </select>
@@ -392,7 +392,7 @@ setAllLayanan(result.data); // ⭐ ambil ARRAY nya
               <div>
                 <label style={modalLabel}>Kategori</label>
                 <select style={modalInputStyle} value={form.kategori} onChange={(e) => setForm((f) => ({ ...f, kategori: e.target.value as LayananKategori }))}>
-                  {(["Medis", "Bedah", "Grooming", "Rawat Inap"] as LayananKategori[]).map((k) => (
+                  {(["Medis", "Bedah", "Grooming", "Hotel Hewan"] as LayananKategori[]).map((k) => (
                     <option key={k} value={k}>{k}</option>
                   ))}
                 </select>
