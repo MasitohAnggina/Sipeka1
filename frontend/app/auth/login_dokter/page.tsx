@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { saveToken } from "@/lib/auth";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleLogin = async () => {
     setError("");
@@ -30,16 +32,25 @@ export default function LoginPage() {
         return;
       }
 
-      sessionStorage.setItem("token", data.token);
+      // Simpan token ke Cookie + sessionStorage
+      saveToken(data.token);
       sessionStorage.setItem("user", JSON.stringify(data.user));
 
+      // Jika middleware redirect ke login dengan ?redirect=..., kembalikan ke sana
+      const redirectTo = searchParams.get("redirect");
+      if (redirectTo) {
+        router.push(redirectTo);
+        return;
+      }
+
+      // Redirect berdasarkan role
       if (data.user.role === "dokter") {
-  router.push("/dokter/dashboard");
-} else if (data.user.role === "admin") {
-  router.push("/admin/dashboard");
-} else if (data.user.role === "user") {
-  router.push("/owner_pet/dashboard");
-} else {
+        router.push("/dokter/dashboard");
+      } else if (data.user.role === "admin") {
+        router.push("/admin/dashboard");
+      } else if (data.user.role === "user") {
+        router.push("/owner_pet/dashboard");
+      } else {
         router.push("/");
       }
     } catch (err) {
