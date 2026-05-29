@@ -10,13 +10,12 @@ class Layanan extends Model
     protected $primaryKey = 'id_layanan';
 
     protected $fillable = [
-        'nama_layanan',
-        'kategori',
-        'sub_kategori',
-        'durasi',
-        'harga',
-        'kapasitas',
-        'deskripsi',
-        'status',
-    ];
+    'nama_layanan', 'kategori', 'sub_kategori',
+    'durasi', 'harga', 'kapasitas', 'deskripsi', 'tersedia',
+];
+
+protected $casts = [
+    'tersedia' => 'boolean',
+    'harga'    => 'decimal:2',
+];
 }

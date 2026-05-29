@@ -29,8 +29,6 @@ class Booking extends Model
         'tanggal_dibuat'  => 'date',
     ];
 
-    // ── Relasi ────────────────────────────────────────────────────────────────
-
     public function user()
     {
         return $this->belongsTo(User::class, 'id_user', 'id_user');
@@ -46,10 +44,6 @@ class Booking extends Model
         return $this->belongsTo(Jadwal::class, 'id_jadwal', 'id_jadwal');
     }
 
-    /**
-     * Many-to-many: satu booking bisa punya BANYAK layanan.
-     * Pivot: booking_layanan (id_booking, id_layanan, harga_saat_booking)
-     */
     public function layanans()
     {
         return $this->belongsToMany(
@@ -65,8 +59,6 @@ class Booking extends Model
         return $this->hasOne(RiwayatLayanan::class, 'id_booking', 'id_booking');
     }
 
-    // ── Helper: generate no_booking unik ─────────────────────────────────────
-
     public static function generateNoBooking(): string
     {
         do {
@@ -75,8 +67,6 @@ class Booking extends Model
 
         return $no;
     }
-
-    // ── Helper: nomor antrian berikutnya untuk tanggal tertentu ──────────────
 
     public static function nextAntrian(string $tanggal): int
     {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar_dokter";
 import Header from "@/components/Header";
 
@@ -24,7 +25,6 @@ function Icon({ name, size = 16, color = "currentColor" }: { name: string; size?
     check:       (<svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={s}><polyline points="20 6 9 17 4 12"/></svg>),
     calendar:    (<svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={s}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>),
     clock:       (<svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={s}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>),
-    pill:        (<svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={s}><path d="M10.5 20.5 3.5 13.5a5 5 0 0 1 7.07-7.07l7 7a5 5 0 0 1-7.07 7.07z"/><line x1="8.5" y1="11.5" x2="13.5" y2="16.5"/></svg>),
     note:        (<svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={s}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>),
   };
   return <>{icons[name] ?? null}</>;
@@ -32,66 +32,33 @@ function Icon({ name, size = 16, color = "currentColor" }: { name: string; size?
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const G = "#2e7d32";
+const G           = "#2e7d32";
+const API         = "http://127.0.0.1:8000/api";
+const STORAGE_URL = "http://127.0.0.1:8000/storage/";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface HewanRow {
-  id: string; emoji: string; nama: string; spesies: string;
-  umur: string; berat: string; pemilik: string; lastVisit: string;
+  id_hewan:     number;
+  nama_hewan:   string;
+  jenis:        string;
+  ras:          string;
+  umur:         number | null;
+  foto:         string | null;
+  nama_pemilik: string;
+  rekam_medis:  RekamMedisItem[];
 }
 
-interface Tindakan { id: number; penanganan: string; durasi: string; }
-
-interface RekamMedisRecord {
-  id: string; hewan: HewanRow; tanggal: string; waktu: string; dokter: string;
-  diagnosa: string; diagnosaLengkap: string; catatanDokter: string;
-  simpanPenyakit: boolean; simpanAlergi: boolean;
-  tindakanList: Tindakan[]; createdAt: string;
+interface RekamMedisItem {
+  id_rekam_medis:   number;
+  tanggal:          string;
+  diagnosa:         string;
+  diagnosa_lengkap: string;
+  catatan_dokter:   string;
+  nama_dokter:      string;
 }
 
 type ViewMode = "table" | "form" | "detail";
-
-// ── Data ──────────────────────────────────────────────────────────────────────
-
-const HEWAN_LIST: HewanRow[] = [
-  { id: "meng-meng", emoji: "🐱", nama: "Meng-Meng", spesies: "Kucing Persia",    umur: "2 Tahun", berat: "3 Kg",  pemilik: "Anggina",      lastVisit: "10 Apr 2026" },
-  { id: "doggy",     emoji: "🐶", nama: "Doggy",     spesies: "Golden Retriever", umur: "3 Tahun", berat: "28 Kg", pemilik: "Budi Santoso",  lastVisit: "5 Apr 2026"  },
-  { id: "kitty",     emoji: "🐱", nama: "Kitty",     spesies: "Maine Coon",        umur: "1 Tahun", berat: "5 Kg",  pemilik: "Citra Dewi",    lastVisit: "1 Apr 2026"  },
-  { id: "rocky",     emoji: "🐶", nama: "Rocky",     spesies: "Shiba Inu",         umur: "2 Tahun", berat: "10 Kg", pemilik: "Deni Kurnia",   lastVisit: "28 Mar 2026" },
-  { id: "coco",      emoji: "🐇", nama: "Coco",      spesies: "Kelinci Lop",       umur: "1 Tahun", berat: "2 Kg",  pemilik: "Eka Putri",     lastVisit: "20 Mar 2026" },
-  { id: "lulu",      emoji: "🐱", nama: "Lulu",      spesies: "Kucing Anggora",    umur: "3 Tahun", berat: "4 Kg",  pemilik: "Reza Fauzi",    lastVisit: "15 Mar 2026" },
-];
-
-const SEED_RECORDS: RekamMedisRecord[] = [
-  {
-    id: "rm-001", hewan: HEWAN_LIST[0], tanggal: "2026-04-10", waktu: "09:00",
-    dokter: "drh. Ali Haqqi", diagnosa: "Gastroenteritis",
-    diagnosaLengkap: "Hewan mengalami gangguan pencernaan akut disertai mual dan diare ringan.",
-    catatanDokter: "Berikan obat anti-mual dan jaga pola makan selama 5 hari.",
-    simpanPenyakit: true, simpanAlergi: false,
-    tindakanList: [{ id: 1, penanganan: "Metronidazole 2x sehari + probiotik", durasi: "5 Hari" }],
-    createdAt: "10 Apr 2026, 09:00",
-  },
-  {
-    id: "rm-002", hewan: HEWAN_LIST[1], tanggal: "2026-04-05", waktu: "11:00",
-    dokter: "drh. Siti Aisyah", diagnosa: "Otitis",
-    diagnosaLengkap: "Infeksi telinga bagian luar akibat bakteri. Telinga kemerahan dan berbau.",
-    catatanDokter: "Bersihkan telinga setiap hari dengan larutan pembersih khusus.",
-    simpanPenyakit: true, simpanAlergi: false,
-    tindakanList: [{ id: 1, penanganan: "Tetes telinga antibiotik 2x sehari", durasi: "7 Hari" }],
-    createdAt: "5 Apr 2026, 11:00",
-  },
-];
-
-const DIAGNOSA_OPTIONS = [
-  "Gastroenteritis", "Infeksi Saluran Kemih", "Infeksi Kulit",
-  "Dermatitis", "Otitis", "Conjunctivitis", "Fraktur", "Anemia",
-  "Kurang Nutrisi", "Parasit Internal", "Parasit Eksternal", "Flu / ISPA",
-];
-
-const DURASI_OPTIONS = ["1 Hari", "3 Hari", "5 Hari", "7 Hari", "10 Hari", "14 Hari", "1 Bulan"];
-const DOKTER_OPTIONS = ["drh. Ali Haqqi", "drh. Siti Aisyah", "drh. Yusuf B."];
 
 // ── Shared Styles ─────────────────────────────────────────────────────────────
 
@@ -102,16 +69,70 @@ const inputStyle: React.CSSProperties = {
   background: "#fff", color: "#333", boxSizing: "border-box",
 };
 
-const readonlyInputStyle: React.CSSProperties = { ...inputStyle, background: "#fafafa", color: "#666", cursor: "default" };
-const labelStyle: React.CSSProperties = { fontWeight: 600, fontSize: 13, display: "block", marginBottom: 6, color: "#555" };
-const cardStyle: React.CSSProperties = { background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0", padding: "18px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" };
-const sectionTitleStyle: React.CSSProperties = { fontWeight: 700, fontSize: 14, color: G, paddingBottom: 10, borderBottom: "1.5px solid #e8f5e9", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 };
+const readonlyInputStyle: React.CSSProperties = {
+  ...inputStyle, background: "#fafafa", color: "#666", cursor: "default",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontWeight: 600, fontSize: 13, display: "block", marginBottom: 6, color: "#555",
+};
+
+const cardStyle: React.CSSProperties = {
+  background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
+  padding: "18px 20px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontWeight: 700, fontSize: 14, color: G,
+  paddingBottom: 10, borderBottom: "1.5px solid #e8f5e9",
+  marginBottom: 14, display: "flex", alignItems: "center", gap: 6,
+};
+
+const DIAGNOSA_OPTIONS = [
+  "Gastroenteritis", "Infeksi Saluran Kemih", "Infeksi Kulit",
+  "Dermatitis", "Otitis", "Conjunctivitis", "Fraktur", "Anemia",
+  "Kurang Nutrisi", "Parasit Internal", "Parasit Eksternal", "Flu / ISPA",
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function normalizeFotoUrl(foto: string | null): string | null {
+  if (!foto) return null;
+  if (foto.startsWith("http://") || foto.startsWith("https://")) return foto;
+  return STORAGE_URL + foto.replace(/^\//, "");
+}
+
+const speciesEmoji: Record<string, string> = {
+  Kucing: "🐱", Anjing: "🐕", Kelinci: "🐇", Burung: "🐦", Hamster: "🐹",
+};
+
+function FotoHewan({ foto, nama, jenis, size = 40 }: {
+  foto: string | null; nama: string; jenis: string; size?: number;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const fotoUrl = normalizeFotoUrl(foto);
+  const emoji   = speciesEmoji[jenis] ?? "🐾";
+
+  if (fotoUrl && !imgError) {
+    return (
+      <img
+        src={fotoUrl}
+        alt={nama}
+        style={{ width: size, height: size, objectFit: "cover", borderRadius: 10, display: "block", flexShrink: 0 }}
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+  return (
+    <div style={{ width: size, height: size, borderRadius: 10, background: "#e8f5e9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.48, flexShrink: 0 }}>
+      {emoji}
+    </div>
+  );
+}
+
 function Badge({ children, blue, orange }: { children: React.ReactNode; blue?: boolean; orange?: boolean }) {
-  const bg = blue ? "#e3f2fd" : orange ? "#fff8e1" : "#e8f5e9";
-  const color = blue ? "#1565c0" : orange ? "#e65100" : G;
+  const bg     = blue ? "#e3f2fd" : orange ? "#fff8e1" : "#e8f5e9";
+  const color  = blue ? "#1565c0" : orange ? "#e65100" : G;
   const border = blue ? "#90caf9" : orange ? "#ffcc80" : "#a5d6a7";
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: bg, color, border: `1.5px solid ${border}` }}>
@@ -121,13 +142,14 @@ function Badge({ children, blue, orange }: { children: React.ReactNode; blue?: b
 }
 
 function HoverBtn({ onClick, children, variant = "green" }: {
-  onClick?: () => void; children: React.ReactNode; variant?: "green" | "blue" | "outline";
+  onClick?: () => void; children: React.ReactNode; variant?: "green" | "blue" | "outline" | "danger";
 }) {
   const [hov, setHov] = useState(false);
   const styles: Record<string, React.CSSProperties> = {
-    green:   { border: `1.5px solid ${G}`,     background: hov ? G           : "#fff",     color: hov ? "#fff"    : G       },
-    blue:    { border: "1.5px solid #e0e0e0",   background: hov ? "#e3f2fd"   : "#fff",     color: hov ? "#1565c0" : "#555"  },
-    outline: { border: `1.5px solid ${G}`,      background: hov ? "#e8f5e9"   : "#fff",     color: G                         },
+    green:   { border: `1.5px solid ${G}`,   background: hov ? G         : "#fff", color: hov ? "#fff"    : G      },
+    blue:    { border: "1.5px solid #e0e0e0", background: hov ? "#e3f2fd" : "#fff", color: hov ? "#1565c0" : "#555" },
+    outline: { border: `1.5px solid ${G}`,   background: hov ? "#e8f5e9" : "#fff", color: G                        },
+    danger:  { border: "1.5px solid #e53935", background: hov ? "#ffebee" : "#fff", color: "#e53935"                },
   };
   return (
     <button onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
@@ -138,23 +160,19 @@ function HoverBtn({ onClick, children, variant = "green" }: {
   );
 }
 
-function HewanInfoBar({ hewan, onBack, label }: { hewan: HewanRow; onBack: () => void; label: string }) {
+function HewanInfoBar({ namaHewan, jenisHewan, rasHewan, namaPemilik, foto, label }: {
+  namaHewan: string; jenisHewan: string; rasHewan: string;
+  namaPemilik: string; foto: string | null; label: string;
+}) {
   return (
     <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0", padding: "16px 20px", margin: "18px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <HoverBtn onClick={onBack} variant="outline">
-          <Icon name="arrowLeft" size={14} color="currentColor" /> Kembali
-        </HoverBtn>
-        <div style={{ width: 1, height: 36, background: "#e0e0e0" }} />
-        <div style={{ width: 48, height: 48, borderRadius: 12, background: G, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", flexShrink: 0 }}>
-          {hewan.emoji}
-        </div>
+        <FotoHewan foto={foto} nama={namaHewan} jenis={jenisHewan} size={48} />
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{hewan.nama}</div>
-          <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{hewan.spesies}</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{namaHewan}</div>
+          <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>{jenisHewan} · {rasHewan}</div>
           <div style={{ display: "flex", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
-            <Badge><Icon name="paw" size={10} color={G} /> {hewan.umur} · {hewan.berat}</Badge>
-            <Badge blue><Icon name="user" size={10} color="#1565c0" /> {hewan.pemilik}</Badge>
+            <Badge blue><Icon name="user" size={10} color="#1565c0" /> {namaPemilik}</Badge>
           </div>
         </div>
       </div>
@@ -167,102 +185,114 @@ function HewanInfoBar({ hewan, onBack, label }: { hewan: HewanRow; onBack: () =>
 
 // ── TABLE VIEW ────────────────────────────────────────────────────────────────
 
-function TableView({ records, onCatat, onDetail }: {
-  records: RekamMedisRecord[];
+function TableView({ hewanList, loading, onCatat, onDetail }: {
+  hewanList: HewanRow[];
+  loading: boolean;
   onCatat: (h: HewanRow) => void;
-  onDetail: (r: RekamMedisRecord) => void;
+  onDetail: (h: HewanRow, rm: RekamMedisItem) => void;
 }) {
   const [search, setSearch] = useState("");
 
-  const rows = HEWAN_LIST
-    .filter(h => h.pemilik.toLowerCase().includes(search.toLowerCase()) || h.nama.toLowerCase().includes(search.toLowerCase()))
-    .map(h => {
-      const hewanRecs = records.filter(r => r.hewan.id === h.id).sort((a, b) => b.id.localeCompare(a.id));
-      return { hewan: h, latest: hewanRecs[0] ?? null, total: hewanRecs.length };
-    });
+  const filtered = hewanList.filter(h =>
+    h.nama_pemilik.toLowerCase().includes(search.toLowerCase()) ||
+    h.nama_hewan.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div style={{ padding: "24px 28px" }}>
-      {/* Search */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ position: "relative", maxWidth: 400 }}>
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
             <Icon name="search" size={15} color="#aaa" />
           </span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama pemilik atau hewan..."
-            style={{ ...inputStyle, paddingLeft: 38 }} />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Cari nama pemilik atau hewan..."
+            style={{ ...inputStyle, paddingLeft: 38 }}
+            suppressHydrationWarning
+          />
         </div>
       </div>
 
-      {/* Table */}
       <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: G }}>
-                {["Hewan", "Spesies", "Umur / Berat", "Pemilik", "Rekam Medis", "Aksi"].map(h => (
-                  <th key={h} style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "left", whiteSpace: "nowrap", fontFamily: "inherit" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr><td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "#999", fontSize: 14 }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>Tidak ditemukan hasil untuk "{search}"
-                </td></tr>
-              ) : rows.map(({ hewan: h, latest, total }) => (
-                <tr key={h.id} style={{ borderBottom: "1px solid #f0f0f0" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                >
-                  {/* Hewan */}
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: G, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem", flexShrink: 0 }}>{h.emoji}</div>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{h.nama}</div>
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: 13, color: "#555" }}>{h.spesies}</td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{h.umur}</div>
-                    <div style={{ fontSize: 12, color: "#888" }}>{h.berat}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#e8f5e9", border: `1.5px solid #a5d6a7`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Icon name="user" size={13} color={G} />
-                      </div>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>{h.pemilik}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    {total > 0 ? (
-                      <div>
-                        <Badge>{total} Rekam Medis</Badge>
-                        <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Terakhir: {latest!.createdAt}</div>
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: 12, color: "#bbb", fontStyle: "italic" }}>Belum ada</span>
-                    )}
-                  </td>
-                  {/* Aksi */}
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <HoverBtn onClick={() => onCatat(h)} variant="green">
-                        <Icon name="clipboard" size={12} color="currentColor" /> Catat
-                      </HoverBtn>
-                      {latest && (
-                        <HoverBtn onClick={() => onDetail(latest)} variant="blue">
-                          <Icon name="eye" size={12} color="currentColor" /> Detail
-                        </HoverBtn>
-                      )}
-                    </div>
-                  </td>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: "center", color: "#888" }}>Memuat data...</div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: G }}>
+                  {["Hewan", "Jenis / Ras", "Pemilik", "Rekam Medis", "Aksi"].map(h => (
+                    <th key={h} style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "left", whiteSpace: "nowrap", fontFamily: "inherit" }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "#999", fontSize: 14 }}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
+                    {search ? `Tidak ditemukan hasil untuk "${search}"` : "Belum ada data hewan"}
+                  </td></tr>
+                ) : filtered.map(h => {
+                  const latest = h.rekam_medis[0] ?? null;
+                  const total  = h.rekam_medis.length;
+                  return (
+                    <tr key={h.id_hewan} style={{ borderBottom: "1px solid #f0f0f0" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <td style={{ padding: "12px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <FotoHewan foto={h.foto} nama={h.nama_hewan} jenis={h.jenis} size={40} />
+                          <div style={{ fontWeight: 700, fontSize: 14 }}>{h.nama_hewan}</div>
+                        </div>
+                      </td>
+
+                      <td style={{ padding: "12px 16px", fontSize: 13, color: "#555" }}>
+                        <div>{h.jenis}</div>
+                        <div style={{ fontSize: 12, color: "#aaa" }}>{h.ras}</div>
+                      </td>
+
+                      <td style={{ padding: "12px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#e8f5e9", border: `1.5px solid #a5d6a7`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <Icon name="user" size={13} color={G} />
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>{h.nama_pemilik}</span>
+                        </div>
+                      </td>
+
+                      <td style={{ padding: "12px 16px" }}>
+                        {total > 0 ? (
+                          <div>
+                            <Badge>{total} Rekam Medis</Badge>
+                            <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Terakhir: {latest!.tanggal}</div>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 12, color: "#bbb", fontStyle: "italic" }}>Belum ada</span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: "12px 16px" }}>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <HoverBtn onClick={() => onCatat(h)} variant="green">
+                            <Icon name="clipboard" size={12} color="currentColor" /> Catat
+                          </HoverBtn>
+                          {latest && (
+                            <HoverBtn onClick={() => onDetail(h, latest)} variant="blue">
+                              <Icon name="eye" size={12} color="currentColor" /> Detail
+                            </HoverBtn>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -270,44 +300,112 @@ function TableView({ records, onCatat, onDetail }: {
 
 // ── FORM VIEW ─────────────────────────────────────────────────────────────────
 
-function FormView({ hewan, onBack, onSave }: { hewan: HewanRow; onBack: () => void; onSave: (r: RekamMedisRecord) => void }) {
+function FormView({ hewan, idBooking, onBack, onSaved }: {
+  hewan: HewanRow | null;
+  idBooking: string | null;
+  onBack: () => void;
+  onSaved: () => void;
+}) {
   const [tanggal,         setTanggal]         = useState(new Date().toISOString().split("T")[0]);
-  const [waktu,           setWaktu]           = useState("09:00");
-  const [dokter,          setDokter]          = useState("drh. Ali Haqqi");
+  const [waktu,           setWaktu]           = useState(new Date().toTimeString().slice(0, 5));
   const [diagnosa,        setDiagnosa]        = useState("");
   const [diagnosaLengkap, setDiagnosaLengkap] = useState("");
   const [catatanDokter,   setCatatanDokter]   = useState("");
   const [showDiagnosaDD,  setShowDiagnosaDD]  = useState(false);
-  const [simpanPenyakit,  setSimpanPenyakit]  = useState(true);
-  const [simpanAlergi,    setSimpanAlergi]    = useState(false);
-  const [tindakanList,    setTindakanList]    = useState<Tindakan[]>([{ id: 1, penanganan: "", durasi: "3 Hari" }]);
+  const [tindakan,        setTindakan]        = useState("");
+  const [saving,          setSaving]          = useState(false);
+  const [error,           setError]           = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  const token       = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+  const diagnosaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handler = () => setShowDiagnosaDD(false);
-    document.addEventListener("click", handler);
-    return () => document.removeEventListener("click", handler);
+    const handler = (e: MouseEvent) => {
+      if (diagnosaRef.current && !diagnosaRef.current.contains(e.target as Node)) {
+        setShowDiagnosaDD(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const addTindakan    = () => setTindakanList(p => [...p, { id: Date.now(), penanganan: "", durasi: "3 Hari" }]);
-  const removeTindakan = (id: number) => setTindakanList(p => p.filter(t => t.id !== id));
-  const updateTindakan = (id: number, f: keyof Tindakan, v: string) => setTindakanList(p => p.map(t => t.id === id ? { ...t, [f]: v } : t));
+  // Cek apakah ada perubahan di form sebelum batal
+  const hasChanges = diagnosa || diagnosaLengkap || catatanDokter || tindakan;
 
-  const handleSave = () => {
-    const tanggalFmt = new Date(tanggal + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
-    onSave({ id: "rm-" + Date.now(), hewan, tanggal, waktu, dokter, diagnosa, diagnosaLengkap, catatanDokter, simpanPenyakit, simpanAlergi, tindakanList, createdAt: `${tanggalFmt}, ${waktu}` });
+  const handleBatal = () => {
+    if (hasChanges) {
+      setShowCancelModal(true);
+    } else {
+      onBack();
+    }
   };
+
+  const handleSave = async () => {
+    if (!diagnosa) { setError("Diagnosa wajib diisi!"); return; }
+    if (!idBooking) { setError("ID Booking tidak ditemukan!"); return; }
+
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch(`${API}/dokter/rekam-medis`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_booking:       idBooking,
+          diagnosa,
+          diagnosa_lengkap: diagnosaLengkap,
+          catatan_dokter:   catatanDokter,
+          tindakan,
+          tanggal,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onSaved();
+      } else {
+        setError(data.message ?? "Gagal menyimpan rekam medis");
+      }
+    } catch {
+      setError("Terjadi kesalahan, coba lagi");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const namaHewan   = hewan?.nama_hewan   ?? "-";
+  const jenisHewan  = hewan?.jenis        ?? "-";
+  const rasHewan    = hewan?.ras          ?? "-";
+  const namaPemilik = hewan?.nama_pemilik ?? "-";
 
   return (
     <div style={{ padding: "0 28px 28px" }}>
-      <HewanInfoBar hewan={hewan} onBack={onBack} label="Catat Rekam Medis" />
+      <HewanInfoBar
+        namaHewan={namaHewan} jenisHewan={jenisHewan}
+        rasHewan={rasHewan} namaPemilik={namaPemilik}
+        foto={hewan?.foto ?? null}
+        label="Catat Rekam Medis"
+      />
+
+      {error && (
+        <div style={{ background: "#ffebee", border: "1px solid #ffcdd2", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#c62828" }}>
+          {error}
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
         {/* LEFT */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div style={cardStyle}>
             <div style={sectionTitleStyle}><Icon name="clipboard" size={15} color={G} /> Informasi Pemeriksaan</div>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Nama Hewan / Pasien</label><input style={readonlyInputStyle} value={`${hewan.nama} (${hewan.spesies})`} readOnly /></div>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Nama Pemilik</label><input style={readonlyInputStyle} value={hewan.pemilik} readOnly /></div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Nama Hewan / Pasien</label>
+              <input style={readonlyInputStyle} value={`${namaHewan} (${jenisHewan} - ${rasHewan})`} readOnly />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Nama Pemilik</label>
+              <input style={readonlyInputStyle} value={namaPemilik} readOnly />
+            </div>
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Tanggal Pemeriksaan</label>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -318,38 +416,18 @@ function FormView({ hewan, onBack, onSave }: { hewan: HewanRow; onBack: () => vo
                 </div>
               </div>
             </div>
-            <div><label style={labelStyle}>Dokter Pemeriksa</label>
-              <select value={dokter} onChange={e => setDokter(e.target.value)} style={inputStyle}>
-                {DOKTER_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-            </div>
           </div>
 
           <div style={cardStyle}>
             <div style={sectionTitleStyle}><Icon name="stethoscope" size={15} color={G} /> Tindakan Medis</div>
-            {tindakanList.map((t, idx) => (
-              <div key={t.id} style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 10, padding: "12px 14px", marginBottom: idx < tindakanList.length - 1 ? 10 : 0 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: G }}>Tindakan {idx + 1}</span>
-                  {tindakanList.length > 1 && (
-                    <button onClick={() => removeTindakan(t.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 6px", borderRadius: 6, display: "flex", alignItems: "center", color: "#e53935" }}>
-                      <Icon name="trash" size={14} color="currentColor" />
-                    </button>
-                  )}
-                </div>
-                <div style={{ marginBottom: 10 }}><label style={labelStyle}>Penanganan &amp; Obat</label>
-                  <input value={t.penanganan} onChange={e => updateTindakan(t.id, "penanganan", e.target.value)} placeholder="Tuliskan tindakan medis dan resep obat..." style={inputStyle} />
-                </div>
-                <div><label style={labelStyle}>Durasi Pengobatan</label>
-                  <select value={t.durasi} onChange={e => updateTindakan(t.id, "durasi", e.target.value)} style={inputStyle}>
-                    {DURASI_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-              </div>
-            ))}
-            <button onClick={addTindakan} style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: `1.5px dashed ${G}`, background: "#fff", color: G, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-              <Icon name="plus" size={14} color={G} /> Tambah Tindakan
-            </button>
+            <label style={labelStyle}>Penanganan &amp; Obat</label>
+            <textarea
+              value={tindakan}
+              onChange={e => setTindakan(e.target.value)}
+              placeholder="Tuliskan tindakan medis dan resep obat yang diberikan..."
+              rows={6}
+              style={{ ...inputStyle, resize: "vertical", minHeight: 120, lineHeight: 1.6 }}
+            />
           </div>
         </div>
 
@@ -358,15 +436,25 @@ function FormView({ hewan, onBack, onSave }: { hewan: HewanRow; onBack: () => vo
           <div style={cardStyle}>
             <div style={sectionTitleStyle}><Icon name="search" size={15} color={G} /> Diagnosa</div>
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Diagnosa Utama</label>
-              <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
-                <button onClick={() => setShowDiagnosaDD(v => !v)} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${showDiagnosaDD ? G : "#e0e0e0"}`, background: showDiagnosaDD ? "#e8f5e9" : "#fff", color: diagnosa ? "#333" : "#aaa", fontSize: 14, fontWeight: diagnosa ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}>
+              <label style={labelStyle}>Diagnosa Utama <span style={{ color: "#e53935" }}>*</span></label>
+              <div ref={diagnosaRef} style={{ position: "relative" }}>
+                <button
+                  onClick={() => setShowDiagnosaDD(v => !v)}
+                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 8, border: `1.5px solid ${showDiagnosaDD ? G : "#e0e0e0"}`, background: showDiagnosaDD ? "#e8f5e9" : "#fff", color: diagnosa ? "#333" : "#aaa", fontSize: 14, fontWeight: diagnosa ? 600 : 400, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
+                >
                   <span>{diagnosa || "-- Pilih Diagnosa --"}</span>
-                  <span style={{ transform: showDiagnosaDD ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s", flexShrink: 0 }}><Icon name="chevDown" size={14} color="#888" /></span>
+                  <span style={{ transform: showDiagnosaDD ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s", flexShrink: 0 }}>
+                    <Icon name="chevDown" size={14} color="#888" />
+                  </span>
                 </button>
                 {showDiagnosaDD && (
-                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 10, boxShadow: "0 6px 20px rgba(0,0,0,0.10)", zIndex: 100, overflow: "hidden", maxHeight: 260, overflowY: "auto" }}>
-                    <div onClick={() => { setDiagnosa(""); setShowDiagnosaDD(false); }} style={{ padding: "10px 14px", fontSize: 13, cursor: "pointer", color: "#aaa", borderBottom: "1px solid #f0f0f0" }}>-- Pilih Diagnosa --</div>
+                  <div
+                    style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 10, boxShadow: "0 6px 20px rgba(0,0,0,0.10)", zIndex: 100, overflow: "hidden", maxHeight: 260, overflowY: "auto" }}
+                  >
+                    <div onClick={() => { setDiagnosa(""); setShowDiagnosaDD(false); }}
+                      style={{ padding: "10px 14px", fontSize: 13, cursor: "pointer", color: "#aaa", borderBottom: "1px solid #f0f0f0" }}>
+                      -- Pilih Diagnosa --
+                    </div>
                     {DIAGNOSA_OPTIONS.map(d => (
                       <div key={d} onClick={() => { setDiagnosa(d); setShowDiagnosaDD(false); }}
                         style={{ padding: "10px 14px", fontSize: 14, cursor: "pointer", borderTop: "1px solid #f5f5f5", background: diagnosa === d ? G : "transparent", color: diagnosa === d ? "#fff" : "#333", fontWeight: diagnosa === d ? 700 : 500, transition: "background .12s" }}
@@ -378,42 +466,135 @@ function FormView({ hewan, onBack, onSave }: { hewan: HewanRow; onBack: () => vo
                 )}
               </div>
             </div>
-            <div><label style={labelStyle}>Deskripsi Diagnosa</label>
-              <textarea value={diagnosaLengkap} onChange={e => setDiagnosaLengkap(e.target.value)} placeholder="Deskripsikan diagnosa secara lengkap..." rows={4} style={{ ...inputStyle, resize: "vertical", minHeight: 90, lineHeight: 1.6 }} />
+            <div>
+              <label style={labelStyle}>Deskripsi Diagnosa</label>
+              <textarea value={diagnosaLengkap} onChange={e => setDiagnosaLengkap(e.target.value)}
+                placeholder="Deskripsikan diagnosa secara lengkap..." rows={4}
+                style={{ ...inputStyle, resize: "vertical", minHeight: 90, lineHeight: 1.6 }} />
             </div>
           </div>
 
           <div style={cardStyle}>
-            <div style={sectionTitleStyle}><Icon name="clipboard" size={15} color={G} /> Catatan Dokter</div>
-            <textarea value={catatanDokter} onChange={e => setCatatanDokter(e.target.value)} placeholder="Tambahkan catatan tambahan dari dokter..." rows={5} style={{ ...inputStyle, resize: "vertical", minHeight: 100, lineHeight: 1.6, marginBottom: 14 }} />
-            <div style={{ borderTop: "1.5px solid #e0e0e0", paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-              {[{ label: "Simpan sebagai riwayat penyakit", val: simpanPenyakit, set: setSimpanPenyakit }, { label: "Simpan sebagai riwayat alergi", val: simpanAlergi, set: setSimpanAlergi }].map(({ label, val, set }) => (
-                <label key={label} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none", fontSize: 14, fontWeight: 500 }}>
-                  <input type="checkbox" checked={val} onChange={e => set(e.target.checked)} style={{ accentColor: G, width: 16, height: 16, cursor: "pointer" }} />
-                  {label}
-                </label>
-              ))}
-            </div>
+            <div style={sectionTitleStyle}><Icon name="note" size={15} color={G} /> Catatan Dokter</div>
+            <textarea value={catatanDokter} onChange={e => setCatatanDokter(e.target.value)}
+              placeholder="Tambahkan catatan tambahan dari dokter..." rows={5}
+              style={{ ...inputStyle, resize: "vertical", minHeight: 100, lineHeight: 1.6 }} />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <button onClick={onBack} style={{ padding: "10px 26px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
-              <Icon name="x" size={15} color={G} /> Batal
+          {/* Action Buttons */}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <button
+              onClick={handleBatal}
+              disabled={saving}
+              style={{
+                padding: "11px 24px", borderRadius: 8,
+                border: "1.5px solid #e0e0e0",
+                background: "#fff", color: "#666",
+                fontWeight: 700, fontSize: 14,
+                cursor: saving ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "inherit",
+                transition: "all .15s",
+                opacity: saving ? 0.5 : 1,
+              }}
+              onMouseEnter={e => { if (!saving) { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#ccc"; }}}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#e0e0e0"; }}
+            >
+              <Icon name="x" size={15} color="currentColor" /> Batal
             </button>
-            <button onClick={handleSave} style={{ padding: "10px 26px", borderRadius: 8, border: "none", background: G, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
-              <Icon name="save" size={15} color="#fff" /> Simpan Rekam Medis
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              style={{
+                padding: "11px 28px", borderRadius: 8,
+                border: "none",
+                background: saving ? "#a5d6a7" : G,
+                color: "#fff", fontWeight: 700, fontSize: 14,
+                cursor: saving ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: 6,
+                fontFamily: "inherit",
+                transition: "background .15s",
+              }}
+            >
+              <Icon name="save" size={15} color="#fff" /> {saving ? "Menyimpan..." : "Simpan Rekam Medis"}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Modal Konfirmasi Batal */}
+      {showCancelModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 999,
+          }}
+          onClick={() => setShowCancelModal(false)}
+        >
+          <div
+            style={{
+              background: "#fff", borderRadius: 16,
+              padding: "28px 32px", maxWidth: 420, width: "90%",
+              boxShadow: "0 10px 40px rgba(0,0,0,0.18)",
+              border: "1.5px solid #e0e0e0",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Icon warning */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#fff8e1", border: "1.5px solid #ffcc80", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Batalkan Pengisian?</div>
+                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Data yang sudah diisi akan hilang</div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 13, color: "#555", lineHeight: 1.6, margin: "0 0 24px" }}>
+              Anda sudah mengisi sebagian data rekam medis. Jika dibatalkan, semua perubahan akan hilang dan tidak dapat dikembalikan.
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                onClick={() => setShowCancelModal(false)}
+                style={{ padding: "9px 20px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; }}
+              >
+                Lanjutkan Mengisi
+              </button>
+              <button
+                onClick={onBack}
+                style={{ padding: "9px 20px", borderRadius: 8, border: "1.5px solid #e53935", background: "#e53935", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#c62828"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#e53935"; }}
+              >
+                Ya, Batalkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── DETAIL VIEW ───────────────────────────────────────────────────────────────
 
-function DetailView({ record, onBack }: { record: RekamMedisRecord; onBack: () => void }) {
-  const tanggalFmt = new Date(record.tanggal + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+function DetailView({ hewan, record, onBack }: {
+  hewan: HewanRow; record: RekamMedisItem; onBack: () => void;
+}) {
+  const tanggalFmt = new Date(record.tanggal + "T00:00:00").toLocaleDateString("id-ID", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
 
   function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
     return (
@@ -431,7 +612,12 @@ function DetailView({ record, onBack }: { record: RekamMedisRecord; onBack: () =
 
   return (
     <div style={{ padding: "0 28px 28px" }}>
-      <HewanInfoBar hewan={record.hewan} onBack={onBack} label="Detail Rekam Medis" />
+      <HewanInfoBar
+        namaHewan={hewan.nama_hewan} jenisHewan={hewan.jenis}
+        rasHewan={hewan.ras} namaPemilik={hewan.nama_pemilik}
+        foto={hewan.foto}
+        label="Detail Rekam Medis"
+      />
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#e8f5e9", border: "1.5px solid #a5d6a7", borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
         <div style={{ width: 32, height: 32, borderRadius: "50%", background: G, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -439,7 +625,7 @@ function DetailView({ record, onBack }: { record: RekamMedisRecord; onBack: () =
         </div>
         <div>
           <div style={{ fontWeight: 700, fontSize: 13, color: G }}>Rekam Medis Tersimpan</div>
-          <div style={{ fontSize: 12, color: "#555", marginTop: 1 }}>Dicatat pada {record.createdAt} oleh {record.dokter}</div>
+          <div style={{ fontSize: 12, color: "#555", marginTop: 1 }}>Dicatat pada {record.tanggal} oleh {record.nama_dokter}</div>
         </div>
       </div>
 
@@ -447,29 +633,10 @@ function DetailView({ record, onBack }: { record: RekamMedisRecord; onBack: () =
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div style={cardStyle}>
             <div style={sectionTitleStyle}><Icon name="clipboard" size={15} color={G} /> Informasi Pemeriksaan</div>
-            <InfoRow icon="paw"         label="Pasien"           value={`${record.hewan.nama} (${record.hewan.spesies})`} />
-            <InfoRow icon="user"        label="Pemilik"          value={record.hewan.pemilik} />
+            <InfoRow icon="paw"         label="Pasien"           value={`${hewan.nama_hewan} (${hewan.jenis})`} />
+            <InfoRow icon="user"        label="Pemilik"          value={hewan.nama_pemilik} />
             <InfoRow icon="calendar"    label="Tanggal"          value={tanggalFmt} />
-            <InfoRow icon="clock"       label="Waktu"            value={`${record.waktu} WIB`} />
-            <InfoRow icon="stethoscope" label="Dokter Pemeriksa" value={record.dokter} />
-          </div>
-
-          <div style={cardStyle}>
-            <div style={sectionTitleStyle}><Icon name="stethoscope" size={15} color={G} /> Tindakan Medis</div>
-            {record.tindakanList.length === 0 ? (
-              <div style={{ fontSize: 13, color: "#aaa", fontStyle: "italic" }}>Tidak ada tindakan dicatat.</div>
-            ) : record.tindakanList.map((t, idx) => (
-              <div key={t.id} style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 10, padding: "12px 14px", marginBottom: idx < record.tindakanList.length - 1 ? 10 : 0 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: G }}>Tindakan {idx + 1}</span>
-                  <Badge orange><Icon name="clock" size={10} color="#e65100" /> {t.durasi}</Badge>
-                </div>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                  <Icon name="pill" size={14} color="#555" />
-                  <span style={{ fontSize: 13, color: "#333", lineHeight: 1.5 }}>{t.penanganan || <em style={{ color: "#bbb" }}>Tidak diisi</em>}</span>
-                </div>
-              </div>
-            ))}
+            <InfoRow icon="stethoscope" label="Dokter Pemeriksa" value={record.nama_dokter} />
           </div>
         </div>
 
@@ -480,36 +647,29 @@ function DetailView({ record, onBack }: { record: RekamMedisRecord; onBack: () =
               <div style={{ fontSize: 11, color: "#888", fontWeight: 600, marginBottom: 8 }}>DIAGNOSA UTAMA</div>
               {record.diagnosa
                 ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 16px", borderRadius: 20, background: G, color: "#fff", fontSize: 13, fontWeight: 700 }}>{record.diagnosa}</span>
-                : <span style={{ fontSize: 13, color: "#aaa", fontStyle: "italic" }}>Tidak diisi</span>
-              }
+                : <span style={{ fontSize: 13, color: "#aaa", fontStyle: "italic" }}>Tidak diisi</span>}
             </div>
             <div>
               <div style={{ fontSize: 11, color: "#888", fontWeight: 600, marginBottom: 8 }}>DESKRIPSI DIAGNOSA</div>
-              <div style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: record.diagnosaLengkap ? "#333" : "#aaa", lineHeight: 1.6, fontStyle: record.diagnosaLengkap ? "normal" : "italic" }}>
-                {record.diagnosaLengkap || "Tidak diisi"}
+              <div style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: record.diagnosa_lengkap ? "#333" : "#aaa", lineHeight: 1.6, fontStyle: record.diagnosa_lengkap ? "normal" : "italic" }}>
+                {record.diagnosa_lengkap || "Tidak diisi"}
               </div>
             </div>
           </div>
 
           <div style={cardStyle}>
             <div style={sectionTitleStyle}><Icon name="note" size={15} color={G} /> Catatan Dokter</div>
-            <div style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: record.catatanDokter ? "#333" : "#aaa", lineHeight: 1.6, fontStyle: record.catatanDokter ? "normal" : "italic", marginBottom: 14 }}>
-              {record.catatanDokter || "Tidak ada catatan tambahan"}
-            </div>
-            <div style={{ borderTop: "1.5px solid #e0e0e0", paddingTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
-              {[{ label: "Disimpan sebagai riwayat penyakit", val: record.simpanPenyakit }, { label: "Disimpan sebagai riwayat alergi", val: record.simpanAlergi }].map(({ label, val }) => (
-                <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 18, height: 18, borderRadius: 4, background: val ? G : "#f0f0f0", border: `1.5px solid ${val ? G : "#e0e0e0"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    {val && <Icon name="check" size={11} color="#fff" />}
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: val ? "#333" : "#aaa" }}>{label}</span>
-                </div>
-              ))}
+            <div style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 8, padding: "12px 14px", fontSize: 13, color: record.catatan_dokter ? "#333" : "#aaa", lineHeight: 1.6, fontStyle: record.catatan_dokter ? "normal" : "italic" }}>
+              {record.catatan_dokter || "Tidak ada catatan tambahan"}
             </div>
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={onBack} style={{ padding: "10px 26px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}>
+            <button onClick={onBack}
+              style={{ padding: "10px 26px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#e8f5e9"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; }}
+            >
               <Icon name="arrowLeft" size={15} color={G} /> Kembali ke Daftar
             </button>
           </div>
@@ -519,21 +679,72 @@ function DetailView({ record, onBack }: { record: RekamMedisRecord; onBack: () =
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Main Page (inner) ─────────────────────────────────────────────────────────
 
-export default function RekamMedis() {
-  const [view,          setView]         = useState<ViewMode>("table");
-  const [activeHewan,   setActiveHewan]  = useState<HewanRow | null>(null);
-  const [activeRecord,  setActiveRecord] = useState<RekamMedisRecord | null>(null);
-  const [records,       setRecords]      = useState<RekamMedisRecord[]>(SEED_RECORDS);
+function RekamMedisInner() {
+  const searchParams = useSearchParams();
+  const router       = useRouter();
+
+  const idBookingParam   = searchParams.get("id_booking");
+  const namaHewanParam   = searchParams.get("nama_hewan");
+  const jenisHewanParam  = searchParams.get("jenis_hewan");
+  const rasHewanParam    = searchParams.get("ras_hewan");
+  const namaPemilikParam = searchParams.get("nama_pemilik");
+  const fotoParam        = searchParams.get("foto") ?? null;
+
+  const [view,         setView]         = useState<ViewMode>(idBookingParam ? "form" : "table");
+  const [hewanList,    setHewanList]    = useState<HewanRow[]>([]);
+  const [activeHewan,  setActiveHewan]  = useState<HewanRow | null>(null);
+  const [activeRecord, setActiveRecord] = useState<RekamMedisItem | null>(null);
+  const [loading,      setLoading]      = useState(true);
+
+  const [activeIdBooking, setActiveIdBooking] = useState<string | null>(idBookingParam);
+
+  const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+  const headers = { "Authorization": `Bearer ${token ?? ""}`, "Content-Type": "application/json" };
+
+  const fetchHewan = () => {
+    fetch(`${API}/dokter/rekam-medis`, { headers })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setHewanList(data.data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchHewan();
+    if (idBookingParam && namaHewanParam) {
+      setActiveHewan({
+        id_hewan:     0,
+        nama_hewan:   namaHewanParam ?? "",
+        jenis:        jenisHewanParam ?? "",
+        ras:          rasHewanParam ?? "",
+        umur:         null,
+        foto:         fotoParam,
+        nama_pemilik: namaPemilikParam ?? "",
+        rekam_medis:  [],
+      });
+      setActiveIdBooking(idBookingParam);
+      setView("form");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const subtitleMap: Record<ViewMode, string> = {
     table:  "Pilih hewan untuk dicatat atau lihat rekam medisnya",
-    form:   `Mencatat rekam medis untuk ${activeHewan?.nama ?? ""}`,
-    detail: `Detail rekam medis — ${activeRecord?.hewan.nama ?? ""}`,
+    form:   `Mencatat rekam medis untuk ${activeHewan?.nama_hewan ?? ""}`,
+    detail: `Detail rekam medis — ${activeHewan?.nama_hewan ?? ""}`,
   };
 
-  const goBack = () => { setView("table"); setActiveHewan(null); setActiveRecord(null); };
+  const goBack = () => {
+    setView("table");
+    setActiveHewan(null);
+    setActiveRecord(null);
+    setActiveIdBooking(null);
+    router.push("/dokter/catat_rekam_medis");
+  };
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -542,20 +753,46 @@ export default function RekamMedis() {
         <Header title="Rekam Medis" subtitle={subtitleMap[view]} />
 
         {view === "table" && (
-          <TableView records={records}
-            onCatat={h => { setActiveHewan(h); setView("form"); }}
-            onDetail={r => { setActiveRecord(r); setView("detail"); }}
+          <TableView
+            hewanList={hewanList}
+            loading={loading}
+            onCatat={h => {
+              setActiveHewan(h);
+              setActiveIdBooking((h as HewanRow & { id_booking?: string | number }).id_booking != null
+                ? String((h as HewanRow & { id_booking?: string | number }).id_booking)
+                : null
+              );
+              setView("form");
+            }}
+            onDetail={(h, rm) => { setActiveHewan(h); setActiveRecord(rm); setView("detail"); }}
           />
         )}
-        {view === "form" && activeHewan && (
-          <FormView hewan={activeHewan} onBack={goBack}
-            onSave={r => { setRecords(p => [r, ...p]); setActiveRecord(r); setView("detail"); }}
+        {view === "form" && (
+          <FormView
+            hewan={activeHewan}
+            idBooking={activeIdBooking}
+            onBack={goBack}
+            onSaved={() => { fetchHewan(); goBack(); }}
           />
         )}
-        {view === "detail" && activeRecord && (
-          <DetailView record={activeRecord} onBack={goBack} />
+        {view === "detail" && activeHewan && activeRecord && (
+          <DetailView hewan={activeHewan} record={activeRecord} onBack={goBack} />
         )}
       </div>
     </div>
+  );
+}
+
+// ── Main Export ───────────────────────────────────────────────────────────────
+
+export default function RekamMedis() {
+  return (
+    <Suspense fallback={
+      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "#888" }}>Memuat...</p>
+      </div>
+    }>
+      <RekamMedisInner />
+    </Suspense>
   );
 }

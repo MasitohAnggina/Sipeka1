@@ -12,117 +12,145 @@ class RiwayatLayananController extends Controller
     // GET /api/riwayat
     public function index(Request $request): JsonResponse
     {
-        $idUser = $request->user()->id_user;
+        try {
+            $idUser = $request->user()->id_user;
 
-        $riwayat = RiwayatLayanan::with([
-            'booking.hewan',
-            'booking.layanans',
-            'booking.jadwal.dokter',
-            'pembayaran',
-        ])
-            ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
-            ->orderBy('tanggal', 'desc')
-            ->get()
-            ->map(fn($r) => $this->fmt($r));
+            $riwayat = RiwayatLayanan::with([
+                'booking.hewan',
+                'booking.layanans',
+                'booking.jadwal.dokter',
+                'rekamMedis.dokter',
+            ])
+                ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
+                ->orderBy('tanggal', 'desc')
+                ->get()
+                ->map(fn($r) => $this->fmt($r));
 
-        $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
-            'booking', fn($q) => $q->where('id_user', $idUser)
-        )->pluck('id_booking');
+            $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
+                'booking', fn($q) => $q->where('id_user', $idUser)
+            )->pluck('id_booking');
 
-        $bookingTanpaRiwayat = Booking::with([
-            'hewan',
-            'layanans',
-            'jadwal.dokter',
-        ])
-            ->where('id_user', $idUser)
-            ->where('status', 'selesai')
-            ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
-            ->orderBy('tanggal_booking', 'desc')
-            ->get()
-            ->map(fn($b) => $this->fmtFromBooking($b));
+            $bookingTanpaRiwayat = Booking::with([
+                'hewan',
+                'layanans',
+                'jadwal.dokter',
+            ])
+                ->where('id_user', $idUser)
+                ->where('status', 'selesai')
+                ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
+                ->orderBy('tanggal_booking', 'desc')
+                ->get()
+                ->map(fn($b) => $this->fmtFromBooking($b));
 
-        $merged = collect($riwayat)
-            ->merge(collect($bookingTanpaRiwayat))
-            ->sortByDesc('tanggal')
-            ->values();
+            $merged = collect($riwayat)
+                ->merge(collect($bookingTanpaRiwayat))
+                ->sortByDesc('tanggal')
+                ->values();
 
-        return response()->json(['success' => true, 'data' => $merged]);
+            return response()->json(['success' => true, 'data' => $merged]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => basename($e->getFile()),
+            ], 500);
+        }
     }
 
     // GET /api/riwayat/stats
     public function stats(Request $request): JsonResponse
     {
-        $idUser = $request->user()->id_user;
+        try {
+            $idUser = $request->user()->id_user;
 
-        // ✅ Disesuaikan dengan kategori di DB: Medis, Bedah, Grooming, Rawat Inap
-        $stats = [
-            'total'      => 0,
-            'Medis'      => 0,
-            'Bedah'      => 0,
-            'Grooming'   => 0,
-            'Rawat Inap' => 0,
-            'Lainnya'    => 0,
-        ];
+            $stats = [
+                'total'      => 0,
+                'Medis'      => 0,
+                'Bedah'      => 0,
+                'Grooming'   => 0,
+                'Rawat Inap' => 0,
+                'Lainnya'    => 0,
+            ];
 
-        $rows = RiwayatLayanan::with('booking.layanans')
-            ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
-            ->get();
+            $rows = RiwayatLayanan::with('booking.layanans')
+                ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
+                ->get();
 
-        foreach ($rows as $r) {
-            $kategoris = $r->booking?->layanans?->pluck('kategori')->unique() ?? collect();
-            foreach ($kategoris as $kat) {
-                $key = array_key_exists($kat, $stats) ? $kat : 'Lainnya';
-                $stats[$key]++;
+            foreach ($rows as $r) {
+                $kategoris = $r->booking?->layanans?->pluck('kategori')->unique() ?? collect();
+                foreach ($kategoris as $kat) {
+                    $key = array_key_exists($kat, $stats) ? $kat : 'Lainnya';
+                    $stats[$key]++;
+                }
+                $stats['total']++;
             }
-            $stats['total']++;
-        }
 
-        $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
-            'booking', fn($q) => $q->where('id_user', $idUser)
-        )->pluck('id_booking');
+            $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
+                'booking', fn($q) => $q->where('id_user', $idUser)
+            )->pluck('id_booking');
 
-        $bookingTanpaRiwayat = Booking::with('layanans')
-            ->where('id_user', $idUser)
-            ->where('status', 'selesai')
-            ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
-            ->get();
+            $bookingTanpaRiwayat = Booking::with('layanans')
+                ->where('id_user', $idUser)
+                ->where('status', 'selesai')
+                ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
+                ->get();
 
-        foreach ($bookingTanpaRiwayat as $b) {
-            $kategoris = $b->layanans?->pluck('kategori')->unique() ?? collect();
-            foreach ($kategoris as $kat) {
-                $key = array_key_exists($kat, $stats) ? $kat : 'Lainnya';
-                $stats[$key]++;
+            foreach ($bookingTanpaRiwayat as $b) {
+                $kategoris = $b->layanans?->pluck('kategori')->unique() ?? collect();
+                foreach ($kategoris as $kat) {
+                    $key = array_key_exists($kat, $stats) ? $kat : 'Lainnya';
+                    $stats[$key]++;
+                }
+                $stats['total']++;
             }
-            $stats['total']++;
-        }
 
-        return response()->json(['success' => true, 'data' => $stats]);
+            return response()->json(['success' => true, 'data' => $stats]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => basename($e->getFile()),
+            ], 500);
+        }
     }
 
     // GET /api/riwayat/{id}
     public function show(Request $request, int $id): JsonResponse
     {
-        $idUser = $request->user()->id_user;
+        try {
+            $idUser = $request->user()->id_user;
 
-        $riwayat = RiwayatLayanan::with([
-            'booking.hewan',
-            'booking.layanans',
-            'booking.jadwal.dokter',
-            'rincianLayanan.layanan',
-            'rincianLayanan.obat',
-            'rekamMedis.dokter',
-            'pembayaran',
-        ])
-            ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
-            ->findOrFail($id);
+            $riwayat = RiwayatLayanan::with([
+                'booking.hewan',
+                'booking.layanans',
+                'booking.jadwal.dokter',
+                'rincianLayanan.layanan',
+                'rincianLayanan.obat',
+                'rekamMedis.dokter',
+            ])
+                ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
+                ->findOrFail($id);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $this->fmt($riwayat, detail: true),
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $this->fmt($riwayat, detail: true),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => basename($e->getFile()),
+            ], 500);
+        }
     }
 
-    // ── Helper: ambil dokter dari jadwal ─────────────────────────────────────
+    // ── Helper ────────────────────────────────────────────────────────────────
 
     private function getDokterDariJadwal(Booking $booking): ?array
     {
@@ -153,7 +181,7 @@ class RiwayatLayananController extends Controller
         $booking  = $r->booking;
         $hewan    = $booking?->hewan;
         $layanans = $booking?->layanans ?? collect();
-        $bayar    = $r->pembayaran;
+        $bayar    = null; // ✅ sementara null sampai model Pembayaran siap
         $tanggal  = $r->tanggal ? \Carbon\Carbon::parse($r->tanggal) : null;
         $rekam    = $r->rekamMedis ?? null;
 
@@ -170,7 +198,7 @@ class RiwayatLayananController extends Controller
             'hari'                => $tanggal?->translatedFormat('l'),
             'jam'                 => $booking?->jam ?? '-',
             'grand_total'         => (float) $r->grand_total,
-            'status_bayar'        => $bayar?->status ?? 'menunggu',
+            'status_bayar'        => $bayar?->status ?? 'menunggu', // ✅ aman, $bayar null
             'catatan'             => $r->catatan,
             'no_booking'          => $booking?->no_booking,
             'no_antrian'          => $booking?->no_antrian,
@@ -194,6 +222,17 @@ class RiwayatLayananController extends Controller
             ])->values(),
             'layanan_utama'    => $layanans->first()?->nama_layanan ?? '-',
             'layanan_kategori' => $layanans->first()?->kategori ?? '-',
+            'rekam_medis' => $rekam ? [
+                'diagnosa'         => $rekam->diagnosa,
+                'diagnosa_lengkap' => $rekam->diagnosa_lengkap,
+                'catatan_dokter'   => $rekam->catatan_dokter,
+                'dokter'           => $dokterFinal,
+                'tindakanList'     => collect($rekam->tindakan ?? [])->map(fn($t, $i) => [
+                    'id'         => $i,
+                    'penanganan' => $t['penanganan'] ?? '-',
+                    'durasi'     => $t['durasi'] ?? '-',
+                ])->values()->toArray(),
+            ] : null,
         ];
 
         if ($detail) {
@@ -221,18 +260,14 @@ class RiwayatLayananController extends Controller
                 'diagnosa_lengkap' => $rekam->diagnosa_lengkap,
                 'catatan_dokter'   => $rekam->catatan_dokter,
                 'dokter'           => $dokterFinal,
-                'tindakanList'     => $rekam->tindakans?->map(fn($t) => [
-                    'id'         => $t->id,
-                    'penanganan' => $t->penanganan,
-                    'durasi'     => $t->durasi,
-                ])->toArray() ?? [],
+                'tindakanList'     => collect($rekam->tindakan ?? [])->map(fn($t, $i) => [
+                    'id'         => $i,
+                    'penanganan' => $t['penanganan'] ?? '-',
+                    'durasi'     => $t['durasi'] ?? '-',
+                ])->values()->toArray(),
             ] : null;
 
-            $base['pembayaran'] = $bayar ? [
-                'metode'       => $bayar->metode_pembayaran,
-                'status'       => $bayar->status,
-                'jumlah_bayar' => (float) $bayar->jumlah_bayar,
-            ] : null;
+            $base['pembayaran'] = null; // ✅ sementara null sampai model Pembayaran siap
 
             $base['total_breakdown'] = [
                 'layanan'     => (float) $totalLayanan,

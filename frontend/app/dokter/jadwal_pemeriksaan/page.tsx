@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar_dokter";
 import Header from "@/components/Header";
-import { Plus, Pencil, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Plus, Pencil, ChevronLeft, ChevronRight, Clock, CalendarDays, CheckCircle, Ban } from "lucide-react";
 
 type StatusJadwal = "Aktif" | "Libur";
 
@@ -18,7 +18,7 @@ interface JadwalDokter {
 }
 
 const G = "#2e7d32";
-const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15];
+const ITEMS_PER_PAGE = 10;
 const API = "http://127.0.0.1:8000/api";
 
 const statusConfig: Record<StatusJadwal, { bg: string; color: string; border: string }> = {
@@ -40,15 +40,49 @@ function isToday(dateStr: string) {
   return dateStr === new Date().toISOString().split("T")[0];
 }
 
+// ── Shared Styles ─────────────────────────────────────────────────────────────
+
 const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "10px 12px", borderRadius: 8,
-  border: "1.5px solid #e0e0e0", fontSize: 14, fontFamily: "inherit",
+  width: "100%", padding: "8px 10px", border: "1px solid #e0e0e0",
+  borderRadius: 8, fontSize: 13, fontFamily: "inherit",
   outline: "none", boxSizing: "border-box", background: "#fff", color: "#333",
 };
 
-const labelStyle: React.CSSProperties = {
-  fontWeight: 600, fontSize: 14, display: "block", marginBottom: 6,
+const filterLabel: React.CSSProperties = {
+  display: "block", fontSize: 12, fontWeight: 500, color: "#666", marginBottom: 6,
 };
+
+const card: React.CSSProperties = {
+  background: "#fff", border: "1px solid #e8e8e8",
+  borderRadius: 10, padding: 16, marginBottom: 16,
+};
+
+const td: React.CSSProperties = {
+  padding: "11px 14px", fontSize: 13, color: "#333",
+  borderBottom: "1px solid #f0f0f0", verticalAlign: "middle",
+};
+
+const pageBtn = (active: boolean): React.CSSProperties => ({
+  minWidth: 32, height: 32, padding: "0 10px", borderRadius: 6,
+  border: `1px solid ${active ? G : "#e0e0e0"}`,
+  background: active ? G : "#fff",
+  color: active ? "#fff" : "#666",
+  fontSize: 13, fontWeight: 500, cursor: "pointer",
+  fontFamily: "inherit", display: "inline-flex",
+  alignItems: "center", justifyContent: "center", gap: 4,
+});
+
+const modalLabelStyle: React.CSSProperties = {
+  display: "block", fontSize: 12, fontWeight: 500, color: "#666", marginBottom: 6,
+};
+
+const modalInputStyle: React.CSSProperties = {
+  width: "100%", padding: "8px 12px", border: "1px solid #d1d5db",
+  borderRadius: 8, fontSize: 13, fontFamily: "inherit",
+  outline: "none", background: "#fff", boxSizing: "border-box", color: "#333",
+};
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
 
 function JadwalModal({ open, onClose, onSave, existing }: {
   open: boolean;
@@ -82,19 +116,26 @@ function JadwalModal({ open, onClose, onSave, existing }: {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 460, maxWidth: "calc(100vw - 32px)", boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit" }}>
-        <h2 style={{ fontWeight: 700, fontSize: 18, marginBottom: 20 }}>
-          {existing ? "Edit Jadwal" : "Tambah Jadwal Baru"}
-        </h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, width: 460, maxWidth: "calc(100vw - 32px)", boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", display: "flex", flexDirection: "column" }}>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #f0f0f0" }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a" }}>
+            {existing ? "Edit Jadwal" : "Tambah Jadwal Baru"}
+          </span>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#888" }}>✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <label style={labelStyle}>Tanggal</label>
-            <input type="date" value={tanggal} min={todayStr} onChange={e => setTanggal(e.target.value)} style={inputStyle} />
-            {tanggal && <div style={{ fontSize: 12, color: G, marginTop: 5, fontWeight: 600 }}>{tgl.hari}, {tgl.full}</div>}
+            <label style={modalLabelStyle}>Tanggal</label>
+            <input type="date" value={tanggal} min={todayStr} onChange={e => setTanggal(e.target.value)} style={modalInputStyle} />
+            {tanggal && <div style={{ fontSize: 12, color: G, marginTop: 5 }}>{tgl.hari}, {tgl.full}</div>}
           </div>
           <div>
-            <label style={labelStyle}>Status</label>
-            <select value={status} onChange={e => setStatus(e.target.value as StatusJadwal)} style={inputStyle}>
+            <label style={modalLabelStyle}>Status</label>
+            <select value={status} onChange={e => setStatus(e.target.value as StatusJadwal)} style={modalInputStyle}>
               <option value="Aktif">Aktif</option>
               <option value="Libur">Libur</option>
             </select>
@@ -102,68 +143,61 @@ function JadwalModal({ open, onClose, onSave, existing }: {
           {status === "Aktif" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
-                <label style={labelStyle}>Jam Mulai</label>
-                <input type="time" value={jamMulai} onChange={e => setJamMulai(e.target.value)} style={inputStyle} />
+                <label style={modalLabelStyle}>Jam Mulai</label>
+                <input type="time" value={jamMulai} onChange={e => setJamMulai(e.target.value)} style={modalInputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>Jam Selesai</label>
-                <input type="time" value={jamSelesai} onChange={e => setJamSelesai(e.target.value)} style={inputStyle} />
+                <label style={modalLabelStyle}>Jam Selesai</label>
+                <input type="time" value={jamSelesai} onChange={e => setJamSelesai(e.target.value)} style={modalInputStyle} />
               </div>
             </div>
           )}
         </div>
-        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 24 }}>
-          <button onClick={onClose} style={{ padding: "10px 26px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>Batal</button>
+
+        {/* Footer */}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", padding: "14px 20px", borderTop: "1px solid #f0f0f0" }}>
+          <button onClick={onClose} style={{ padding: "7px 18px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#555", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+            Batal
+          </button>
           <button
             onClick={() => { onSave({ tanggal, jamMulai: status === "Aktif" ? jamMulai : "", jamSelesai: status === "Aktif" ? jamSelesai : "", status }); onClose(); }}
             disabled={!tanggal}
-            style={{ padding: "10px 26px", borderRadius: 8, border: "none", background: tanggal ? G : "#a5d6a7", color: "#fff", fontWeight: 700, fontSize: 14, cursor: tanggal ? "pointer" : "not-allowed", fontFamily: "inherit" }}
-          >Simpan</button>
+            style={{ padding: "7px 18px", borderRadius: 8, border: "none", background: tanggal ? G : "#a5d6a7", color: "#fff", fontSize: 13, fontWeight: 500, cursor: tanggal ? "pointer" : "not-allowed", fontFamily: "inherit" }}
+          >
+            Simpan
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function SummaryCard({ emoji, label, value, sub, accent }: { emoji: string; label: string; value: number; sub: string; accent: string }) {
-  return (
-    <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, padding: "20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-      <div style={{ width: 48, height: 48, borderRadius: "50%", background: accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", flexShrink: 0 }}>{emoji}</div>
-      <div>
-        <div style={{ fontSize: 12, color: "#888", fontWeight: 600, marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.1 }}>{value}</div>
-        <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{sub}</div>
-      </div>
-    </div>
-  );
-}
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function KelolaJadwalDokter() {
-  const [jadwal,       setJadwal]       = useState<JadwalDokter[]>([]);
-  const [modalOpen,    setModalOpen]    = useState(false);
-  const [editTarget,   setEditTarget]   = useState<JadwalDokter | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [currentPage,  setCurrentPage]  = useState(1);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState("");
+  const [jadwal,      setJadwal]      = useState<JadwalDokter[]>([]);
+  const [modalOpen,   setModalOpen]   = useState(false);
+  const [editTarget,  setEditTarget]  = useState<JadwalDokter | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState("");
 
   const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
-  // Fetch jadwal dari API
   useEffect(() => {
     fetch(`${API}/dokter/jadwal`, { headers })
       .then(res => res.json())
       .then(data => {
         if (data.success) {
           setJadwal(data.data.map((j: any) => ({
-            id:        j.id,
-            tanggal:   j.tanggal,
-            jamMulai:  j.jam_mulai   ?? "",
-            jamSelesai:j.jam_selesai ?? "",
-            status:    j.status,
-            hari:      j.hari,
-            durasi:    j.durasi,
+            id:         j.id,
+            tanggal:    j.tanggal,
+            jamMulai:   j.jam_mulai   ?? "",
+            jamSelesai: j.jam_selesai ?? "",
+            status:     j.status,
+            hari:       j.hari,
+            durasi:     j.durasi,
           })));
         }
         setLoading(false);
@@ -178,11 +212,9 @@ export default function KelolaJadwalDokter() {
     const isEdit = !!editTarget;
     const url    = isEdit ? `${API}/dokter/jadwal/${editTarget!.id}` : `${API}/dokter/jadwal`;
     const method = isEdit ? "PUT" : "POST";
-
     try {
       const res = await fetch(url, {
-        method,
-        headers,
+        method, headers,
         body: JSON.stringify({
           tanggal:     data.tanggal,
           jam_mulai:   data.jamMulai   || null,
@@ -218,8 +250,7 @@ export default function KelolaJadwalDokter() {
   const updateStatus = async (id: number, status: StatusJadwal) => {
     try {
       const res = await fetch(`${API}/dokter/jadwal/${id}/status`, {
-        method: "PATCH",
-        headers,
+        method: "PATCH", headers,
         body: JSON.stringify({ status }),
       });
       const result = await res.json();
@@ -238,22 +269,35 @@ export default function KelolaJadwalDokter() {
     }
   };
 
-  const sorted     = [...jadwal].sort((a, b) => a.tanggal.localeCompare(b.tanggal));
-  const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage));
-  const paginated  = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const sorted = [...jadwal].sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+  const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
+  const paginated  = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const pageBtn = (label: React.ReactNode, onClick: () => void, disabled: boolean, active = false) => (
-    <button onClick={onClick} disabled={disabled}
-      style={{ minWidth: 36, height: 36, padding: "0 10px", borderRadius: 8, border: active ? "none" : "1.5px solid #e0e0e0", background: active ? G : "#fff", color: active ? "#fff" : "#555", fontWeight: active ? 700 : 600, fontSize: 13, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.4 : 1, fontFamily: "inherit", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-    >{label}</button>
-  );
+  const stats = [
+    {
+      label: "Total Jadwal", value: jadwal.length, sub: "Jadwal terdaftar",
+      bg: "#fff", labelColor: "#888", valColor: "#1a1a1a",
+      icon: <CalendarDays size={20} color="#2e7d32" />, iconBg: "#e8f5e9",
+    },
+    {
+      label: "Hari Aktif", value: jadwal.filter(j => j.status === "Aktif").length, sub: "Siap praktik",
+      bg: "#e8f5e9", labelColor: "#2e7d32", valColor: "#1b5e20",
+      icon: <CheckCircle size={20} color="#2e7d32" />, iconBg: "#c8e6c9",
+    },
+    {
+      label: "Hari Libur", value: jadwal.filter(j => j.status === "Libur").length, sub: "Tidak praktik",
+      bg: "#fff8e1", labelColor: "#e65100", valColor: "#bf360c",
+      icon: <Ban size={20} color="#e65100" />, iconBg: "#ffe0b2",
+    },
+  ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", fontFamily: "'Inter', sans-serif" }}>
       <Sidebar activePage="jadwal" />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
-        <Header title="Kelola Jadwal Dokter" subtitle="Atur ketersediaan jadwal pemeriksaan di klinik" notifCount={3} />
-        <div style={{ padding: "24px 28px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Header title="Kelola Jadwal" subtitle="Atur ketersediaan jadwal pemeriksaan di klinik"  />
+
+        <main style={{ flex: 1, overflowY: "auto", background: "#f5f7f5", padding: 24 }}>
 
           {error && (
             <div style={{ background: "#ffebee", border: "1px solid #ffcdd2", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#c62828" }}>
@@ -261,35 +305,54 @@ export default function KelolaJadwalDokter() {
             </div>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-            <SummaryCard emoji="📅" label="Total Jadwal" value={jadwal.length}                                   sub="Jadwal terdaftar" accent="#e8f5e9" />
-            <SummaryCard emoji="✅" label="Hari Aktif"   value={jadwal.filter(j => j.status === "Aktif").length} sub="Siap praktik"     accent="#e8f5e9" />
-            <SummaryCard emoji="🏖️" label="Hari Libur"  value={jadwal.filter(j => j.status === "Libur").length} sub="Tidak praktik"    accent="#fff8e1" />
+          {/* Summary Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+            {stats.map(stat => (
+              <div key={stat.label} style={{ background: stat.bg, border: "1px solid #e8e8e8", borderRadius: 10, padding: "16px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: stat.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {stat.icon}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 12, color: stat.labelColor, margin: 0, fontWeight: 500 }}>{stat.label}</p>
+                    <p style={{ fontSize: 26, fontWeight: 700, color: stat.valColor, margin: "2px 0 0", lineHeight: 1.1 }}>{stat.value}</p>
+                    <p style={{ fontSize: 11, color: "#aaa", margin: "2px 0 0" }}>{stat.sub}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-            <button onClick={openAdd} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 20px", borderRadius: 8, border: `2px solid ${G}`, background: G, color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
+          {/* Toolbar */}
+          <div style={{ ...card, display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={openAdd}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: G, color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
               <Plus size={15} /> Tambah Jadwal
             </button>
           </div>
 
-          <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          {/* Table */}
+          <div style={{ ...card, padding: 0, overflow: "hidden" }}>
             {loading ? (
-              <div style={{ padding: 40, textAlign: "center", color: "#888" }}>Memuat jadwal...</div>
+              <div style={{ padding: 40, textAlign: "center", color: "#888", fontSize: 13 }}>Memuat jadwal...</div>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: G }}>
                       {["Tanggal", "Hari", "Jam Mulai", "Jam Selesai", "Durasi", "Status", "Aksi"].map(h => (
-                        <th key={h} style={{ padding: "12px 20px", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "left", whiteSpace: "nowrap", fontFamily: "inherit" }}>{h}</th>
+                        <th key={h} style={{ padding: "11px 14px", fontSize: 12, fontWeight: 600, color: "#fff", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {paginated.length === 0 ? (
-                      <tr><td colSpan={7} style={{ padding: 32, textAlign: "center", color: "#aaa", fontSize: 14 }}>Belum ada jadwal. Klik "Tambah Jadwal" untuk menambahkan.</td></tr>
-                    ) : paginated.map(j => {
+                      <tr>
+                        <td colSpan={7} style={{ padding: "2rem", textAlign: "center", color: "#999", fontSize: 13 }}>
+                          Belum ada jadwal. Klik "Tambah Jadwal" untuk menambahkan.
+                        </td>
+                      </tr>
+                    ) : paginated.map((j, idx) => {
                       const tgl   = formatTanggal(j.tanggal);
                       const today = isToday(j.tanggal);
                       const st    = statusConfig[j.status];
@@ -301,41 +364,44 @@ export default function KelolaJadwalDokter() {
 
                       return (
                         <tr key={j.id}
-                          style={{ background: today ? "#f1f8f2" : "transparent", borderBottom: "1px solid #f0f0f0" }}
-                          onMouseEnter={e => { if (!today) (e.currentTarget as HTMLTableRowElement).style.background = "#f9f9f9"; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = today ? "#f1f8f2" : "transparent"; }}
+                          style={{ background: today ? "#f1f8f2" : idx % 2 === 0 ? "#fff" : "#fafafa" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#f0faf2")}
+                          onMouseLeave={e => (e.currentTarget.style.background = today ? "#f1f8f2" : idx % 2 === 0 ? "#fff" : "#fafafa")}
                         >
-                          <td style={{ padding: "12px 20px" }}>
-                            <div style={{ fontWeight: 700, fontSize: 13 }}>
+                          <td style={td}>
+                            <span style={{ fontSize: 13 }}>
                               {tgl.short}
-                              {today && <span style={{ display: "inline-block", marginLeft: 6, fontSize: 10, fontWeight: 700, background: G, color: "#fff", borderRadius: 10, padding: "1px 7px", verticalAlign: "middle" }}>Hari ini</span>}
-                            </div>
+                              {today && (
+                                <span style={{ display: "inline-block", marginLeft: 6, fontSize: 10, background: G, color: "#fff", borderRadius: 10, padding: "1px 7px", verticalAlign: "middle" }}>
+                                  Hari ini
+                                </span>
+                              )}
+                            </span>
                           </td>
-                          <td style={{ padding: "12px 20px", fontSize: 14, color: "#555" }}>{j.hari ?? tgl.hari}</td>
-                          <td style={{ padding: "12px 20px" }}>
+                          <td style={{ ...td, color: "#555" }}>{j.hari ?? tgl.hari}</td>
+                          <td style={td}>
                             {j.status === "Aktif" && j.jamMulai
-                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 600 }}><Clock size={13} color={G} /> {j.jamMulai}</span>
-                              : <span style={{ color: "#ccc", fontSize: 14 }}>—</span>}
+                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13 }}><Clock size={13} color={G} />{j.jamMulai}</span>
+                              : <span style={{ color: "#ccc" }}>—</span>}
                           </td>
-                          <td style={{ padding: "12px 20px" }}>
+                          <td style={td}>
                             {j.status === "Aktif" && j.jamSelesai
-                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 600 }}><Clock size={13} color="#888" /> {j.jamSelesai}</span>
-                              : <span style={{ color: "#ccc", fontSize: 14 }}>—</span>}
+                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13 }}><Clock size={13} color="#888" />{j.jamSelesai}</span>
+                              : <span style={{ color: "#ccc" }}>—</span>}
                           </td>
-                          <td style={{ padding: "12px 20px", fontSize: 13, color: "#777" }}>{durasi}</td>
-                          <td style={{ padding: "12px 20px" }}>
+                          <td style={{ ...td, color: "#777" }}>{durasi}</td>
+                          <td style={td}>
                             <select value={j.status} onChange={e => updateStatus(j.id, e.target.value as StatusJadwal)}
-                              style={{ padding: "5px 28px 5px 10px", borderRadius: 20, border: `1.5px solid ${st.border}`, background: st.bg, color: st.color, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", outline: "none", appearance: "none", WebkitAppearance: "none" }}
-                            >
+                              style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${st.border}`, background: st.bg, color: st.color, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", outline: "none" }}>
                               <option value="Aktif">Aktif</option>
                               <option value="Libur">Libur</option>
                             </select>
                           </td>
-                          <td style={{ padding: "12px 20px" }}>
+                          <td style={td}>
                             <button onClick={() => openEdit(j)}
-                              style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "8px 14px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = G; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; (e.currentTarget as HTMLButtonElement).style.color = G; }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 7, border: "1px solid #c8e6c9", background: "#fff", color: G, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
+                              onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.color = "#fff"; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = G; }}
                             >
                               <Pencil size={12} /> Edit
                             </button>
@@ -348,30 +414,23 @@ export default function KelolaJadwalDokter() {
               </div>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderTop: "1.5px solid #e0e0e0", flexWrap: "wrap", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#888" }}>
-                <span>Tampilkan</span>
-                <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                  style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e0e0e0", fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", cursor: "pointer" }}
-                >
-                  {ITEMS_PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-                </select>
-                <span>baris per halaman</span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                {pageBtn(<><ChevronLeft size={13} /> Sebelumnya</>, () => setCurrentPage(p => p - 1), currentPage === 1)}
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button key={p} onClick={() => setCurrentPage(p)}
-                    style={{ minWidth: 36, height: 36, padding: "0 10px", borderRadius: 8, border: p === currentPage ? "none" : "1.5px solid #e0e0e0", background: p === currentPage ? G : "#fff", color: p === currentPage ? "#fff" : "#555", fontWeight: p === currentPage ? 700 : 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                  >{p}</button>
-                ))}
-                {pageBtn(<>Berikutnya <ChevronRight size={13} /></>, () => setCurrentPage(p => p + 1), currentPage === totalPages)}
-              </div>
+            {/* Pagination */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "14px 16px", borderTop: "1px solid #f0f0f0" }}>
+              <button style={pageBtn(false)} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                <ChevronLeft size={13} /> Sebelumnya
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                <button key={p} style={pageBtn(p === currentPage)} onClick={() => setCurrentPage(p)}>{p}</button>
+              ))}
+              <button style={pageBtn(false)} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                Berikutnya <ChevronRight size={13} />
+              </button>
             </div>
           </div>
 
-        </div>
+        </main>
       </div>
+
       <JadwalModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} existing={editTarget} />
     </div>
   );

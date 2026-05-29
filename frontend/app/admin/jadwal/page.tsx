@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar_admin";
 import Header from "@/components/Header";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, CalendarDays, CheckCircle, Ban } from "lucide-react";
 
 type StatusJadwal = "Aktif" | "Libur";
 
@@ -42,23 +42,34 @@ function isToday(dateStr: string) {
 }
 
 const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "10px 12px", borderRadius: 8,
-  border: "1.5px solid #e0e0e0", fontSize: 14, fontFamily: "inherit",
+  width: "100%", padding: "8px 10px", border: "1px solid #e0e0e0",
+  borderRadius: 8, fontSize: 13, fontFamily: "inherit",
   outline: "none", boxSizing: "border-box", background: "#fff", color: "#333",
 };
 
-function SummaryCard({ emoji, label, value, sub, accent }: { emoji: string; label: string; value: number; sub: string; accent: string }) {
-  return (
-    <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, padding: "20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-      <div style={{ width: 48, height: 48, borderRadius: "50%", background: accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.4rem", flexShrink: 0 }}>{emoji}</div>
-      <div>
-        <div style={{ fontSize: 12, color: "#888", fontWeight: 600, marginBottom: 2 }}>{label}</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.1 }}>{value}</div>
-        <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{sub}</div>
-      </div>
-    </div>
-  );
-}
+const filterLabel: React.CSSProperties = {
+  display: "block", fontSize: 12, fontWeight: 500, color: "#666", marginBottom: 6,
+};
+
+const card: React.CSSProperties = {
+  background: "#fff", border: "1px solid #e8e8e8",
+  borderRadius: 10, padding: 16, marginBottom: 16,
+};
+
+const td: React.CSSProperties = {
+  padding: "11px 14px", fontSize: 13, color: "#333",
+  borderBottom: "1px solid #f0f0f0", verticalAlign: "middle",
+};
+
+const pageBtn = (active: boolean): React.CSSProperties => ({
+  minWidth: 32, height: 32, padding: "0 10px", borderRadius: 6,
+  border: `1px solid ${active ? G : "#e0e0e0"}`,
+  background: active ? G : "#fff",
+  color: active ? "#fff" : "#666",
+  fontSize: 13, fontWeight: 500, cursor: "pointer",
+  fontFamily: "inherit", display: "inline-flex",
+  alignItems: "center", justifyContent: "center", gap: 4,
+});
 
 export default function KelolaJadwalAdmin() {
   const [jadwal,       setJadwal]       = useState<JadwalDokter[]>([]);
@@ -92,28 +103,42 @@ export default function KelolaJadwalAdmin() {
       .catch(() => { setError("Gagal memuat jadwal"); setLoading(false); });
   }, []);
 
-  // Filter by search
   const filtered = jadwal.filter(j =>
     j.nama_dokter?.toLowerCase().includes(search.toLowerCase()) ||
     j.tanggal.includes(search)
   );
 
-  const sorted     = [...filtered].sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+  const sorted = [...jadwal].sort((a, b) => b.tanggal.localeCompare(a.tanggal));
   const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage));
   const paginated  = sorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const pageBtn = (label: React.ReactNode, onClick: () => void, disabled: boolean, active = false) => (
-    <button onClick={onClick} disabled={disabled}
-      style={{ minWidth: 36, height: 36, padding: "0 10px", borderRadius: 8, border: active ? "none" : "1.5px solid #e0e0e0", background: active ? G : "#fff", color: active ? "#fff" : "#555", fontWeight: active ? 700 : 600, fontSize: 13, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.4 : 1, fontFamily: "inherit", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-    >{label}</button>
-  );
+  useEffect(() => { setCurrentPage(1); }, [search, itemsPerPage]);
+
+  const stats = [
+    {
+      label: "Total Jadwal", value: jadwal.length, sub: "Jadwal terdaftar",
+      bg: "#fff", labelColor: "#888", valColor: "#1a1a1a",
+      icon: <CalendarDays size={20} color="#2e7d32" />, iconBg: "#e8f5e9",
+    },
+    {
+      label: "Hari Aktif", value: jadwal.filter(j => j.status === "Aktif").length, sub: "Siap praktik",
+      bg: "#e8f5e9", labelColor: "#2e7d32", valColor: "#1b5e20",
+      icon: <CheckCircle size={20} color="#2e7d32" />, iconBg: "#c8e6c9",
+    },
+    {
+      label: "Hari Libur", value: jadwal.filter(j => j.status === "Libur").length, sub: "Tidak praktik",
+      bg: "#fff8e1", labelColor: "#e65100", valColor: "#bf360c",
+      icon: <Ban size={20} color="#e65100" />, iconBg: "#ffe0b2",
+    },
+  ];
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", fontFamily: "'Inter', sans-serif" }}>
       <Sidebar activePage="jadwal" />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
-        <Header title="Kelola Jadwal Dokter" subtitle="Lihat jadwal pemeriksaan semua dokter" notifCount={3} />
-        <div style={{ padding: "24px 28px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <Header title="Kelola Jadwal Dokter" subtitle="Lihat jadwal pemeriksaan semua dokter"  />
+
+        <main style={{ flex: 1, overflowY: "auto", background: "#f5f7f5", padding: 24 }}>
 
           {error && (
             <div style={{ background: "#ffebee", border: "1px solid #ffcdd2", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#c62828" }}>
@@ -122,41 +147,60 @@ export default function KelolaJadwalAdmin() {
           )}
 
           {/* Summary Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-            <SummaryCard emoji="📅" label="Total Jadwal" value={jadwal.length}                                   sub="Jadwal terdaftar" accent="#e8f5e9" />
-            <SummaryCard emoji="✅" label="Hari Aktif"   value={jadwal.filter(j => j.status === "Aktif").length} sub="Siap praktik"     accent="#e8f5e9" />
-            <SummaryCard emoji="🏖️" label="Hari Libur"  value={jadwal.filter(j => j.status === "Libur").length} sub="Tidak praktik"    accent="#fff8e1" />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 20 }}>
+            {stats.map(stat => (
+              <div key={stat.label} style={{ background: stat.bg, border: "1px solid #e8e8e8", borderRadius: 10, padding: "16px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: stat.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {stat.icon}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 12, color: stat.labelColor, margin: 0, fontWeight: 500 }}>{stat.label}</p>
+                    <p style={{ fontSize: 26, fontWeight: 700, color: stat.valColor, margin: "2px 0 0", lineHeight: 1.1 }}>{stat.value}</p>
+                    <p style={{ fontSize: 11, color: "#aaa", margin: "2px 0 0" }}>{stat.sub}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Search */}
-          <div style={{ marginBottom: 16 }}>
-            <input
-              type="text"
-              placeholder="Cari nama dokter atau tanggal..."
-              value={search}
-              onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
-              style={{ ...inputStyle, width: 300, padding: "9px 14px" }}
-            />
+          {/* Filter */}
+          <div style={card}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 14 }}>
+              <div>
+                <label style={filterLabel}>Nama Dokter / Tanggal</label>
+                <input
+                  style={inputStyle}
+                  placeholder="Cari nama dokter atau tanggal..."
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Table */}
-          <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <div style={{ ...card, padding: 0, overflow: "hidden" }}>
             {loading ? (
-              <div style={{ padding: 40, textAlign: "center", color: "#888" }}>Memuat jadwal...</div>
+              <div style={{ padding: 40, textAlign: "center", color: "#888", fontSize: 13 }}>Memuat jadwal...</div>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: G }}>
                       {["Dokter", "Tanggal", "Hari", "Jam Mulai", "Jam Selesai", "Durasi", "Status"].map(h => (
-                        <th key={h} style={{ padding: "12px 20px", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "left", whiteSpace: "nowrap", fontFamily: "inherit" }}>{h}</th>
+                        <th key={h} style={{ padding: "11px 14px", fontSize: 12, fontWeight: 600, color: "#fff", textAlign: "left", whiteSpace: "nowrap" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {paginated.length === 0 ? (
-                      <tr><td colSpan={7} style={{ padding: 32, textAlign: "center", color: "#aaa", fontSize: 14 }}>Belum ada jadwal tersedia.</td></tr>
-                    ) : paginated.map(j => {
+                      <tr>
+                        <td colSpan={7} style={{ padding: "2rem", textAlign: "center", color: "#999", fontSize: 13 }}>
+                          Belum ada jadwal tersedia.
+                        </td>
+                      </tr>
+                    ) : paginated.map((j, idx) => {
                       const tgl   = formatTanggal(j.tanggal);
                       const today = isToday(j.tanggal);
                       const st    = statusConfig[j.status];
@@ -168,46 +212,37 @@ export default function KelolaJadwalAdmin() {
 
                       return (
                         <tr key={j.id}
-                          style={{ background: today ? "#f1f8f2" : "transparent", borderBottom: "1px solid #f0f0f0" }}
-                          onMouseEnter={e => { if (!today) (e.currentTarget as HTMLTableRowElement).style.background = "#f9f9f9"; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = today ? "#f1f8f2" : "transparent"; }}
+                          style={{ background: today ? "#f1f8f2" : idx % 2 === 0 ? "#fff" : "#fafafa" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#f0faf2")}
+                          onMouseLeave={e => (e.currentTarget.style.background = today ? "#f1f8f2" : idx % 2 === 0 ? "#fff" : "#fafafa")}
                         >
-                          {/* Nama Dokter */}
-                          <td style={{ padding: "12px 20px" }}>
-                            <div style={{ fontWeight: 600, fontSize: 13, color: "#1a1a1a" }}>{j.nama_dokter ?? "-"}</div>
+                          <td style={td}>
+                            <span style={{ fontSize: 13, color: "#1a1a1a" }}>{j.nama_dokter ?? "-"}</span>
                           </td>
-
-                          {/* Tanggal */}
-                          <td style={{ padding: "12px 20px" }}>
-                            <div style={{ fontWeight: 700, fontSize: 13 }}>
+                          <td style={td}>
+                            <span style={{ fontSize: 13 }}>
                               {tgl.short}
-                              {today && <span style={{ display: "inline-block", marginLeft: 6, fontSize: 10, fontWeight: 700, background: G, color: "#fff", borderRadius: 10, padding: "1px 7px", verticalAlign: "middle" }}>Hari ini</span>}
-                            </div>
+                              {today && (
+                                <span style={{ display: "inline-block", marginLeft: 6, fontSize: 10, background: G, color: "#fff", borderRadius: 10, padding: "1px 7px", verticalAlign: "middle" }}>
+                                  Hari ini
+                                </span>
+                              )}
+                            </span>
                           </td>
-
-                          {/* Hari */}
-                          <td style={{ padding: "12px 20px", fontSize: 14, color: "#555" }}>{j.hari ?? tgl.hari}</td>
-
-                          {/* Jam Mulai */}
-                          <td style={{ padding: "12px 20px" }}>
+                          <td style={{ ...td, color: "#555" }}>{j.hari ?? tgl.hari}</td>
+                          <td style={td}>
                             {j.status === "Aktif" && j.jamMulai
-                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 600 }}><Clock size={13} color={G} /> {j.jamMulai}</span>
-                              : <span style={{ color: "#ccc", fontSize: 14 }}>—</span>}
+                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13 }}><Clock size={13} color={G} />{j.jamMulai}</span>
+                              : <span style={{ color: "#ccc" }}>—</span>}
                           </td>
-
-                          {/* Jam Selesai */}
-                          <td style={{ padding: "12px 20px" }}>
+                          <td style={td}>
                             {j.status === "Aktif" && j.jamSelesai
-                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 14, fontWeight: 600 }}><Clock size={13} color="#888" /> {j.jamSelesai}</span>
-                              : <span style={{ color: "#ccc", fontSize: 14 }}>—</span>}
+                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 13 }}><Clock size={13} color="#888" />{j.jamSelesai}</span>
+                              : <span style={{ color: "#ccc" }}>—</span>}
                           </td>
-
-                          {/* Durasi */}
-                          <td style={{ padding: "12px 20px", fontSize: 13, color: "#777" }}>{durasi}</td>
-
-                          {/* Status */}
-                          <td style={{ padding: "12px 20px" }}>
-                            <span style={{ padding: "5px 12px", borderRadius: 20, border: `1.5px solid ${st.border}`, background: st.bg, color: st.color, fontSize: 12, fontWeight: 700 }}>
+                          <td style={{ ...td, color: "#777" }}>{durasi}</td>
+                          <td style={td}>
+                            <span style={{ display: "inline-block", padding: "3px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, background: st.bg, color: st.color, border: `1px solid ${st.border}`, whiteSpace: "nowrap" }}>
                               {j.status}
                             </span>
                           </td>
@@ -220,29 +255,30 @@ export default function KelolaJadwalAdmin() {
             )}
 
             {/* Pagination */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderTop: "1.5px solid #e0e0e0", flexWrap: "wrap", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderTop: "1px solid #f0f0f0", flexWrap: "wrap", gap: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#888" }}>
                 <span>Tampilkan</span>
                 <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
-                  style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e0e0e0", fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", cursor: "pointer" }}
-                >
+                  style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid #e0e0e0", fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", cursor: "pointer" }}>
                   {ITEMS_PER_PAGE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
                 <span>baris per halaman</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                {pageBtn(<><ChevronLeft size={13} /> Sebelumnya</>, () => setCurrentPage(p => p - 1), currentPage === 1)}
+                <button style={pageBtn(false)} disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                  <ChevronLeft size={13} /> Sebelumnya
+                </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button key={p} onClick={() => setCurrentPage(p)}
-                    style={{ minWidth: 36, height: 36, padding: "0 10px", borderRadius: 8, border: p === currentPage ? "none" : "1.5px solid #e0e0e0", background: p === currentPage ? G : "#fff", color: p === currentPage ? "#fff" : "#555", fontWeight: p === currentPage ? 700 : 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                  >{p}</button>
+                  <button key={p} style={pageBtn(p === currentPage)} onClick={() => setCurrentPage(p)}>{p}</button>
                 ))}
-                {pageBtn(<>Berikutnya <ChevronRight size={13} /></>, () => setCurrentPage(p => p + 1), currentPage === totalPages)}
+                <button style={pageBtn(false)} disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                  Berikutnya <ChevronRight size={13} />
+                </button>
               </div>
             </div>
           </div>
 
-        </div>
+        </main>
       </div>
     </div>
   );

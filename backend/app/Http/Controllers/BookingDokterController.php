@@ -27,7 +27,8 @@ class BookingDokterController extends Controller
 
         $bookings = Booking::with(['hewan', 'user', 'jadwal', 'layanans'])
             ->whereHas('jadwal', fn($q) => $q->where('id_dokter', $dokter->id_dokter))
-            ->orderBy('tanggal_booking', 'asc')
+            ->orderBy('tanggal_booking', 'desc')
+            ->orderBy('jam', 'asc')
             ->get()
             ->map(fn($b) => $this->formatBooking($b));
 
@@ -48,10 +49,16 @@ class BookingDokterController extends Controller
             ->where('id_booking', $idBooking)
             ->firstOrFail();
 
-        // ✅ DIPERBAIKI: 'diproses' → 'dikonfirmasi' (sesuai ENUM di migration)
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['menunggu', 'dikonfirmasi', 'selesai', 'dibatalkan'])],
+            'status' => ['required', Rule::in(['selesai'])],
         ]);
+
+        if ($booking->status !== 'dikonfirmasi') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Status hanya dapat diubah menjadi selesai jika booking sudah dikonfirmasi.',
+            ], 422);
+        }
 
         $booking->update(['status' => $validated['status']]);
 
@@ -74,13 +81,16 @@ class BookingDokterController extends Controller
             'no_booking'      => $b->no_booking,
             'no_antrian'      => $b->no_antrian,
             'tanggal_booking' => $b->tanggal_booking?->format('Y-m-d'),
+            'tanggal_dibuat'  => $b->created_at?->format('Y-m-d'),
             'jam'             => $b->jam,
             'status'          => $b->status,
             'catatan'         => $b->catatan,
 
-            'nama_pemilik'    => $b->user?->nama    ?? $b->user?->name    ?? '-',
-            'no_hp'           => $b->user?->no_hp   ?? '-',
+            // Pemilik
+            'nama_pemilik'    => $b->user?->nama  ?? $b->user?->name  ?? '-',
+            'no_hp'           => $b->user?->no_hp ?? '-',
 
+            // Hewan
             'nama_hewan'      => $b->hewan?->nama_hewan ?? $b->hewan?->name  ?? '-',
             'jenis_hewan'     => $b->hewan?->jenis      ?? $b->hewan?->type  ?? '-',
             'ras_hewan'       => $b->hewan?->ras        ?? $b->hewan?->breed ?? '-',
@@ -89,7 +99,9 @@ class BookingDokterController extends Controller
             'tanggal_jadwal'  => $b->jadwal?->tanggal?->format('Y-m-d') ?? '-',
             'jam_mulai'       => $b->jadwal?->jam_mulai   ? substr($b->jadwal->jam_mulai,   0, 5) : '-',
             'jam_selesai'     => $b->jadwal?->jam_selesai ? substr($b->jadwal->jam_selesai, 0, 5) : '-',
+            'nama_dokter'     => $b->jadwal?->dokter?->nama_dokter ?? '-',
 
+            // Layanan
             'layanans'        => $b->layanans->map(fn($l) => [
                 'id_layanan'         => $l->id_layanan,
                 'nama_layanan'       => $l->nama_layanan,

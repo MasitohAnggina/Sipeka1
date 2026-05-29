@@ -219,7 +219,6 @@ setAllLayanan(result.data); // ⭐ ambil ARRAY nya
         <Header
           title="Data Layanan Klinik"
           subtitle="Kelola daftar layanan yang tersedia di klinik"
-          notifCount={3}
         />
 
         <main style={{ flex: 1, overflowY: "auto", background: "#f5f7f5", padding: "24px" }}>

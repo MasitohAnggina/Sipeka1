@@ -10,7 +10,10 @@ class RiwayatLayanan extends Model
     protected $primaryKey = 'id_riwayat';
 
     protected $fillable = [
-        'id_booking', 'catatan', 'grand_total', 'tanggal',
+        'id_booking',
+        'catatan',
+        'grand_total',
+        'tanggal',
     ];
 
     protected $casts = [
@@ -23,18 +26,8 @@ class RiwayatLayanan extends Model
         return $this->belongsTo(Booking::class, 'id_booking', 'id_booking');
     }
 
-    public function rincianLayanan()
-    {
-        return $this->hasMany(RincianLayanan::class, 'id_riwayat', 'id_riwayat');
-    }
-
     public function rekamMedis()
     {
         return $this->hasOne(RekamMedis::class, 'id_riwayat', 'id_riwayat');
-    }
-
-    public function pembayaran()
-    {
-        return $this->hasOne(Pembayaran::class, 'id_riwayat', 'id_riwayat');
     }
 }

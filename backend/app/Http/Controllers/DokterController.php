@@ -5,36 +5,39 @@ namespace App\Http\Controllers;
 use App\Models\Dokter;
 use App\Models\Alamat;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class DokterController extends Controller
 {
     public function getProfile(Request $request)
-{
-    $user   = $request->user();
-    
-    // Auto-create data dokter kalau belum ada
-    $dokter = Dokter::with('alamat')->where('id_user', $user->id_user)->first();
-    if (!$dokter) {
-        $dokter = Dokter::create([
-            'id_user'    => $user->id_user,
-            'nama_dokter' => $user->nama,
+    {
+        $user = $request->user();
+
+        $dokter = Dokter::with('alamat')->where('id_user', $user->id_user)->first();
+        if (!$dokter) {
+            $dokter = Dokter::create([
+                'id_user'     => $user->id_user,
+                'nama_dokter' => $user->nama,
+            ]);
+            $dokter->load('alamat');
+        }
+
+        return response()->json([
+            'nama'                => $user->nama,
+            'email'               => $user->email,
+            'no_hp'               => $user->no_hp,
+            'spesialisasi'        => $dokter->spesialisasi,
+            'pendidikan_terakhir' => $dokter->pendidikan_terakhir,
+            'foto'                => $user->foto_profile
+                                        ? asset('storage/' . $user->foto_profile)
+                                        : null,
+            'provinsi'            => $dokter->alamat->provinsi       ?? '',
+            'kota'                => $dokter->alamat->kota           ?? '',
+            'kecamatan'           => $dokter->alamat->kecamatan      ?? '',
+            'kode_pos'            => $dokter->alamat->kode_pos       ?? '',
+            'alamat_lengkap'      => $dokter->alamat->alamat_lengkap ?? '',
         ]);
     }
-
-    return response()->json([
-        'nama'                => $user->nama,
-        'email'               => $user->email,
-        'no_hp'               => $user->no_hp,
-        'spesialisasi'        => $dokter->spesialisasi,
-        'pendidikan_terakhir' => $dokter->pendidikan_terakhir,
-        'foto'                => $dokter->foto ? asset('storage/' . $dokter->foto) : null,
-        'provinsi'            => $dokter->alamat->provinsi       ?? '',
-        'kota'                => $dokter->alamat->kota           ?? '',
-        'kecamatan'           => $dokter->alamat->kecamatan      ?? '',
-        'kode_pos'            => $dokter->alamat->kode_pos       ?? '',
-        'alamat_lengkap'      => $dokter->alamat->alamat_lengkap ?? '',
-    ]);
-}
 
     public function updateProfile(Request $request)
     {
@@ -84,7 +87,6 @@ class DokterController extends Controller
                     'alamat_lengkap' => $request->alamat_lengkap,
                 ]);
 
-                // Update id_alamat di tabel dokter
                 $dokter->update(['id_alamat' => $alamat->id_alamat]);
             }
         }
@@ -105,13 +107,13 @@ class DokterController extends Controller
             return response()->json(['message' => 'Profil dokter tidak ditemukan'], 404);
         }
 
-        if ($dokter->foto && file_exists(storage_path('app/public/' . $dokter->foto))) {
-            unlink(storage_path('app/public/' . $dokter->foto));
+        if ($user->foto_profile) {
+            Storage::disk('public')->delete($user->foto_profile);
         }
 
         $path = $request->file('foto')->store('foto_dokter', 'public');
 
-        $dokter->update(['foto' => $path]);
+        $user->update(['foto_profile' => $path]);
 
         return response()->json([
             'message' => 'Foto berhasil diupload',

@@ -229,7 +229,7 @@ export default function ProfileAdminPage() {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 18, color: "#1a1a1a" }}>{formData.namaLengkap || "-"}</div>
               <div style={{ fontSize: 13, color: "#777", marginTop: 3 }}>Administrator</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>📍 {formData.kotaKabupaten || "-"}, {formData.provinsi || "-"}</div>
+              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}> {formData.kotaKabupaten || "-"}, {formData.provinsi || "-"}</div>
               {fotoError   && <div style={{ marginTop: 6, fontSize: 11, color: "#c62828" }}>⚠ {fotoError}</div>}
               {fotoSuccess && <div style={{ marginTop: 6, fontSize: 11, color: G }}>✓ {fotoSuccess}</div>}
             </div>
@@ -243,7 +243,7 @@ export default function ProfileAdminPage() {
 
           {/* ── Informasi Akun ── */}
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>👤 Informasi Akun</h2>
+            <h2 style={sectionTitleStyle}> Informasi Akun</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <InputField label="Nama Lengkap" name="namaLengkap" value={formData.namaLengkap} onChange={handleChange} placeholder="Nama lengkap admin" />
               <InputField label="Email"        name="email"        value={formData.email}        onChange={handleChange} type="email" placeholder="email@sipeka.com" />
@@ -255,7 +255,7 @@ export default function ProfileAdminPage() {
 
           {/* ── Alamat ── */}
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}>📍 Alamat</h2>
+            <h2 style={sectionTitleStyle}> Alamat</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <InputField label="Provinsi"       name="provinsi"      value={formData.provinsi}      onChange={handleChange} />
               <InputField label="Kota/Kabupaten" name="kotaKabupaten" value={formData.kotaKabupaten} onChange={handleChange} />
@@ -287,7 +287,7 @@ export default function ProfileAdminPage() {
             >
               {saveStatus === "saving" && <>⏳ Menyimpan...</>}
               {saveStatus === "saved"  && <>✓ Tersimpan!</>}
-              {saveStatus === "idle"   && <>💾 Simpan Perubahan</>}
+              {saveStatus === "idle"   && <> Simpan Perubahan</>}
             </button>
           </div>
 

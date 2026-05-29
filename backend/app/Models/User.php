@@ -32,4 +32,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function hewan()
+    {
+        return $this->hasMany(Hewan::class, 'id_user', 'id_user');
+    }
 }
