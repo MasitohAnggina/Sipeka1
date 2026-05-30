@@ -2,6 +2,10 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import {
+  Syringe, Stethoscope, Hotel, Scissors,
+  Activity, Microscope, MapPin, Phone, Mail, MessageCircle, PawPrint,
+} from "lucide-react";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -50,12 +54,10 @@ export default function Home() {
           padding: 0 2.5rem;
           transition: background 0.35s, box-shadow 0.35s;
         }
-
         .nav-logo {
           display: flex; align-items: center; gap: 0.5rem;
           text-decoration: none; flex-shrink: 0;
         }
-
         .nav-links {
           display: flex; gap: 2rem; list-style: none;
           margin: 0 auto;
@@ -67,7 +69,6 @@ export default function Home() {
           letter-spacing: 0.03em;
         }
         .nav-links a:hover { opacity: 1; color: var(--green) !important; }
-
         .nav-actions {
           display: flex; gap: 0.6rem; align-items: center; flex-shrink: 0;
         }
@@ -117,13 +118,13 @@ export default function Home() {
         }
         .hero-content h1 {
           font-family: 'Poppins', sans-serif;
-          font-size: clamp(2.2rem, 5vw, 3.4rem);
-          font-weight: 700; line-height: 1.15;
+          font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+          font-weight: 700; line-height: 1.25;
           color: #fff; margin-bottom: 1rem;
           letter-spacing: -0.01em;
         }
         .hero-content p {
-          font-size: 0.95rem; font-weight: 300;
+          font-size: 0.88rem; font-weight: 300;
           color: rgba(255,255,255,0.85);
           margin-bottom: 2rem; max-width: 400px; line-height: 1.7;
         }
@@ -155,11 +156,9 @@ export default function Home() {
           display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;
         }
         .about-image {
-          border-radius: 16px; overflow: hidden; aspect-ratio: 4/4; 
-          
+          border-radius: 16px; overflow: hidden; aspect-ratio: 4/4;
           display: flex; align-items: center; justify-content: center;
-          font-size: 5rem; 
-          position: relative;
+          font-size: 5rem; position: relative;
         }
         .about-text .label {
           font-size: 2rem; font-weight: 600; letter-spacing: 0.18em;
@@ -193,7 +192,7 @@ export default function Home() {
         .service-card-icon {
           width: 50px; height: 50px; background: var(--green-light);
           border-radius: 12px; display: flex; align-items: center;
-          justify-content: center; font-size: 1.3rem; margin-bottom: 1rem;
+          justify-content: center; margin-bottom: 1rem;
         }
         .service-card h3 { font-size: 0.92rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
         .service-card p { font-size: 0.8rem; color: var(--muted); line-height: 1.7; margin-bottom: 1rem; }
@@ -211,8 +210,7 @@ export default function Home() {
         }
         .contact-card {
           background: var(--white); border-radius: 14px;
-          padding: 1.4rem 1.2rem;
-          border: 1px solid var(--border);
+          padding: 1.4rem 1.2rem; border: 1px solid var(--border);
           display: flex; gap: 0.75rem; align-items: flex-start;
           transition: transform 0.2s, box-shadow 0.2s;
         }
@@ -221,7 +219,7 @@ export default function Home() {
           width: 40px; height: 40px; border-radius: 10px;
           background: var(--green-light);
           display: flex; align-items: center; justify-content: center;
-          font-size: 1.1rem; flex-shrink: 0;
+          flex-shrink: 0;
         }
         .contact-card-text strong { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text); margin-bottom: 0.15rem; }
         .contact-card-text span { font-size: 0.78rem; color: var(--muted); }
@@ -238,7 +236,7 @@ export default function Home() {
           width: 30px; height: 30px; border-radius: 50%;
           background: var(--green);
           display: flex; align-items: center; justify-content: center;
-          font-size: 0.85rem; color: #fff;
+          color: #fff;
         }
         .footer-logo-text { font-size: 0.88rem; font-weight: 700; color: #fff; letter-spacing: 0.08em; text-transform: uppercase; }
         .footer-brand p { font-size: 0.78rem; line-height: 1.7; color: rgba(255,255,255,0.5); max-width: 210px; }
@@ -267,7 +265,6 @@ export default function Home() {
         }
         @media (max-width: 600px) {
           .services-grid { grid-template-columns: 1fr 1fr; }
-          .quick-actions-inner { grid-template-columns: repeat(3,1fr); gap: 0.5rem; }
           .footer-inner { grid-template-columns: 1fr; gap: 1rem; }
           .hero-content { padding: 0 1.5rem; }
           .nav-links { display: none; }
@@ -284,60 +281,61 @@ export default function Home() {
       }}>
         <a href="#home" className="nav-logo">
           <Image
-  src="/images/logo1.png"
-  alt="Sipeka"
-  width={0}
-  height={0}
-  sizes="180px"
-  style={{ width: "180px", height: "auto", borderRadius: "0%" }}
-/>
+            src="/images/logo1.png"
+            alt="Sipeka"
+            width={0}
+            height={0}
+            sizes="180px"
+            style={{ width: "180px", height: "auto", borderRadius: "0%" }}
+          />
         </a>
 
         <ul className="nav-links">
-          {["Home", "About", "Service", "Contact"].map((l) => (
-            <li key={l}>
-              <a
-                href={`#${l.toLowerCase()}`}
-                style={{ color: scrolled ? "#1e2a1a" : "#fff" }}
-              >
-                {l}
+          {[
+            { label: "Beranda", href: "home"    },
+            { label: "Tentang", href: "about"   },
+            { label: "Layanan", href: "service" },
+            { label: "Kontak",  href: "contact" },
+          ].map((l) => (
+            <li key={l.href}>
+              <a href={`#${l.href}`} style={{ color: scrolled ? "#1e2a1a" : "#fff" }}>
+                {l.label}
               </a>
             </li>
           ))}
         </ul>
 
         <div className="nav-actions">
-  <Link href="/auth/regis" className="btn-register">
-    Register
-  </Link>
-
-  <Link
-    href="/auth/login_dokter"
-    className="btn-login"
-    style={{ color: scrolled ? "#1e2a1a" : "#fff" }}
-  >
-    Login
-  </Link>
-</div>
+          <Link href="/auth/regis" className="btn-register">
+            Daftar
+          </Link>
+          <Link
+            href="/auth/login_dokter"
+            className="btn-login"
+            style={{ color: scrolled ? "#1e2a1a" : "#fff" }}
+          >
+            Masuk
+          </Link>
+        </div>
       </nav>
 
       {/* ─── HERO ─── */}
       <section className="hero" id="home">
         <div className="hero-bg">
           <Image
-  src="/images/home1.png"
-  alt="Hero"
-  fill
-  sizes="100vw"
-  style={{ objectFit: "cover", objectPosition: "center" }}
-  priority
-/>
+            src="/images/home1.png"
+            alt="Hero"
+            fill
+            sizes="100vw"
+            style={{ objectFit: "cover", objectPosition: "center" }}
+            priority
+          />
         </div>
         <div className="hero-overlay" />
         <div className="hero-content">
-          <h1>Care That Every<br />Pet Deserves</h1>
-          <p>From booking to treatment, manage everything in one seamless system.</p>
-          <a href="#contact" className="btn-book">Book Appointment</a>
+          <h1>Perawatan Terbaik<br />untuk Hewan Anda</h1>
+          <p>Dari pemesanan hingga perawatan, kelola segalanya dalam satu sistem yang mudah dan terpercaya.</p>
+          <a href="#contact" className="btn-book">Buat Janji Sekarang</a>
         </div>
       </section>
 
@@ -345,14 +343,14 @@ export default function Home() {
       <section className="about-section" id="about">
         <div className="about-grid">
           <div className="about-image" style={{ position: "relative" }}>
-  <Image
-    src="/images/about1.png"
-    alt="About Sipeka"
-    fill
-    sizes="(max-width: 900px) 100vw, 50vw"
-    style={{ objectFit: "cover" }}
-  />
-</div>
+            <Image
+              src="/images/about1.png"
+              alt="Tentang Sipeka"
+              fill
+              sizes="(max-width: 900px) 100vw, 50vw"
+              style={{ objectFit: "cover" }}
+            />
+          </div>
           <div className="about-text">
             <span className="label">Tentang Kami</span>
             <h2>Platform Kesehatan Hewan Terpercaya</h2>
@@ -371,18 +369,18 @@ export default function Home() {
           </div>
           <div className="services-grid">
             {[
-              { icon: "💉", title: "Vaksinasi", desc: "Layanan vaksinasi untuk anjing dan kucing dengan berbagai jenis vaksin sesuai kebutuhan dan usia hewan." },
-              { icon: "🔬", title: "Konsultasi & Pemeriksaan", desc: "Pemeriksaan kesehatan dan konsultasi dengan dokter hewan untuk berbagai jenis hewan peliharaan." },
-              { icon: "🏥", title: "Rawat Inap", desc: "Fasilitas rawat inap untuk hewan sakit dengan pemantauan harian (infeksius dan non-infeksius)." },
-              { icon: "🦷", title: "Grooming", desc: "Layanan grooming untuk anjing dan kucing, termasuk basic, treatment kutu/jamur, dan special treatment." },
-              { icon: "🎓", title: "Bedah (Mayor & Minor)", desc: "Layanan tindakan bedah mayor dan minor yang ditangani oleh tenaga profesional." },
-              { icon: "🧴", title: "Laboratorium", desc: "Pemeriksaan laboratorium untuk membantu diagnosis penyakit secara akurat." },
+              { icon: <Syringe   size={22} color="var(--green)" />, title: "Vaksinasi",                desc: "Layanan vaksinasi untuk anjing dan kucing dengan berbagai jenis vaksin sesuai kebutuhan dan usia hewan." },
+              { icon: <Stethoscope size={22} color="var(--green)" />, title: "Konsultasi & Pemeriksaan", desc: "Pemeriksaan kesehatan dan konsultasi dengan dokter hewan untuk berbagai jenis hewan peliharaan." },
+              { icon: <Hotel     size={22} color="var(--green)" />, title: "Hotel Hewan",              desc: "Penitipan hewan yang nyaman dan aman saat Anda bepergian, dengan pemantauan harian oleh staf berpengalaman." },
+              { icon: <Scissors  size={22} color="var(--green)" />, title: "Grooming",                 desc: "Layanan grooming untuk anjing dan kucing, termasuk basic, treatment kutu/jamur, dan special treatment." },
+              { icon: <Activity  size={22} color="var(--green)" />, title: "Bedah (Mayor & Minor)",    desc: "Layanan tindakan bedah mayor dan minor yang ditangani oleh tenaga profesional." },
+              { icon: <Microscope size={22} color="var(--green)" />, title: "Laboratorium",            desc: "Pemeriksaan laboratorium untuk membantu diagnosis penyakit secara akurat." },
             ].map((s) => (
               <div className="service-card" key={s.title}>
                 <div className="service-card-icon">{s.icon}</div>
                 <h3>{s.title}</h3>
                 <p>{s.desc}</p>
-                <a href="#contact" className="service-link">Booking →</a>
+                <a href="#contact" className="service-link">Pesan Sekarang →</a>
               </div>
             ))}
           </div>
@@ -400,10 +398,10 @@ export default function Home() {
             <h3 style={{ textAlign: "center", marginBottom: "1.5rem" }}>Informasi Kontak</h3>
             <div className="contact-cards">
               {[
-                { icon: "📍", label: "Alamat", val: "Jl. Kesehatan Hewan No. 12, Batam, Kepri 29461" },
-                { icon: "📞", label: "Telepon", val: "+62 778 123 4567" },
-                { icon: "✉️", label: "Email", val: "contact@sipeka.id" },
-                { icon: "💬", label: "WhatsApp", val: "+62 812 3456 7890" },
+                { icon: <MapPin size={18} color="var(--green)" />,         label: "Alamat",   val: "Jl. Kesehatan Hewan No. 12, Batam, Kepri 29461" },
+                { icon: <Phone size={18} color="var(--green)" />,          label: "Telepon",  val: "+62 778 123 4567" },
+                { icon: <Mail size={18} color="var(--green)" />,           label: "Email",    val: "contact@sipeka.id" },
+                { icon: <MessageCircle size={18} color="var(--green)" />,  label: "WhatsApp", val: "+62 812 3456 7890" },
               ].map((c) => (
                 <div className="contact-card" key={c.label}>
                   <div className="contact-icon">{c.icon}</div>
@@ -423,7 +421,9 @@ export default function Home() {
         <div className="footer-inner">
           <div className="footer-brand">
             <div className="footer-logo-wrap">
-              <div className="footer-logo-icon">🐾</div>
+              <div className="footer-logo-icon">
+                <PawPrint size={16} />
+              </div>
               <span className="footer-logo-text">Sipeka</span>
             </div>
             <p>Platform booking dan manajemen layanan kesehatan hewan.</p>
@@ -431,15 +431,20 @@ export default function Home() {
           <div className="footer-col">
             <h4>Menu</h4>
             <ul>
-              {["Home", "About", "Service", "Contact"].map((l) => (
-                <li key={l}><a href={`#${l.toLowerCase()}`}>{l}</a></li>
+              {[
+                { label: "Beranda", href: "home"    },
+                { label: "Tentang", href: "about"   },
+                { label: "Layanan", href: "service" },
+                { label: "Kontak",  href: "contact" },
+              ].map((l) => (
+                <li key={l.href}><a href={`#${l.href}`}>{l.label}</a></li>
               ))}
             </ul>
           </div>
           <div className="footer-col">
             <h4>Layanan</h4>
             <ul>
-              {["Vaksinasi", "Laboratorium", "Rawat Inap", "Grooming"].map((l) => (
+              {["Vaksinasi", "Laboratorium", "Hotel Hewan", "Grooming"].map((l) => (
                 <li key={l}><a href="#service">{l}</a></li>
               ))}
             </ul>
@@ -454,8 +459,7 @@ export default function Home() {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} Sipeka Pet Hospital. All rights reserved.</p>
-          <p>Made with ❤️ for your beloved pets</p>
+          <p>© {new Date().getFullYear()} Sipeka · Web Kesehatan Hewan Terpercaya</p>
         </div>
       </footer>
     </>
