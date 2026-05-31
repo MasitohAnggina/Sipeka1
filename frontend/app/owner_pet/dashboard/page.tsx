@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -7,8 +6,8 @@ import Header from "@/components/Header";
 import { ToastContainer, useToast } from "@/components/Toast";
 import {
   PawPrint, Calendar, Clock, Hash, ListOrdered,
-  AlertTriangle, CheckCircle, XCircle, PartyPopper,
-  MapPin, Activity, Stethoscope, BarChart2
+  AlertTriangle, CheckCircle, XCircle, Activity,
+  MapPin, Stethoscope, BarChart2
 } from "lucide-react";
 
 function usePress() {
@@ -148,12 +147,60 @@ function Badge({ children, variant = "green" }: { children: React.ReactNode; var
   );
 }
 
-function StatCard({ label, value, sub, subColor }: { label: string; value: string; sub?: string; subColor?: string }) {
+// ── Icon Stat Card ────────────────────────────────────────────────────────────
+
+type IconVariant = "green" | "red" | "blue" | "amber";
+
+const ICON_STYLE: Record<IconVariant, { bg: string; color: string }> = {
+  green: { bg: "#e8f5e9", color: "#2e7d32" },
+  red:   { bg: "#fce4ec", color: "#c62828" },
+  blue:  { bg: "#e3f2fd", color: "#1565c0" },
+  amber: { bg: "#fff8e1", color: "#a16207" },
+};
+
+function IconStatCard({
+  label, value, sub, subColor, icon, variant = "blue",
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  subColor?: string;
+  icon: React.ReactNode;
+  variant?: IconVariant;
+}) {
+  const { bg, color } = ICON_STYLE[variant];
   return (
-    <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", border: "1px solid #f0f0f0" }}>
-      <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.1 }} dangerouslySetInnerHTML={{ __html: value }} />
-      {sub && <div style={{ fontSize: 11, color: subColor ?? "#888", marginTop: 2 }}>{sub}</div>}
+    <div style={{
+      background: "#fff",
+      border: "1px solid #f0f0f0",
+      borderRadius: 12,
+      padding: "16px 18px",
+      display: "flex",
+      alignItems: "center",
+      gap: 14,
+    }}>
+      <div style={{
+        width: 48,
+        height: 48,
+        borderRadius: "50%",
+        background: bg,
+        color,
+        flexShrink: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        {icon}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, color: "#888", marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: "#1a1a1a", lineHeight: 1.1 }}>{value}</div>
+        {sub && (
+          <div style={{ fontSize: 12, color: subColor ?? "#888", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {sub}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -465,23 +512,29 @@ export default function DashboardPage() {
 
           {/* Stat Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
-            <StatCard
+            <IconStatCard
               label="Hewan Saya"
-              value={`${hewan.length} <span style="font-size:13px;font-weight:400;color:#888;">ekor</span>`}
+              value={hewan.length}
               sub={hewan.length > 0 ? hewan.map(p => p.name).join(", ") : "Belum ada hewan"}
+              icon={<PawPrint size={22} />}
+              variant="amber"
             />
-            <StatCard
+            <IconStatCard
               label="Booking Terjadwal"
-              value={`${bookings.length} <span style="font-size:13px;font-weight:400;color:#888;">hewan</span>`}
+              value={bookings.length}
               sub={bookings.length > 0
                 ? bookings.map(b => b.hewan_nama).join(", ")
                 : "Belum ada booking"}
               subColor={bookings.length > 0 ? "#1565c0" : "#aaa"}
+              icon={<Calendar size={22} />}
+              variant="blue"
             />
-            <StatCard
+            <IconStatCard
               label="Total Kunjungan"
-              value={`${total_kunjungan} <span style="font-size:13px;font-weight:400;color:#888;">kali</span>`}
+              value={total_kunjungan}
               sub="Riwayat layanan selesai"
+              icon={<Activity size={22} />}
+              variant="green"
             />
           </div>
 
