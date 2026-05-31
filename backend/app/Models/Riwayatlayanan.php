@@ -21,13 +21,21 @@ class RiwayatLayanan extends Model
         'grand_total' => 'decimal:2',
     ];
 
+    // ── Relasi ke Booking ─────────────────────────────────────────────────────
     public function booking()
     {
         return $this->belongsTo(Booking::class, 'id_booking', 'id_booking');
     }
 
+    // ── Relasi ke RekamMedis ──────────────────────────────────────────────────
     public function rekamMedis()
     {
         return $this->hasOne(RekamMedis::class, 'id_riwayat', 'id_riwayat');
+    }
+
+    // ── Relasi ke Resep (via id_booking) ──────────────────────────────────────
+    public function resep()
+    {
+        return $this->hasOne(Resep::class, 'id_booking', 'id_booking');
     }
 }
