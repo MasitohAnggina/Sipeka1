@@ -96,12 +96,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const G       = "#2e7d32";
 const POLL_MS = 15_000;
 
-const STATUS_CFG: Record<string, { label: string; bg: string; border: string }> = {
-  menunggu:     { label: "Menunggu Konfirmasi", bg: "#e3f2fd", border: "#90caf9" },
-  dikonfirmasi: { label: "Dikonfirmasi",         bg: "#e3f2fd", border: "#90caf9" },
-  diproses:     { label: "Sedang Diproses",      bg: "#e8f5e9", border: "#a5d6a7" },
-  dibatalkan:   { label: "Dibatalkan",           bg: "#fce4ec", border: "#f48fb1" },
-  selesai:      { label: "Selesai",              bg: "#e8f5e9", border: "#c8e6c9" },
+const STATUS_CFG: Record<string, { label: string; bg: string; border: string; color: string }> = {
+  menunggu:     { label: "Menunggu Konfirmasi", bg: "#fffde7", border: "#ffe082", color: "#f57f17" },
+  dikonfirmasi: { label: "Dikonfirmasi",         bg: "#e3f2fd", border: "#90caf9", color: "#1565c0" },
+  diproses:     { label: "Sedang Diproses",      bg: "#e3f2fd", border: "#90caf9", color: "#1565c0" },
+  dibatalkan:   { label: "Dibatalkan",           bg: "#fce4ec", border: "#f48fb1", color: "#c62828" },
+  selesai:      { label: "Selesai",              bg: "#e8f5e9", border: "#a5d6a7", color: "#2e7d32" },
 };
 
 const STATUS_TOAST: Record<string, { title: string; msg: string; type: "success" | "info" | "error" }> = {
@@ -315,8 +315,9 @@ function BookingCard({ booking }: { booking: BookingItem }) {
         <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{booking.hewan_nama}</div>
         <span style={{
           fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 20,
-          background: isSelesai ? "#e8f5e9" : isBatal ? "#fce4ec" : "#e3f2fd",
-          color: isSelesai ? G : isBatal ? "#c62828" : "#1565c0",
+          background: cfg.bg,
+          color: cfg.color,
+          border: `1px solid ${cfg.border}`,
         }}>
           {cfg.label}
         </span>
@@ -346,7 +347,14 @@ function BookingCard({ booking }: { booking: BookingItem }) {
 // ── Booking Info Panel ────────────────────────────────────────────────────────
 
 function BookingInfoPanel({ bookings, onBuat }: { bookings: BookingItem[]; onBuat(): void }) {
-  if (!bookings || bookings.length === 0) {
+  // Filter: sembunyikan booking selesai/dibatalkan yang sudah lebih dari 24 jam
+  const visibleBookings = (bookings ?? []).filter(b => {
+    const sudahAkhir = b.status === "selesai" || b.status === "dibatalkan";
+    if (!sudahAkhir) return true;
+    return hariSejak(b.updated_at) < 1;
+  });
+
+  if (visibleBookings.length === 0) {
     return (
       <div>
         <div style={{ padding: "24px", textAlign: "center", color: "#aaa", background: "#fafafa", borderRadius: 10, marginBottom: 10 }}>
@@ -361,8 +369,8 @@ function BookingInfoPanel({ bookings, onBuat }: { bookings: BookingItem[]; onBua
     );
   }
 
-  const tglLabel = bookings[0]?.tanggal_booking
-    ? new Date(bookings[0].tanggal_booking).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+  const tglLabel = visibleBookings[0]?.tanggal_booking
+    ? new Date(visibleBookings[0].tanggal_booking).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
     : "";
 
   return (
@@ -372,16 +380,16 @@ function BookingInfoPanel({ bookings, onBuat }: { bookings: BookingItem[]; onBua
           <Calendar size={13} color="#888" /> Jadwal: <strong>{tglLabel}</strong>
         </span>
         <span style={{ fontSize: 11, fontWeight: 600, background: "#e3f2fd", color: "#1565c0", padding: "2px 10px", borderRadius: 20 }}>
-          {bookings.length} hewan
+          {visibleBookings.length} hewan
         </span>
       </div>
 
       <div style={{
         display: "flex", flexDirection: "column", gap: 10, marginBottom: 12,
-        maxHeight: 460, overflowY: bookings.length > 2 ? "auto" : "visible",
-        paddingRight: bookings.length > 2 ? 2 : 0,
+        maxHeight: 460, overflowY: visibleBookings.length > 2 ? "auto" : "visible",
+        paddingRight: visibleBookings.length > 2 ? 2 : 0,
       }}>
-        {bookings.map(b => <BookingCard key={b.id_booking} booking={b} />)}
+        {visibleBookings.map(b => <BookingCard key={b.id_booking} booking={b} />)}
       </div>
 
       <Btn onClick={onBuat} variant="solid" fullWidth>+ Buat Booking Baru</Btn>
