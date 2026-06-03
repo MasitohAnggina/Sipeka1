@@ -81,9 +81,10 @@ class PembayaranController extends Controller
         ]);
 
         return response()->json([
-            'success'    => true,
-            'metode'     => 'midtrans',
-            'snap_token' => $snapToken,
+            'success'            => true,
+            'metode'             => 'midtrans',
+            'snap_token'         => $snapToken,
+            'midtrans_order_id'  => $orderId,
         ]);
     }
 
@@ -97,7 +98,7 @@ class PembayaranController extends Controller
     ): string {
         $resep->loadMissing(['details', 'hewan', 'user']);
 
-        $itemDetails = $resep->details->map(fn ($d) => [
+        $itemDetails = $resep->details->map(fn($d) => [
             'id'       => (string) $d->id_detail,
             'price'    => $d->harga_satuan,
             'quantity' => $d->qty,
