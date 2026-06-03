@@ -262,7 +262,7 @@ export default function ProfilePage() {
     setUploadingFoto(true);
     try {
       const fd = new FormData();
-      fd.append("foto_profile", file);
+      fd.append("foto", file);
 
       const res  = await fetch(`${API_URL}/api/owner_pet/profile/foto`, {
         method:  "POST",

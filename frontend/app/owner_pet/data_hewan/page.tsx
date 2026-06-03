@@ -106,7 +106,6 @@ function PetForm({
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // pressed states untuk tombol di form
   const cancelPress = usePressedState();
   const savePress   = usePressedState();
   const removePhotoPress = usePressedState();
@@ -240,7 +239,6 @@ function PetForm({
                       Klik untuk ganti foto
                     </span>
                   </div>
-                  {/* ── Tombol hapus foto ── */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -358,7 +356,6 @@ function PetForm({
             marginTop: 24,
           }}
         >
-          {/* ── Tombol Batal ── */}
           <button
             onClick={onCancel}
             disabled={saving}
@@ -379,7 +376,6 @@ function PetForm({
             Batal
           </button>
 
-          {/* ── Tombol Simpan ── */}
           <button
             onClick={() => valid && onSave(form)}
             disabled={!valid || saving}
@@ -424,10 +420,10 @@ function PetCard({
 }) {
   const [confirm, setConfirm] = useState(false);
 
-  const editPress    = usePressedState();
-  const bookingPress = usePressedState();
-  const hapusPress   = usePressedState();
-  const batalPress   = usePressedState();
+  const editPress       = usePressedState();
+  const bookingPress    = usePressedState();
+  const hapusPress      = usePressedState();
+  const batalPress      = usePressedState();
   const hapusFinalPress = usePressedState();
 
   return (
@@ -436,9 +432,10 @@ function PetCard({
         borderRadius: 14,
         overflow: "hidden",
         border: "1.5px solid #e0e0e0",
-        width: 240,
         background: "#fff",
         boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       {/* Foto */}
@@ -446,12 +443,13 @@ function PetCard({
         style={{
           position: "relative",
           width: "100%",
-          height: 160,
+          height: 140,
           background: pet.photo ? "#f7f7f7" : G,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
+          flexShrink: 0,
         }}
       >
         {pet.photo ? (
@@ -463,14 +461,14 @@ function PetCard({
             style={{ objectFit: "contain" }}
           />
         ) : (
-          <div style={{ fontSize: 60 }}>{pet.emoji}</div>
+          <div style={{ fontSize: 52 }}>{pet.emoji}</div>
         )}
       </div>
 
       {/* Nama & Jenis */}
-      <div style={{ background: G, textAlign: "center", padding: "10px 12px" }}>
-        <div style={{ fontWeight: 700, fontSize: 16, color: "#fff" }}>{pet.name}</div>
-        <div style={{ fontSize: 12, color: "#c8e6c9", marginTop: 2 }}>
+      <div style={{ background: G, textAlign: "center", padding: "8px 10px" }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{pet.name}</div>
+        <div style={{ fontSize: 11, color: "#c8e6c9", marginTop: 2 }}>
           {pet.type} · {pet.breed}
         </div>
       </div>
@@ -488,29 +486,27 @@ function PetCard({
         {[["Usia", pet.age], ["Berat", pet.weight]].map(([label, val]) => (
           <div
             key={label}
-            style={{ background: "#fafafa", padding: "10px 12px", textAlign: "center" }}
+            style={{ background: "#fafafa", padding: "8px 10px", textAlign: "center" }}
           >
-            <div style={{ fontSize: 11, color: "#888" }}>{label}</div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{val}</div>
+            <div style={{ fontSize: 10, color: "#888" }}>{label}</div>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>{val}</div>
           </div>
         ))}
       </div>
 
       {/* Tombol Edit & Booking */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: "12px" }}>
-
-        {/* ── Edit ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: "10px 10px 6px" }}>
         <button
           onClick={onEdit}
           {...editPress.pressProps}
           style={{
-            padding: "8px 0",
+            padding: "7px 0",
             borderRadius: 8,
             border: `1.5px solid ${G}`,
             background: editPress.pressed ? G : "#fff",
             color: editPress.pressed ? "#fff" : G,
             fontWeight: 700,
-            fontSize: 13,
+            fontSize: 12,
             cursor: "pointer",
             fontFamily: "inherit",
             transition: "background 0.15s, color 0.15s",
@@ -519,18 +515,17 @@ function PetCard({
           Edit
         </button>
 
-        {/* ── Booking ── */}
         <button
           onClick={onBooking}
           {...bookingPress.pressProps}
           style={{
-            padding: "8px 0",
+            padding: "7px 0",
             borderRadius: 8,
             border: "none",
             background: bookingPress.pressed ? "#1b5e20" : G,
             color: "#fff",
             fontWeight: 700,
-            fontSize: 13,
+            fontSize: 12,
             cursor: "pointer",
             fontFamily: "inherit",
             transition: "background 0.15s",
@@ -541,21 +536,20 @@ function PetCard({
       </div>
 
       {/* Tombol Hapus */}
-      <div style={{ padding: "0 12px 12px" }}>
+      <div style={{ padding: "0 10px 10px" }}>
         {!confirm ? (
-          // ── Hapus (pertama) ──
           <button
             onClick={() => setConfirm(true)}
             {...hapusPress.pressProps}
             style={{
               width: "100%",
-              padding: "7px 0",
+              padding: "6px 0",
               borderRadius: 8,
               border: "1.5px solid #e53935",
               background: hapusPress.pressed ? "#e53935" : "#fff",
               color: hapusPress.pressed ? "#fff" : "#e53935",
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 12,
               cursor: "pointer",
               fontFamily: "inherit",
               transition: "background 0.15s, color 0.15s",
@@ -564,20 +558,19 @@ function PetCard({
             Hapus
           </button>
         ) : (
-          <div style={{ display: "flex", gap: 6 }}>
-            {/* ── Batal (konfirmasi) ── */}
+          <div style={{ display: "flex", gap: 5 }}>
             <button
               onClick={() => setConfirm(false)}
               {...batalPress.pressProps}
               style={{
                 flex: 1,
-                padding: "7px 0",
+                padding: "6px 0",
                 borderRadius: 8,
                 border: "1.5px solid #e0e0e0",
                 background: batalPress.pressed ? "#e0e0e0" : "#fff",
                 color: "#555",
                 fontWeight: 600,
-                fontSize: 13,
+                fontSize: 12,
                 cursor: "pointer",
                 fontFamily: "inherit",
                 transition: "background 0.15s",
@@ -586,19 +579,18 @@ function PetCard({
               Batal
             </button>
 
-            {/* ── Hapus! (konfirmasi) ── */}
             <button
               onClick={onDelete}
               {...hapusFinalPress.pressProps}
               style={{
                 flex: 1,
-                padding: "7px 0",
+                padding: "6px 0",
                 borderRadius: 8,
                 border: "none",
                 background: hapusFinalPress.pressed ? "#b71c1c" : "#e53935",
                 color: "#fff",
                 fontWeight: 700,
-                fontSize: 13,
+                fontSize: 12,
                 cursor: "pointer",
                 fontFamily: "inherit",
                 transition: "background 0.15s",
@@ -626,7 +618,6 @@ export default function HewanPage() {
   const { toasts, toast, removeToast } = useToast();
   const token = getAuthToken();
 
-  // pressed state untuk tombol Tambah Hewan
   const tambahPress = usePressedState();
 
   const fetchPets = async (signal?: AbortSignal) => {
@@ -780,7 +771,14 @@ export default function HewanPage() {
               </div>
             </div>
           ) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 20 }}>
+            // ── 5 kolom grid ──
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(5, 1fr)",
+                gap: 16,
+              }}
+            >
               {pets.map((pet) => (
                 <PetCard
                   key={pet.id_hewan}

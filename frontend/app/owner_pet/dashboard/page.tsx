@@ -7,7 +7,6 @@ import { ToastContainer, useToast } from "@/components/Toast";
 import {
   PawPrint, Calendar, Clock, Hash, ListOrdered,
   AlertTriangle, CheckCircle, XCircle, Activity,
-  MapPin, Stethoscope, BarChart2
 } from "lucide-react";
 
 function usePress() {
@@ -126,9 +125,15 @@ function getAuthToken(): string {
   return typeof window !== "undefined" ? (sessionStorage.getItem("token") ?? "") : "";
 }
 
-function hariSejak(dateStr?: string): number {
+function jamSejak(dateStr?: string): number {
   if (!dateStr) return 0;
-  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86_400_000);
+  return (Date.now() - new Date(dateStr).getTime()) / 3_600_000;
+}
+
+function isBookingVisible(b: BookingItem): boolean {
+  const sudahAkhir = b.status === "selesai" || b.status === "dibatalkan";
+  if (!sudahAkhir) return true;
+  return jamSejak(b.updated_at) < 24;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -161,35 +166,13 @@ const ICON_STYLE: Record<IconVariant, { bg: string; color: string }> = {
 function IconStatCard({
   label, value, sub, subColor, icon, variant = "blue",
 }: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  subColor?: string;
-  icon: React.ReactNode;
-  variant?: IconVariant;
+  label: string; value: string | number; sub?: string;
+  subColor?: string; icon: React.ReactNode; variant?: IconVariant;
 }) {
   const { bg, color } = ICON_STYLE[variant];
   return (
-    <div style={{
-      background: "#fff",
-      border: "1px solid #f0f0f0",
-      borderRadius: 12,
-      padding: "16px 18px",
-      display: "flex",
-      alignItems: "center",
-      gap: 14,
-    }}>
-      <div style={{
-        width: 48,
-        height: 48,
-        borderRadius: "50%",
-        background: bg,
-        color,
-        flexShrink: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}>
+    <div style={{ background: "#fff", border: "1px solid #f0f0f0", borderRadius: 12, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ width: 48, height: 48, borderRadius: "50%", background: bg, color, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {icon}
       </div>
       <div style={{ minWidth: 0 }}>
@@ -286,26 +269,29 @@ function BookingCard({ booking }: { booking: BookingItem }) {
   const isSelesai  = booking.status === "selesai";
   const isBatal    = booking.status === "dibatalkan";
   const sudahAkhir = isSelesai || isBatal;
-  const hari       = hariSejak(booking.updated_at);
-  const hariLabel  = hari === 0 ? "Hari ini" : `${hari} hari lalu`;
-  const sisaHari   = 1 - hari;
+
+  const jam      = jamSejak(booking.updated_at);
+  const jamLabel = jam < 1
+    ? "Baru saja"
+    : jam < 24
+      ? `${Math.floor(jam)} jam lalu`
+      : `${Math.floor(jam / 24)} hari lalu`;
+  const sisaJam  = Math.max(0, 24 - jam);
 
   return (
     <div style={{ borderRadius: 12, border: `1.5px solid ${cfg.border}`, background: cfg.bg, padding: "12px 14px", transition: "all .4s ease" }}>
       {sudahAkhir && (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", borderRadius: 8, marginBottom: 8, background: isSelesai ? "#e8f5e9" : "#fce4ec", border: `1px solid ${isSelesai ? "#c8e6c9" : "#f48fb1"}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {isSelesai
-              ? <CheckCircle size={14} color={G} />
-              : <XCircle size={14} color="#c62828" />}
+            {isSelesai ? <CheckCircle size={14} color={G} /> : <XCircle size={14} color="#c62828" />}
             <span style={{ fontSize: 12, fontWeight: 700, color: isSelesai ? G : "#c62828" }}>
               {isSelesai ? "Layanan Selesai" : "Dibatalkan"}
             </span>
-            <span style={{ fontSize: 11, color: "#888" }}>· {hariLabel}</span>
+            <span style={{ fontSize: 11, color: "#888" }}>· {jamLabel}</span>
           </div>
-          {sisaHari > 0 && (
+          {sisaJam > 0 && (
             <span style={{ fontSize: 10, color: "#999", background: "#fff", padding: "2px 8px", borderRadius: 20, border: "1px solid #e0e0e0" }}>
-              Hilang dalam {sisaHari} hari
+              Hilang dalam {Math.ceil(sisaJam)} jam
             </span>
           )}
         </div>
@@ -313,12 +299,7 @@ function BookingCard({ booking }: { booking: BookingItem }) {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{booking.hewan_nama}</div>
-        <span style={{
-          fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 20,
-          background: cfg.bg,
-          color: cfg.color,
-          border: `1px solid ${cfg.border}`,
-        }}>
+        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
           {cfg.label}
         </span>
       </div>
@@ -327,10 +308,10 @@ function BookingCard({ booking }: { booking: BookingItem }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         {[
-          { icon: <Calendar size={12} color="#888" />, label: "Tanggal",     val: fmtDate(booking.tanggal_booking) },
-          { icon: <Clock size={12} color="#888" />,    label: "Jam",         val: `${booking.jam} WIB` },
-          { icon: <Hash size={12} color="#888" />,     label: "No. Booking", val: `#${booking.no_booking}` },
-          { icon: <ListOrdered size={12} color="#888" />, label: "Antrian",  val: String(booking.no_antrian).padStart(3, "0") },
+          { icon: <Calendar size={12} color="#888" />,     label: "Tanggal",     val: fmtDate(booking.tanggal_booking) },
+          { icon: <Clock size={12} color="#888" />,        label: "Jam",         val: `${booking.jam} WIB` },
+          { icon: <Hash size={12} color="#888" />,         label: "No. Booking", val: `#${booking.no_booking}` },
+          { icon: <ListOrdered size={12} color="#888" />,  label: "Antrian",     val: String(booking.no_antrian).padStart(3, "0") },
         ].map(({ icon, label, val }) => (
           <div key={label} style={{ background: "rgba(255,255,255,0.65)", borderRadius: 8, padding: "6px 10px" }}>
             <div style={{ fontSize: 10, color: "#888", marginBottom: 1, display: "flex", alignItems: "center", gap: 4 }}>
@@ -347,12 +328,7 @@ function BookingCard({ booking }: { booking: BookingItem }) {
 // ── Booking Info Panel ────────────────────────────────────────────────────────
 
 function BookingInfoPanel({ bookings, onBuat }: { bookings: BookingItem[]; onBuat(): void }) {
-  // Filter: sembunyikan booking selesai/dibatalkan yang sudah lebih dari 24 jam
-  const visibleBookings = (bookings ?? []).filter(b => {
-    const sudahAkhir = b.status === "selesai" || b.status === "dibatalkan";
-    if (!sudahAkhir) return true;
-    return hariSejak(b.updated_at) < 1;
-  });
+  const visibleBookings = (bookings ?? []).filter(isBookingVisible);
 
   if (visibleBookings.length === 0) {
     return (
@@ -369,8 +345,14 @@ function BookingInfoPanel({ bookings, onBuat }: { bookings: BookingItem[]; onBua
     );
   }
 
-  const tglLabel = visibleBookings[0]?.tanggal_booking
-    ? new Date(visibleBookings[0].tanggal_booking).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
+  // FIX: ambil tanggal terbaru dari semua visible bookings
+  const tanggalTerbaru = visibleBookings
+    .map(b => b.tanggal_booking)
+    .filter(Boolean)
+    .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime())[0];
+
+  const tglLabel = tanggalTerbaru
+    ? new Date(tanggalTerbaru).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
     : "";
 
   return (
@@ -461,7 +443,23 @@ export default function DashboardPage() {
     router.push("/owner_pet/booking_layanan");
   };
 
-  const displayRiwayat = useMemo(() => data?.riwayat_terakhir?.slice(0, 10) ?? [], [data]);
+const displayRiwayat = useMemo(() =>
+  (data?.riwayat_terakhir ?? [])
+    .sort((a, b) => b.id_riwayat - a.id_riwayat)
+    .slice(0, 10),
+  [data]
+);
+  const visibleBookings = useMemo(
+  () =>
+    (data?.bookings_hari_ini ?? [])
+      .filter(isBookingVisible)
+      .sort((a, b) => {
+        const dateA = new Date(a.updated_at ?? a.tanggal_booking ?? 0).getTime();
+        const dateB = new Date(b.updated_at ?? b.tanggal_booking ?? 0).getTime();
+        return dateB - dateA; // terbaru di atas
+      }),
+  [data]
+);
 
   if (loading) {
     return (
@@ -500,8 +498,7 @@ export default function DashboardPage() {
     );
   }
 
-  const { user, hewan, total_kunjungan, bookings_hari_ini } = data;
-  const bookings = bookings_hari_ini ?? [];
+  const { user, hewan, total_kunjungan } = data;
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
@@ -529,11 +526,11 @@ export default function DashboardPage() {
             />
             <IconStatCard
               label="Booking Terjadwal"
-              value={bookings.length}
-              sub={bookings.length > 0
-                ? bookings.map(b => b.hewan_nama).join(", ")
+              value={visibleBookings.length}
+              sub={visibleBookings.length > 0
+                ? visibleBookings.map(b => b.hewan_nama).join(", ")
                 : "Belum ada booking"}
-              subColor={bookings.length > 0 ? "#1565c0" : "#aaa"}
+              subColor={visibleBookings.length > 0 ? "#1565c0" : "#aaa"}
               icon={<Calendar size={22} />}
               variant="blue"
             />
@@ -581,7 +578,7 @@ export default function DashboardPage() {
             {/* Informasi Booking */}
             <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: "0 0 14px" }}>Informasi Booking</h2>
-              <BookingInfoPanel bookings={bookings} onBuat={() => handleBooking()} />
+              <BookingInfoPanel bookings={visibleBookings} onBuat={() => handleBooking()} />
             </div>
 
             {/* Riwayat Terakhir */}

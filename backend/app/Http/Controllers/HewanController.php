@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hewan;
+use App\Models\Booking;
+use App\Models\Resep;
+use App\Models\DetailResep;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -34,7 +37,6 @@ class HewanController extends Controller
             'weight'     => $h->berat !== null ? $h->berat . ' Kg' : '-',
             'emoji'      => $this->emojiMap($h->jenis),
             'photo'      => $h->foto ? asset('storage/' . $h->foto) : null,
-            // raw untuk form edit
             'nama_hewan' => $h->nama_hewan,
             'jenis'      => $h->jenis,
             'ras'        => $h->ras,
@@ -57,13 +59,13 @@ class HewanController extends Controller
     public function store(Request $request): JsonResponse
     {
         $v = Validator::make($request->all(), [
-            'nama_hewan' => 'required|string|max:255',
-            'jenis'      => 'required|string|max:255',
-            'ras'        => 'nullable|string|max:255',
-            'umur'       => 'nullable|integer|min:0',
-            'berat'      => 'nullable|numeric|min:0',
-            'foto'       => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'foto_base64'=> 'nullable|string',
+            'nama_hewan'  => 'required|string|max:255',
+            'jenis'       => 'required|string|max:255',
+            'ras'         => 'nullable|string|max:255',
+            'umur'        => 'nullable|integer|min:0',
+            'berat'       => 'nullable|numeric|min:0',
+            'foto'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_base64' => 'nullable|string',
         ]);
         if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
 
@@ -99,13 +101,13 @@ class HewanController extends Controller
         $h = Hewan::where('id_hewan', $id)->where('id_user', $request->user()->id_user)->firstOrFail();
 
         $v = Validator::make($request->all(), [
-            'nama_hewan' => 'sometimes|string|max:255',
-            'jenis'      => 'sometimes|string|max:255',
-            'ras'        => 'nullable|string|max:255',
-            'umur'       => 'nullable|integer|min:0',
-            'berat'      => 'nullable|numeric|min:0',
-            'foto'       => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'foto_base64'=> 'nullable|string',
+            'nama_hewan'  => 'sometimes|string|max:255',
+            'jenis'       => 'sometimes|string|max:255',
+            'ras'         => 'nullable|string|max:255',
+            'umur'        => 'nullable|integer|min:0',
+            'berat'       => 'nullable|numeric|min:0',
+            'foto'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto_base64' => 'nullable|string',
         ]);
         if ($v->fails()) return response()->json(['success'=>false,'errors'=>$v->errors()], 422);
 
@@ -127,8 +129,22 @@ class HewanController extends Controller
     public function destroy(Request $request, int $id): JsonResponse
     {
         $h = Hewan::where('id_hewan', $id)->where('id_user', $request->user()->id_user)->firstOrFail();
+
+        // Hapus detail resep → resep → booking yang terhubung
+        $bookings = Booking::where('id_hewan', $id)->get();
+        foreach ($bookings as $booking) {
+            $reseps = Resep::where('id_booking', $booking->id_booking)->get();
+            foreach ($reseps as $resep) {
+                DetailResep::where('id_resep', $resep->id_resep)->delete();
+                $resep->delete();
+            }
+            $booking->delete();
+        }
+
+        // Baru hapus foto & hewan
         if ($h->foto) Storage::disk('public')->delete($h->foto);
         $h->delete();
+
         return response()->json(['success'=>true,'message'=>'Hewan berhasil dihapus.']);
     }
 

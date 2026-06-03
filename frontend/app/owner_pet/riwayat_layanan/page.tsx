@@ -13,7 +13,7 @@ import {
 
 const API_URL    = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const G          = "#2e7d32";
-const ITEMS_PAGE = 4;
+const ITEMS_PAGE = 10;
 
 function getAuthToken(): string {
   return typeof window !== "undefined" ? (sessionStorage.getItem("token") ?? "") : "";
@@ -120,6 +120,21 @@ interface RiwayatItem {
 interface StatsData {
   total: number;
   [kategori: string]: number;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/**
+ * Parse tanggal + jam menjadi timestamp (ms).
+ * Menangani format jam "HH:mm" maupun "HH:mm:ss".
+ */
+function parseDateTime(tanggal: string | null | undefined, jam: string | null | undefined): number {
+  const tgl     = tanggal?.trim() || "1970-01-01";
+  // Ambil hanya HH:mm (5 karakter pertama) agar aman untuk semua format jam
+  const jamNorm = (jam?.trim() ?? "00:00").substring(0, 5);
+  const dt      = new Date(`${tgl}T${jamNorm}:00`);
+  // Kalau hasil parsing NaN (format tidak valid), fallback ke 0
+  return isNaN(dt.getTime()) ? 0 : dt.getTime();
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -254,8 +269,8 @@ function DetailModal({
       })
     : "-";
 
-  const grandTotal  = getGrandTotal(item);
-  const totalObat   = obat.reduce((s, o) => s + o.subtotal, 0);
+  const grandTotal   = getGrandTotal(item);
+  const totalObat    = obat.reduce((s, o) => s + o.subtotal, 0);
   const totalLayanan = grandTotal - totalObat;
 
   const cardS: React.CSSProperties = {
@@ -278,7 +293,7 @@ function DetailModal({
         onClick={e => e.stopPropagation()}
         style={{ background: "#f9f9f9", borderRadius: 16, width: 900, maxWidth: "100%", marginBottom: 24, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.2)" }}
       >
-        {/* ── Header modal ── */}
+        {/* Header modal */}
         <div style={{ background: "#fff", padding: "14px 20px", borderBottom: "1px solid #ebebeb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <HewanAvatar foto={hewan?.foto ?? null} jenis={hewan?.jenis} nama={hewan?.nama ?? "hewan"} size={46} />
@@ -303,10 +318,8 @@ function DetailModal({
           </button>
         </div>
 
-        {/* ── Body modal ── */}
+        {/* Body modal */}
         <div style={{ padding: "18px 20px" }}>
-
-          {/* Banner status */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, background: G_LIGHT, border: "1.5px solid #a5d6a7", borderRadius: 10, padding: "11px 16px", marginBottom: 18 }}>
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: G, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Check size={16} color="#fff" strokeWidth={3} />
@@ -331,10 +344,8 @@ function DetailModal({
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
 
-              {/* ══ KOLOM KIRI ══ */}
+              {/* KOLOM KIRI */}
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-                {/* Informasi Kunjungan */}
                 <div style={cardS}>
                   {secTitle(<ClipboardList size={14} color={G} />, "Informasi Kunjungan")}
                   <ModalInfoRow icon={<PawPrint   size={14} color={G} />} label="PASIEN"      value={`${hewan?.nama ?? "-"} (${hewan?.jenis ?? "-"})`} />
@@ -344,7 +355,6 @@ function DetailModal({
                   <ModalInfoRow icon={<Hash       size={14} color={G} />} label="NO. ANTRIAN" value={String(item.no_antrian).padStart(3, "0")} />
                 </div>
 
-                {/* Layanan — tanpa total di sini */}
                 <div style={cardS}>
                   {secTitle(<Building2 size={14} color={G} />, "Layanan")}
                   {item.layanans.length === 0 ? (
@@ -362,14 +372,12 @@ function DetailModal({
                       <div style={{ fontSize: 13, fontWeight: 700, color: G }}>{toRp(Number(l.harga_saat_booking))}</div>
                     </div>
                   ))}
-                  {/* Subtotal Layanan */}
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 13px 0", borderTop: "1.5px solid #e8f5e9", marginTop: 8 }}>
                     <span style={{ fontSize: 12, color: "#888" }}>Subtotal Layanan</span>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>{toRp(totalLayanan)}</span>
                   </div>
                 </div>
 
-                {/* Foto Before / After */}
                 {(item.foto_before || item.foto_after) && (
                   <div style={cardS}>
                     {secTitle(<Camera size={14} color={G} />, "Foto Before / After")}
@@ -393,11 +401,10 @@ function DetailModal({
                 )}
               </div>
 
-              {/* ══ KOLOM KANAN ══ */}
+              {/* KOLOM KANAN */}
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {rm ? (
                   <>
-                    {/* Dokter / Petugas */}
                     {dokterModal && (
                       <div style={cardS}>
                         {secTitle(<Stethoscope size={14} color={G} />, "Dokter / Petugas")}
@@ -406,7 +413,6 @@ function DetailModal({
                       </div>
                     )}
 
-                    {/* Diagnosa */}
                     <div style={cardS}>
                       {secTitle(<Search size={14} color={G} />, "Diagnosa")}
                       <div style={{ marginBottom: 14 }}>
@@ -427,7 +433,6 @@ function DetailModal({
                       </div>
                     </div>
 
-                    {/* Tindakan Medis */}
                     {(rm.tindakanList ?? []).filter(t => t.penanganan && t.penanganan !== "-").length > 0 && (
                       <div style={cardS}>
                         {secTitle(<Pill size={14} color={G} />, "Tindakan Medis")}
@@ -449,7 +454,6 @@ function DetailModal({
                       </div>
                     )}
 
-                    {/* Catatan Dokter */}
                     <div style={cardS}>
                       {secTitle(<FileText size={14} color={G} />, "Catatan Dokter")}
                       <div style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 8, padding: "11px 13px", fontSize: 13, color: rm.catatan_dokter ? "#333" : "#aaa", lineHeight: 1.65, fontStyle: rm.catatan_dokter ? "normal" : "italic" }}>
@@ -457,7 +461,6 @@ function DetailModal({
                       </div>
                     </div>
 
-                    {/* Obat & Vitamin — tanpa total di sini */}
                     {obat.length > 0 && (
                       <div style={cardS}>
                         {secTitle(<ShoppingBag size={14} color={G} />, "Obat & Vitamin")}
@@ -474,7 +477,6 @@ function DetailModal({
                             <div style={{ fontSize: 13, fontWeight: 700, color: G }}>{toRp(o.subtotal)}</div>
                           </div>
                         ))}
-                        {/* Subtotal Obat */}
                         <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 13px 0", borderTop: "1.5px solid #e8f5e9", marginTop: 8 }}>
                           <span style={{ fontSize: 12, color: "#888" }}>Subtotal Obat</span>
                           <span style={{ fontSize: 13, fontWeight: 600, color: "#555" }}>{toRp(totalObat)}</span>
@@ -486,7 +488,7 @@ function DetailModal({
                   <RekamMedisPlaceholder dokter={dokterModal} />
                 )}
 
-                {/* ── Grand Total Gabungan ── */}
+                {/* Grand Total */}
                 <div style={{
                   background: `linear-gradient(135deg, ${G}, #1b5e20)`,
                   borderRadius: 12, padding: "16px 18px",
@@ -497,14 +499,13 @@ function DetailModal({
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>
                       {obat.length > 0
                         ? `Layanan ${toRp(totalLayanan)} + Obat ${toRp(totalObat)}`
-                        : "Total Layanan"}
+                        : "Total Booking Layanan"}
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>Grand Total</div>
                   </div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{toRp(grandTotal)}</div>
                 </div>
 
-                {/* Tombol Kembali */}
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
                   <button
                     onClick={onClose}
@@ -547,7 +548,14 @@ function RiwayatLayananContent() {
           fetch(`${API_URL}/api/riwayat/stats`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
         ]);
         if (!cancelled) {
-          if (rRes.success) setRiwayat(rRes.data);
+          if (rRes.success) {
+            // ── Urutkan dari terbaru ke terlama berdasarkan tanggal + jam ──
+            // parseDateTime menangani jam format "HH:mm" maupun "HH:mm:ss"
+            const sorted = [...rRes.data].sort((a: RiwayatItem, b: RiwayatItem) =>
+              parseDateTime(b.tanggal, b.jam) - parseDateTime(a.tanggal, a.jam)
+            );
+            setRiwayat(sorted);
+          }
           if (sRes.success) setStats(sRes.data);
         }
       } catch {
@@ -581,7 +589,7 @@ function RiwayatLayananContent() {
   ).sort();
 
   const statCards = [
-    { icon: <Calendar size={22} color={G} />, label: "Total Layanan", value: stats?.total ?? riwayat.length, key: "Semua" },
+    { icon: <Calendar size={22} color={G} />, label: "Total Booking Layanan", value: stats?.total ?? riwayat.length, key: "Semua" },
     ...kategoriUnik.map(kat => ({
       icon:  getIconForKategori(kat),
       label: kat,
@@ -671,11 +679,20 @@ function RiwayatLayananContent() {
 
       {/* Tabel */}
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+        {!loading && !error && filtered.length > 0 && (
+          <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 13, color: "#888" }}>
+              Menampilkan <strong style={{ color: "#333" }}>{(currentPage - 1) * ITEMS_PAGE + 1}–{Math.min(currentPage * ITEMS_PAGE, filtered.length)}</strong> dari <strong style={{ color: "#333" }}>{filtered.length}</strong> data
+            </span>
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0" }}>
           {["Tanggal", "Hewan", "Layanan", "Dokter / Petugas", "Status", "Aksi"].map(h => (
             <span key={h} style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>{h}</span>
           ))}
         </div>
+
         {loading ? (
           <LoadingRows />
         ) : error ? (
@@ -751,7 +768,7 @@ function RiwayatLayananContent() {
           <button
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: "pointer", color: "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
+            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer", color: currentPage === 1 ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
           >
             <ChevronLeft size={14} /> Sebelumnya
           </button>
@@ -767,7 +784,7 @@ function RiwayatLayananContent() {
           <button
             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: "pointer", color: "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
+            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer", color: currentPage === totalPages ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
           >
             Berikutnya <ChevronRight size={14} />
           </button>

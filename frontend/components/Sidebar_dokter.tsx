@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LucideIcon,
   LayoutDashboard,
@@ -186,6 +186,15 @@ export default function Sidebar({ activePage }: SidebarProps) {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setCollapsed(document.body.classList.contains("sidebar-collapsed"));
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   const handleLogoutConfirm = () => {
     setShowModal(false);
@@ -206,8 +215,12 @@ export default function Sidebar({ activePage }: SidebarProps) {
       />
 
       <aside
+        id="app-sidebar"
         style={{
-          width: "210px",
+          width: collapsed ? 0 : "210px",
+          opacity: collapsed ? 0 : 1,
+          overflow: "hidden",
+          transition: "width 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease",
           backgroundColor: "#fff",
           borderRight: "1.5px solid #e0e0e0",
           display: "flex",

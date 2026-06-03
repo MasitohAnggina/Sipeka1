@@ -3,13 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LucideIcon,
   LayoutDashboard,
   Cat,
   CalendarCheck,
   ClipboardList,
+  CreditCard,
   UserCircle,
   LogOut,
   X,
@@ -29,11 +30,12 @@ interface SidebarProps {
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard",       href: "/owner_pet/dashboard",       icon: LayoutDashboard, key: "dashboard" },
-  { label: "Data Hewan",      href: "/owner_pet/data_hewan",      icon: Cat,             key: "hewan"     },
-  { label: "Booking Layanan", href: "/owner_pet/booking_layanan", icon: CalendarCheck,   key: "booking"   },
-  { label: "Riwayat Layanan", href: "/owner_pet/riwayat_layanan", icon: ClipboardList,   key: "riwayat"   },
-  { label: "Profile",         href: "/owner_pet/profile",         icon: UserCircle,      key: "profile"   },
+  { label: "Dashboard",       href: "/owner_pet/dashboard",       icon: LayoutDashboard, key: "dashboard"  },
+  { label: "Data Hewan",      href: "/owner_pet/data_hewan",      icon: Cat,             key: "hewan"      },
+  { label: "Booking Layanan", href: "/owner_pet/booking_layanan", icon: CalendarCheck,   key: "booking"    },
+  { label: "Riwayat Layanan", href: "/owner_pet/riwayat_layanan", icon: ClipboardList,   key: "riwayat"    },
+  { label: "Pembayaran",      href: "/owner_pet/pembayaran",      icon: CreditCard,      key: "pembayaran" },
+  { label: "Profile",         href: "/owner_pet/profile",         icon: UserCircle,      key: "profile"    },
 ];
 
 const G = "#2e7d32";
@@ -111,7 +113,6 @@ function LogoutModal({
           animation: "popIn .2s cubic-bezier(.34,1.56,.64,1)",
         }}
       >
-        {/* Icon */}
         <div
           style={{
             width: "48px",
@@ -128,7 +129,6 @@ function LogoutModal({
           <LogOut size={20} color="#dc2626" />
         </div>
 
-        {/* Tombol X tutup modal */}
         <button
           onClick={onCancel}
           style={{
@@ -197,17 +197,20 @@ export default function Sidebar({ activePage }: SidebarProps) {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setCollapsed(document.body.classList.contains("sidebar-collapsed"));
+    });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   const handleLogoutConfirm = () => {
     setShowModal(false);
-
-    // Hapus token dari cookie + sessionStorage + localStorage sekaligus
     clearToken();
-
-    // Tampilkan toast
     setShowToast(true);
-
-    // Redirect ke login setelah toast muncul sebentar
     setTimeout(() => {
       router.push("/auth/login_dokter");
     }, 1800);
@@ -222,9 +225,14 @@ export default function Sidebar({ activePage }: SidebarProps) {
         onCancel={() => setShowModal(false)}
       />
 
+      {/* ↓ Tambah id="app-sidebar" di sini */}
       <aside
+        id="app-sidebar"
         style={{
-          width: "210px",
+          width: collapsed ? 0 : "210px",
+          opacity: collapsed ? 0 : 1,
+          overflow: "hidden",
+          transition: "width 0.25s cubic-bezier(0.4,0,0.2,1), opacity 0.2s ease",
           backgroundColor: "#fff",
           borderRight: "1.5px solid #e0e0e0",
           display: "flex",

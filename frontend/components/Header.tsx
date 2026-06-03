@@ -16,6 +16,17 @@ interface HeaderProps {
 
 const G = "#2e7d32";
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return isMobile;
+}
+
 function fmtTanggal(d: string) {
   if (!d) return "–";
   return new Date(d).toLocaleDateString("id-ID", {
@@ -29,28 +40,49 @@ function fmtTanggal(d: string) {
 // ── Modal Detail Booking ──────────────────────────────────────────────────────
 function DetailModal({ notif, onClose }: { notif: BookingNotif; onClose(): void }) {
   const router   = useRouter();
+  const isMobile = useIsMobile();
   const isBatal  = notif.type === "BATAL";
   const isUrgent = notif.type === "H12";
   const headerBg  = isBatal || isUrgent ? "#b71c1c" : G;
   const accentBg  = isBatal || isUrgent ? "#fce4ec" : "#e8f5e9";
   const accentTxt = isBatal || isUrgent ? "#b71c1c" : G;
-
   const ModalIcon = isBatal ? XCircle : isUrgent ? Bell : CalendarClock;
 
   return (
     <div
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1200, padding: 16 }}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+        display: "flex",
+        alignItems: isMobile ? "flex-end" : "center",
+        justifyContent: "center",
+        zIndex: 1200,
+        padding: isMobile ? 0 : 16,
+      }}
     >
-      <div style={{ background: "#fff", borderRadius: 16, width: 420, maxWidth: "100%", overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
+      <div style={{
+        background: "#fff",
+        borderRadius: isMobile ? "16px 16px 0 0" : 16,
+        width: isMobile ? "100%" : 420,
+        maxWidth: "100%",
+        overflow: "hidden",
+        fontFamily: "'Poppins', sans-serif",
+        maxHeight: isMobile ? "92dvh" : "90vh",
+        overflowY: "auto",
+      }}>
 
-        {/* Header modal */}
-        <div style={{ background: headerBg, padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {isMobile && (
+          <div style={{ display: "flex", justifyContent: "center", paddingTop: 10, paddingBottom: 4 }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "#ddd" }} />
+          </div>
+        )}
+
+        <div style={{ background: headerBg, padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <ModalIcon size={22} color="#fff" />
+            <ModalIcon size={20} color="#fff" />
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#fff" }}>{notif.title}</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 1 }}>{notif.timeLabel}</div>
+              <div style={{ fontWeight: 700, fontSize: isMobile ? 14 : 15, color: "#fff" }}>{notif.title}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 1 }}>{notif.timeLabel}</div>
             </div>
           </div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
@@ -58,10 +90,9 @@ function DetailModal({ notif, onClose }: { notif: BookingNotif; onClose(): void 
           </button>
         </div>
 
-        {/* Banner */}
         <div style={{ background: accentBg, padding: "10px 20px", display: "flex", alignItems: "center", gap: 8 }}>
-          <AlertTriangle size={14} color={accentTxt} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: accentTxt }}>
+          <AlertTriangle size={14} color={accentTxt} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: accentTxt }}>
             {isBatal
               ? "Booking dibatalkan. Segera buat jadwal baru!"
               : isUrgent
@@ -70,48 +101,41 @@ function DetailModal({ notif, onClose }: { notif: BookingNotif; onClose(): void 
           </span>
         </div>
 
-        {/* Detail */}
-        <div style={{ padding: "20px" }}>
-          {/* Hewan & Layanan */}
+        <div style={{ padding: isMobile ? "16px" : "20px" }}>
           <div style={{ background: "#f9f9f9", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
             <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>Hewan &amp; Layanan</div>
             <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>{notif.detail.hewan_nama}</div>
             <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>{notif.detail.layanan_nama}</div>
           </div>
 
-          {/* Grid info */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
             {[
-              { icon: <Calendar size={14} color={G} />,        label: "Tanggal",     value: fmtTanggal(notif.detail.tanggal_booking) },
-              { icon: <Clock size={14} color={G} />,           label: "Jam",         value: `${notif.detail.jam} WIB` },
-              { icon: <Hash size={14} color={G} />,            label: "No. Booking", value: `#${notif.detail.no_booking}` },
-              { icon: <ListOrdered size={14} color={G} />,     label: "No. Antrian", value: String(notif.detail.no_antrian).padStart(3, "0") },
+              { icon: <Calendar size={13} color={G} />, label: "Tanggal",     value: fmtTanggal(notif.detail.tanggal_booking) },
+              { icon: <Clock size={13} color={G} />,    label: "Jam",         value: `${notif.detail.jam} WIB` },
+              { icon: <Hash size={13} color={G} />,     label: "No. Booking", value: `#${notif.detail.no_booking}` },
+              { icon: <ListOrdered size={13} color={G} />, label: "No. Antrian", value: String(notif.detail.no_antrian).padStart(3, "0") },
             ].map(({ icon, label, value }) => (
               <div key={label} style={{ background: "#fff", border: "1px solid #eee", borderRadius: 8, padding: "9px 12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
                   {icon}
-                  <span style={{ fontSize: 11, color: "#888" }}>{label}</span>
+                  <span style={{ fontSize: 10, color: "#888" }}>{label}</span>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{value}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a" }}>{value}</div>
               </div>
             ))}
           </div>
 
-          {/* Status */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: isBatal ? "#fce4ec" : "#e8f5e9", borderRadius: 8, marginBottom: isBatal ? 12 : 0 }}>
-            {isBatal
-              ? <XCircle size={14} color="#c62828" />
-              : <CheckCircle size={14} color={G} />}
+            {isBatal ? <XCircle size={14} color="#c62828" /> : <CheckCircle size={14} color={G} />}
             <span style={{ fontSize: 12, color: isBatal ? "#c62828" : G, fontWeight: 600 }}>
               Status: <span style={{ textTransform: "capitalize" }}>{notif.detail.status}</span>
             </span>
           </div>
 
-          {/* Tombol buat booking baru — hanya muncul kalau dibatalkan */}
           {isBatal && (
             <button
               onClick={() => { onClose(); router.push("/owner_pet/booking_layanan"); }}
-              style={{ width: "100%", marginTop: 12, padding: "10px 0", borderRadius: 8, border: "none", background: G, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              style={{ width: "100%", marginTop: 12, padding: "11px 0", borderRadius: 8, border: "none", background: G, color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
             >
               <CalendarClock size={15} color="#fff" />
               Buat Booking Baru
@@ -119,11 +143,10 @@ function DetailModal({ notif, onClose }: { notif: BookingNotif; onClose(): void 
           )}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: "0 20px 18px", display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ padding: "0 16px 20px", display: "flex", justifyContent: isBatal ? "center" : "flex-end" }}>
           <button
             onClick={onClose}
-            style={{ padding: "9px 24px", borderRadius: 8, border: "none", background: isBatal ? "#eee" : G, color: isBatal ? "#555" : "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+            style={{ padding: "9px 24px", borderRadius: 8, border: "none", background: isBatal ? "#eee" : G, color: isBatal ? "#555" : "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit", width: isMobile && !isBatal ? "100%" : undefined }}
           >
             Tutup
           </button>
@@ -140,7 +163,8 @@ function NotifDropdown({ notifs, readIds, onSelect, onClose }: {
   onSelect(n: BookingNotif): void;
   onClose(): void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref      = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -150,95 +174,150 @@ function NotifDropdown({ notifs, readIds, onSelect, onClose }: {
     return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
+  const dropdownStyle: React.CSSProperties = isMobile
+    ? {
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        width: "100%",
+        background: "#fff",
+        borderRadius: "16px 16px 0 0",
+        boxShadow: "0 -4px 24px rgba(0,0,0,0.15)",
+        zIndex: 1100,
+        overflow: "hidden",
+        fontFamily: "'Poppins', sans-serif",
+        maxHeight: "80dvh",
+        display: "flex",
+        flexDirection: "column",
+      }
+    : {
+        position: "absolute",
+        top: "calc(100% + 10px)",
+        right: 0,
+        width: 340,
+        background: "#fff",
+        borderRadius: 12,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+        border: "1px solid #e8e8e8",
+        zIndex: 1100,
+        overflow: "hidden",
+        fontFamily: "'Poppins', sans-serif",
+      };
+
   return (
-    <div ref={ref} style={{ position: "absolute", top: "calc(100% + 10px)", right: 0, width: 340, background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", border: "1px solid #e8e8e8", zIndex: 1100, overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
-
-      {/* Header dropdown */}
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Bell size={15} color={G} />
-          <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>Notifikasi Booking</span>
-          {notifs.length > 0 && (
-            <span style={{ background: "#e53935", color: "#fff", borderRadius: 20, fontSize: 10, fontWeight: 700, padding: "1px 7px" }}>
-              {notifs.length}
-            </span>
-          )}
-        </div>
-        <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}>
-          <X size={14} color="#999" />
-        </button>
-      </div>
-
-      {/* List notifikasi */}
-      {notifs.length === 0 ? (
-        <div style={{ padding: "32px 0", textAlign: "center", color: "#aaa", fontSize: 13 }}>
-          <Bell size={28} color="#ddd" style={{ marginBottom: 6, display: "block", margin: "0 auto 8px" }} />
-          Tidak ada notifikasi saat ini
-        </div>
-      ) : (
-        notifs.map((n) => {
-          const isBatal  = n.type === "BATAL";
-          const isUrgent = n.type === "H12";
-          const isRead   = readIds.has(n.id);
-          const bg        = isBatal || isUrgent ? "#fff5f5" : "#f0faf2";
-          const borderClr = isBatal || isUrgent ? "#ffcdd2" : "#c8e6c9";
-          const typeLabel = isBatal ? "Dibatalkan" : isUrgent ? "12 jam lagi" : "Besok";
-          const DotIcon   = isBatal ? XCircle : isUrgent ? AlertTriangle : CalendarClock;
-          const dotColor  = isBatal || isUrgent ? "#e53935" : "#f59e0b";
-
-          return (
-            <div
-              key={n.id}
-              onClick={() => onSelect(n)}
-              style={{
-                padding: "13px 16px",
-                background: isRead ? "#fafafa" : bg,
-                borderLeft: `3px solid ${isRead ? "#e0e0e0" : borderClr}`,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                borderBottom: "1px solid #f0f0f0",
-                opacity: isRead ? 0.6 : 1,
-                transition: "background .12s",
-              }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = isBatal || isUrgent ? "#ffebee" : "#e8f5e9")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = isRead ? "#fafafa" : bg)}
-            >
-              <DotIcon size={20} color={dotColor} style={{ flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: isRead ? 400 : 700, fontSize: 13, color: "#1a1a1a", marginBottom: 2 }}>{n.title}</div>
-                <div style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.subtitle}</div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
-                  <Clock size={11} color="#aaa" />
-                  {n.timeLabel}
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: isBatal || isUrgent ? "#ffcdd2" : "#c8e6c9", color: isBatal || isUrgent ? "#b71c1c" : G }}>
-                  {typeLabel}
-                </span>
-                <ChevronRight size={14} color="#bbb" />
-              </div>
-            </div>
-          );
-        })
+    <>
+      {isMobile && (
+        <div
+          onClick={onClose}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 1099 }}
+        />
       )}
 
-      {/* Footer */}
-      <div style={{ padding: "9px 16px", background: "#fafafa", borderTop: "1px solid #f0f0f0", fontSize: 11, color: "#aaa", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-        <Info size={11} color="#ccc" />
-        Notifikasi muncul H-1 hari &amp; H-12 jam sebelum booking
+      <div ref={ref} style={dropdownStyle}>
+
+        {isMobile && (
+          <div style={{ display: "flex", justifyContent: "center", paddingTop: 10, paddingBottom: 4, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "#ddd" }} />
+          </div>
+        )}
+
+        <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Bell size={15} color={G} />
+            <span style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>Notifikasi Booking</span>
+            {notifs.length > 0 && (
+              <span style={{ background: "#e53935", color: "#fff", borderRadius: 20, fontSize: 10, fontWeight: 700, padding: "1px 7px" }}>
+                {notifs.length}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}>
+            <X size={14} color="#999" />
+          </button>
+        </div>
+
+        <div style={{ overflowY: "auto", flex: 1 }}>
+          {notifs.length === 0 ? (
+            <div style={{ padding: "40px 0", textAlign: "center", color: "#aaa", fontSize: 13 }}>
+              <Bell size={28} color="#ddd" style={{ display: "block", margin: "0 auto 8px" }} />
+              Tidak ada notifikasi saat ini
+            </div>
+          ) : (
+            notifs.map((n) => {
+              const isBatal  = n.type === "BATAL";
+              const isUrgent = n.type === "H12";
+              const isRead   = readIds.has(n.id);
+              const bg        = isBatal || isUrgent ? "#fff5f5" : "#f0faf2";
+              const borderClr = isBatal || isUrgent ? "#ffcdd2" : "#c8e6c9";
+              const typeLabel = isBatal ? "Dibatalkan" : isUrgent ? "12 jam lagi" : "Besok";
+              const DotIcon   = isBatal ? XCircle : isUrgent ? AlertTriangle : CalendarClock;
+              const dotColor  = isBatal || isUrgent ? "#e53935" : "#f59e0b";
+
+              return (
+                <div
+                  key={n.id}
+                  onClick={() => onSelect(n)}
+                  style={{
+                    padding: isMobile ? "14px 16px" : "13px 16px",
+                    background: isRead ? "#fafafa" : bg,
+                    borderLeft: `3px solid ${isRead ? "#e0e0e0" : borderClr}`,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    borderBottom: "1px solid #f0f0f0",
+                    opacity: isRead ? 0.6 : 1,
+                    transition: "background .12s",
+                  }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = isBatal || isUrgent ? "#ffebee" : "#e8f5e9")}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = isRead ? "#fafafa" : bg)}
+                >
+                  <DotIcon size={20} color={dotColor} style={{ flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: isRead ? 400 : 700, fontSize: 13, color: "#1a1a1a", marginBottom: 2 }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: "#555", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.subtitle}</div>
+                    <div style={{ fontSize: 11, color: "#888", marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+                      <Clock size={11} color="#aaa" />
+                      {n.timeLabel}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: isBatal || isUrgent ? "#ffcdd2" : "#c8e6c9", color: isBatal || isUrgent ? "#b71c1c" : G }}>
+                      {typeLabel}
+                    </span>
+                    <ChevronRight size={14} color="#bbb" />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div style={{ padding: "10px 16px", background: "#fafafa", borderTop: "1px solid #f0f0f0", fontSize: 11, color: "#aaa", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, flexShrink: 0 }}>
+          <Info size={11} color="#ccc" />
+          Notifikasi muncul H-1 hari &amp; H-12 jam sebelum booking
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
 // ── Header Utama ──────────────────────────────────────────────────────────────
 export default function Header({ title, subtitle }: HeaderProps) {
   const { notifs, readIds, markRead, unreadCount } = useNotifContext();
-  const [open, setOpen]               = useState(false);
-  const [activeNotif, setActiveNotif] = useState<BookingNotif | null>(null);
+  const [open, setOpen]                 = useState(false);
+  const [activeNotif, setActiveNotif]   = useState<BookingNotif | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isMobile                        = useIsMobile();
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((v) => {
+      const next = !v;
+      document.body.classList.toggle("sidebar-collapsed", next);
+      return next;
+    });
+  };
 
   const handleSelect = (n: BookingNotif) => {
     markRead(n.id);
@@ -248,28 +327,114 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
   return (
     <>
-      <header style={{ backgroundColor: G, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 28px", flexShrink: 0, fontFamily: "'Inter', sans-serif", position: "relative", zIndex: 100 }}>
-        <div>
-          <h1 style={{ fontSize: "18px", fontWeight: 700, color: "#fff", margin: 0, lineHeight: 1.3 }}>{title}</h1>
-          {subtitle && <p style={{ fontSize: "13px", color: "#c6e6cb", margin: "3px 0 0" }}>{subtitle}</p>}
+      <header style={{
+        backgroundColor: G,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: isMobile ? "14px 16px" : "20px 28px",
+        flexShrink: 0,
+        fontFamily: "'Inter', sans-serif",
+        position: "relative",
+        zIndex: 100,
+      }}>
+
+        {/* Kiri: hamburger + title */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Tombol hamburger */}
+          <button
+            onClick={toggleSidebar}
+            aria-label={sidebarCollapsed ? "Tampilkan sidebar" : "Sembunyikan sidebar"}
+            style={{
+              background: "rgba(255,255,255,0)",
+              border: "none",
+              cursor: "pointer",
+              padding: "6px 8px",
+              borderRadius: 8,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
+              flexShrink: 0,
+              transition: "background .15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0)";
+            }}
+            onMouseDown={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.35)";
+            }}
+            onMouseUp={(e) => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+            }}
+          >
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                style={{
+                  display: "block",
+                  width: 20,
+                  height: 2.5,
+                  background: "#fff",
+                  borderRadius: 2,
+                }}
+              />
+            ))}
+          </button>
+
+          {/* Title & subtitle */}
+          <div>
+            <h1 style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: 700, color: "#fff", margin: 0, lineHeight: 1.3 }}>
+              {title}
+            </h1>
+            {subtitle && (
+              <p style={{ fontSize: isMobile ? "11px" : "13px", color: "#c6e6cb", margin: "2px 0 0" }}>
+                {subtitle}
+              </p>
+            )}
+          </div>
         </div>
 
+        {/* Kanan: bell notifikasi */}
         <div style={{ position: "relative" }}>
           <button
             onClick={() => setOpen((v) => !v)}
-            style={{ position: "relative", width: "38px", height: "38px", borderRadius: "50%", border: open ? "2px solid rgba(255,255,255,0.6)" : "none", backgroundColor: open ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background .15s" }}
+            style={{
+              position: "relative",
+              width: isMobile ? "34px" : "38px",
+              height: isMobile ? "34px" : "38px",
+              borderRadius: "50%",
+              border: open ? "2px solid rgba(255,255,255,0.6)" : "none",
+              backgroundColor: open ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.15)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "background .15s",
+            }}
             onMouseEnter={(e) => { if (!open) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.25)"; }}
             onMouseLeave={(e) => { if (!open) e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.15)"; }}
           >
             <Bell style={{ width: "17px", height: "17px", color: "#fff" }} />
             {unreadCount > 0 && (
-              <span style={{ position: "absolute", top: "4px", right: "4px", minWidth: "16px", height: "16px", padding: "0 4px", borderRadius: "9px", background: "#e53935", color: "#fff", fontSize: "9px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: `1.5px solid ${G}`, boxSizing: "border-box", lineHeight: 1 }}>
+              <span style={{
+                position: "absolute", top: "3px", right: "3px",
+                minWidth: "16px", height: "16px", padding: "0 4px",
+                borderRadius: "9px", background: "#e53935", color: "#fff",
+                fontSize: "9px", fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: `1.5px solid ${G}`, boxSizing: "border-box", lineHeight: 1,
+              }}>
                 {unreadCount}
               </span>
             )}
           </button>
 
-          {open && (
+          {open && !isMobile && (
             <NotifDropdown
               notifs={notifs}
               readIds={readIds}
@@ -279,6 +444,15 @@ export default function Header({ title, subtitle }: HeaderProps) {
           )}
         </div>
       </header>
+
+      {open && isMobile && (
+        <NotifDropdown
+          notifs={notifs}
+          readIds={readIds}
+          onSelect={handleSelect}
+          onClose={() => setOpen(false)}
+        />
+      )}
 
       {activeNotif && (
         <DetailModal notif={activeNotif} onClose={() => setActiveNotif(null)} />

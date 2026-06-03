@@ -8,7 +8,7 @@ import Sidebar from "@/components/Sidebar_admin";
 const API_URL = "http://127.0.0.1:8000/api";
 
 type LayananStatus   = "Aktif" | "Nonaktif";
-type LayananKategori = "Medis" | "Bedah" | "Grooming" | "Hotel Hewan";
+type LayananKategori = "Medis" | "Bedah" | "Grooming" | "Hotel Hewan" | "Vaksin";
 
 // ── Sesuai response dari backend ──────────────────────────────────────────────
 interface LayananAPI {
@@ -43,17 +43,20 @@ const defaultForm: FormData = {
   aktif:        true,
 };
 
-const statusStyle: Record<LayananStatus, { bg: string; color: string }> = {
+const statusStyle: Record<string, { bg: string; color: string }> = {
   Aktif:    { bg: "#e8f5e9", color: "#2E7D32" },
   Nonaktif: { bg: "#ffebee", color: "#c62828" },
 };
 
-const kategoriStyle: Record<LayananKategori, { bg: string; color: string }> = {
-  Medis:        { bg: "#e3f2fd", color: "#1565c0" },
-  Bedah:        { bg: "#fce4ec", color: "#c62828" },
-  Grooming:     { bg: "#f3e5f5", color: "#6a1b9a" },
+const kategoriStyle: Record<string, { bg: string; color: string }> = {
+  Medis:          { bg: "#e3f2fd", color: "#1565c0" },
+  Bedah:          { bg: "#fce4ec", color: "#c62828" },
+  Grooming:       { bg: "#f3e5f5", color: "#6a1b9a" },
   "Hotel Hewan": { bg: "#e0f2f1", color: "#00695c" },
+   Vaksin:        { bg: "#fce4ec", color: "#c62828" },
 };
+
+const fallbackStyle = { bg: "#e5e7eb", color: "#374151" };
 
 function formatHarga(harga: string | number) {
   return `Rp ${Number(harga).toLocaleString("id-ID")}`;
@@ -91,7 +94,7 @@ export default function DataLayananKlinikPage() {
 
       if (!res.ok) throw new Error("Gagal memuat data layanan");
       const result = await res.json();
-setAllLayanan(result.data); // ⭐ ambil ARRAY nya
+      setAllLayanan(result.data);
     } catch {
       setError("Gagal memuat data layanan. Periksa koneksi ke server.");
     } finally {
@@ -99,7 +102,6 @@ setAllLayanan(result.data); // ⭐ ambil ARRAY nya
     }
   }
 
-  // Fetch ulang kalau filter berubah
   useEffect(() => {
     fetchLayanan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -171,7 +173,6 @@ setAllLayanan(result.data); // ⭐ ambil ARRAY nya
         return;
       }
 
-      // Refresh data dari server
       await fetchLayanan();
       closeModal();
     } catch {
@@ -268,7 +269,7 @@ setAllLayanan(result.data); // ⭐ ambil ARRAY nya
               <label style={filterLabel}>Kategori</label>
               <select style={inputStyle} value={filterKategori} onChange={(e) => setFilterKategori(e.target.value)}>
                 <option value="">Semua Kategori</option>
-                {(["Medis", "Bedah", "Grooming", "Hotel Hewan"] as LayananKategori[]).map((k) => (
+                {(["Medis","Bedah", "Grooming", "Hotel Hewan", "Vaksin"] as LayananKategori[]).map((k) => (
                   <option key={k} value={k}>{k}</option>
                 ))}
               </select>
@@ -312,8 +313,8 @@ setAllLayanan(result.data); // ⭐ ambil ARRAY nya
                     <tr><td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "#999", fontSize: "13px" }}>Tidak ada layanan yang sesuai filter</td></tr>
                   ) : (
                     allLayanan.map((l, idx) => {
-                      const st = statusStyle[l.status];
-                      const kt = kategoriStyle[l.kategori];
+                      const st = statusStyle[l.status]   ?? fallbackStyle;
+                      const kt = kategoriStyle[l.kategori] ?? fallbackStyle;
                       return (
                         <tr key={l.id_layanan}
                           style={{ background: idx % 2 === 0 ? "#fff" : "#fafafa" }}
@@ -391,7 +392,7 @@ setAllLayanan(result.data); // ⭐ ambil ARRAY nya
               <div>
                 <label style={modalLabel}>Kategori</label>
                 <select style={modalInputStyle} value={form.kategori} onChange={(e) => setForm((f) => ({ ...f, kategori: e.target.value as LayananKategori }))}>
-                  {(["Medis", "Bedah", "Grooming", "Hotel Hewan"] as LayananKategori[]).map((k) => (
+                  {(["Medis", "Bedah", "Grooming", "Hotel Hewan", "Vaksin"] as LayananKategori[]).map((k) => (
                     <option key={k} value={k}>{k}</option>
                   ))}
                 </select>

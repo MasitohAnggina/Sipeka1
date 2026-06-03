@@ -31,39 +31,34 @@ class DashboardController extends Controller
                 'photo'    => $h->foto ? asset('storage/' . $h->foto) : null,
             ]);
 
-        // ── Cari tanggal booking terbaru milik user ───────────────────────────
-        $bookingTerbaru = Booking::where('id_user', $idUser)
-            ->orderBy('tanggal_booking', 'desc')
-            ->value('tanggal_booking');
-
-        // ── Semua booking pada tanggal terbaru tersebut ───────────────────────
-        $bookingsHariIni = collect();
-
-        if ($bookingTerbaru) {
-            $tanggalTerbaru = \Carbon\Carbon::parse($bookingTerbaru)->toDateString();
-
-            $bookingsHariIni = Booking::with(['hewan', 'jadwal', 'layanans'])
-                ->where('id_user', $idUser)
-                ->whereDate('tanggal_booking', $tanggalTerbaru)
-                ->orderByRaw("FIELD(status, 'diproses', 'dikonfirmasi', 'menunggu', 'selesai', 'dibatalkan')")
-                ->orderBy('no_antrian', 'asc')
-                ->get()
-                ->map(function ($b) {
-                    $layanans = $b->layanans ?? collect();
-                    return [
-                        'id_booking'      => $b->id_booking,
-                        'no_booking'      => $b->no_booking,
-                        'no_antrian'      => $b->no_antrian,
-                        'tanggal_booking' => $b->tanggal_booking?->format('Y-m-d'),
-                        'jam'             => $b->jam
-                            ?? ($b->jadwal?->jam_mulai ? substr($b->jadwal->jam_mulai, 0, 5) : '-'),
-                        'status'          => $b->status,
-                        'hewan_nama'      => $b->hewan?->nama_hewan ?? '-',
-                        'layanan_nama'    => $layanans->pluck('nama_layanan')->join(', ') ?: '-',
-                        'updated_at'      => $b->updated_at?->format('Y-m-d H:i:s'),
-                    ];
-                });
-        }
+        // ── Semua booking aktif + selesai/batal dalam 24 jam ─────────────────
+        $bookingsHariIni = Booking::with(['hewan', 'jadwal', 'layanans'])
+            ->where('id_user', $idUser)
+            ->where(function ($q) {
+                $q->whereNotIn('status', ['selesai', 'dibatalkan'])
+                  ->orWhere(function ($q2) {
+                      $q2->whereIn('status', ['selesai', 'dibatalkan'])
+                         ->where('updated_at', '>=', now()->subHours(24));
+                  });
+            })
+            ->orderByRaw("FIELD(status, 'diproses', 'dikonfirmasi', 'menunggu', 'selesai', 'dibatalkan')")
+            ->orderBy('no_antrian', 'asc')
+            ->get()
+            ->map(function ($b) {
+                $layanans = $b->layanans ?? collect();
+                return [
+                    'id_booking'      => $b->id_booking,
+                    'no_booking'      => $b->no_booking,
+                    'no_antrian'      => $b->no_antrian,
+                    'tanggal_booking' => $b->tanggal_booking?->format('Y-m-d'),
+                    'jam'             => $b->jam
+                        ?? ($b->jadwal?->jam_mulai ? substr($b->jadwal->jam_mulai, 0, 5) : '-'),
+                    'status'          => $b->status,
+                    'hewan_nama'      => $b->hewan?->nama_hewan ?? '-',
+                    'layanan_nama'    => $layanans->pluck('nama_layanan')->join(', ') ?: '-',
+                    'updated_at'      => $b->updated_at?->format('Y-m-d H:i:s'),
+                ];
+            });
 
         // ── Booking aktif (untuk polling notifikasi status) ───────────────────
         $bookingAktif = Booking::with(['hewan', 'jadwal', 'layanans'])
@@ -109,7 +104,7 @@ class DashboardController extends Controller
         ])
             ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
             ->orderBy('tanggal', 'desc')
-            ->limit(10) // ← ubah dari 5
+            ->limit(10)
             ->get()
             ->map(function ($r) {
                 $tanggal  = $r->tanggal ? \Carbon\Carbon::parse($r->tanggal) : null;
@@ -137,7 +132,7 @@ class DashboardController extends Controller
             ->where('status', 'selesai')
             ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
             ->orderBy('tanggal_booking', 'desc')
-            ->limit(10) // ← ubah dari 5
+            ->limit(10)
             ->get()
             ->map(function ($b) {
                 $layanans = $b->layanans ?? collect();
@@ -161,7 +156,7 @@ class DashboardController extends Controller
             ->merge(collect($riwayatDariBooking))
             ->unique('id_booking_ref')
             ->sortByDesc('tanggal_sort')
-            ->take(10) // ← ubah dari 3
+            ->take(10)
             ->values();
 
         return response()->json([
