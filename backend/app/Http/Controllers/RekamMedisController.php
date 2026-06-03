@@ -50,6 +50,7 @@ class RekamMedisController extends Controller
                                     : null,
                 'nama_pemilik' => $booking->hewan->user->nama ?? '-',
                 'rekam_medis'  => [],
+                'sudah_dicatat'  => false, 
             ];
         }
 
@@ -68,6 +69,7 @@ class RekamMedisController extends Controller
                 'catatan_dokter'   => $rm->catatan_dokter,
                 'nama_dokter'      => $rm->dokter->nama_dokter ?? '-',
             ];
+            $hewanMap[$idHewan]['sudah_dicatat'] = true;
         } else {
             if (
                 $hewanMap[$idHewan]['id_booking'] === null &&

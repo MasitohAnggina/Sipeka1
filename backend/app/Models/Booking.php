@@ -22,11 +22,17 @@ class Booking extends Model
         'foto_after',
         'no_antrian',
         'status',
+        'tanggal_selesai',
+        'notif_terkirim',
+        'notif_dikirim_at',
     ];
 
     protected $casts = [
         'tanggal_booking' => 'date',
         'tanggal_dibuat'  => 'date',
+        'tanggal_selesai'  => 'date',       // ← tambah
+        'notif_terkirim'   => 'boolean',    // ← tambah
+        'notif_dikirim_at' => 'datetime',
     ];
 
     public function user()

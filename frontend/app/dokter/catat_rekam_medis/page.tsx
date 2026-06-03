@@ -39,14 +39,16 @@ const STORAGE_URL = "http://127.0.0.1:8000/storage/";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface HewanRow {
-  id_hewan:     number;
-  nama_hewan:   string;
-  jenis:        string;
-  ras:          string;
-  umur:         number | null;
-  foto:         string | null;
-  nama_pemilik: string;
-  rekam_medis:  RekamMedisItem[];
+  id_hewan:      number;
+  id_booking:    number | null;   // ← tambah field ini agar tidak perlu cast
+  nama_hewan:    string;
+  jenis:         string;
+  ras:           string;
+  umur:          number | null;
+  foto:          string | null;
+  nama_pemilik:  string;
+  rekam_medis:   RekamMedisItem[];
+  sudah_dicatat: boolean;         // ← flag dari backend
 }
 
 interface RekamMedisItem {
@@ -106,6 +108,8 @@ const speciesEmoji: Record<string, string> = {
   Kucing: "🐱", Anjing: "🐕", Kelinci: "🐇", Burung: "🐦", Hamster: "🐹",
 };
 
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function FotoHewan({ foto, nama, jenis, size = 40 }: {
   foto: string | null; nama: string; jenis: string; size?: number;
 }) {
@@ -146,13 +150,16 @@ function HoverBtn({ onClick, children, variant = "green" }: {
 }) {
   const [hov, setHov] = useState(false);
   const styles: Record<string, React.CSSProperties> = {
-    green:   { border: `1.5px solid ${G}`,   background: hov ? G         : "#fff", color: hov ? "#fff"    : G      },
-    blue:    { border: "1.5px solid #e0e0e0", background: hov ? "#e3f2fd" : "#fff", color: hov ? "#1565c0" : "#555" },
-    outline: { border: `1.5px solid ${G}`,   background: hov ? "#e8f5e9" : "#fff", color: G                        },
-    danger:  { border: "1.5px solid #e53935", background: hov ? "#ffebee" : "#fff", color: "#e53935"                },
+    green:   { border: `1.5px solid ${G}`,    background: hov ? G          : "#fff", color: hov ? "#fff"    : G       },
+    blue:    { border: "1.5px solid #e0e0e0",  background: hov ? "#e3f2fd"  : "#fff", color: hov ? "#1565c0" : "#555"  },
+    outline: { border: `1.5px solid ${G}`,    background: hov ? "#e8f5e9"  : "#fff", color: G                         },
+    danger:  { border: "1.5px solid #e53935", background: hov ? "#ffebee"  : "#fff", color: "#e53935"                  },
   };
   return (
-    <button onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
       style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all .15s", ...styles[variant] }}
     >
       {children}
@@ -176,7 +183,7 @@ function HewanInfoBar({ namaHewan, jenisHewan, rasHewan, namaPemilik, foto, labe
           </div>
         </div>
       </div>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 20, background: "#e8f5e9", color: G, border: `1.5px solid #a5d6a7`, fontSize: 13, fontWeight: 700 }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 20, background: "#e8f5e9", color: G, border: "1.5px solid #a5d6a7", fontSize: 13, fontWeight: 700 }}>
         <Icon name="clipboard" size={13} color={G} /> {label}
       </div>
     </div>
@@ -187,9 +194,9 @@ function HewanInfoBar({ namaHewan, jenisHewan, rasHewan, namaPemilik, foto, labe
 
 function TableView({ hewanList, loading, onCatat, onDetail }: {
   hewanList: HewanRow[];
-  loading: boolean;
-  onCatat: (h: HewanRow) => void;
-  onDetail: (h: HewanRow, rm: RekamMedisItem) => void;
+  loading:   boolean;
+  onCatat:   (h: HewanRow) => void;
+  onDetail:  (h: HewanRow, rm: RekamMedisItem) => void;
 }) {
   const [search, setSearch] = useState("");
 
@@ -230,18 +237,23 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "#999", fontSize: 14 }}>
-                    <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
-                    {search ? `Tidak ditemukan hasil untuk "${search}"` : "Belum ada data hewan"}
-                  </td></tr>
+                  <tr>
+                    <td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "#999", fontSize: 14 }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
+                      {search ? `Tidak ditemukan hasil untuk "${search}"` : "Belum ada data hewan"}
+                    </td>
+                  </tr>
                 ) : filtered.map(h => {
                   const latest = h.rekam_medis[0] ?? null;
                   const total  = h.rekam_medis.length;
                   return (
-                    <tr key={h.id_hewan} style={{ borderBottom: "1px solid #f0f0f0" }}
+                    <tr
+                      key={h.id_hewan}
+                      style={{ borderBottom: "1px solid #f0f0f0" }}
                       onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
+                      {/* Hewan */}
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <FotoHewan foto={h.foto} nama={h.nama_hewan} jenis={h.jenis} size={40} />
@@ -249,20 +261,23 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
                         </div>
                       </td>
 
+                      {/* Jenis / Ras */}
                       <td style={{ padding: "12px 16px", fontSize: 13, color: "#555" }}>
                         <div>{h.jenis}</div>
                         <div style={{ fontSize: 12, color: "#aaa" }}>{h.ras}</div>
                       </td>
 
+                      {/* Pemilik */}
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#e8f5e9", border: `1.5px solid #a5d6a7`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#e8f5e9", border: "1.5px solid #a5d6a7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             <Icon name="user" size={13} color={G} />
                           </div>
                           <span style={{ fontSize: 13, fontWeight: 600 }}>{h.nama_pemilik}</span>
                         </div>
                       </td>
 
+                      {/* Rekam Medis */}
                       <td style={{ padding: "12px 16px" }}>
                         {total > 0 ? (
                           <div>
@@ -274,11 +289,25 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
                         )}
                       </td>
 
+                      {/* Aksi */}
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", gap: 8 }}>
-                          <HoverBtn onClick={() => onCatat(h)} variant="green">
-                            <Icon name="clipboard" size={12} color="currentColor" /> Catat
-                          </HoverBtn>
+                          {h.sudah_dicatat ? (
+                            <div style={{
+                              display: "inline-flex", alignItems: "center", gap: 5,
+                              padding: "7px 12px", borderRadius: 8,
+                              border: "1.5px solid #e0e0e0",
+                              background: "#f5f5f5", color: "#bbb",
+                              fontSize: 12, whiteSpace: "nowrap",
+                              cursor: "not-allowed",
+                            }}>
+                              <Icon name="check" size={12} color="#bbb" /> Tercatat
+                            </div>
+                          ) : (
+                            <HoverBtn onClick={() => onCatat(h)} variant="green">
+                              <Icon name="clipboard" size={12} color="currentColor" /> Catat
+                            </HoverBtn>
+                          )}
                           {latest && (
                             <HoverBtn onClick={() => onDetail(h, latest)} variant="blue">
                               <Icon name="eye" size={12} color="currentColor" /> Detail
@@ -301,21 +330,21 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
 // ── FORM VIEW ─────────────────────────────────────────────────────────────────
 
 function FormView({ hewan, idBooking, onBack, onSaved }: {
-  hewan: HewanRow | null;
+  hewan:     HewanRow | null;
   idBooking: string | null;
-  onBack: () => void;
-  onSaved: () => void;
+  onBack:    () => void;
+  onSaved:   () => void;
 }) {
-  const [tanggal,         setTanggal]         = useState(new Date().toISOString().split("T")[0]);
-  const [waktu,           setWaktu]           = useState(new Date().toTimeString().slice(0, 5));
-  const [diagnosa,        setDiagnosa]        = useState("");
-  const [diagnosaLengkap, setDiagnosaLengkap] = useState("");
-  const [catatanDokter,   setCatatanDokter]   = useState("");
-  const [showDiagnosaDD,  setShowDiagnosaDD]  = useState(false);
-  const [tindakan,        setTindakan]        = useState("");
-  const [saving,          setSaving]          = useState(false);
-  const [error,           setError]           = useState("");
-  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [tanggal,          setTanggal]         = useState(new Date().toISOString().split("T")[0]);
+  const [waktu,            setWaktu]           = useState(new Date().toTimeString().slice(0, 5));
+  const [diagnosa,         setDiagnosa]        = useState("");
+  const [diagnosaLengkap,  setDiagnosaLengkap] = useState("");
+  const [catatanDokter,    setCatatanDokter]   = useState("");
+  const [showDiagnosaDD,   setShowDiagnosaDD]  = useState(false);
+  const [tindakan,         setTindakan]        = useState("");
+  const [saving,           setSaving]          = useState(false);
+  const [error,            setError]           = useState("");
+  const [showCancelModal,  setShowCancelModal] = useState(false);
 
   const token       = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const diagnosaRef = useRef<HTMLDivElement>(null);
@@ -330,7 +359,6 @@ function FormView({ hewan, idBooking, onBack, onSaved }: {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Cek apakah ada perubahan di form sebelum batal
   const hasChanges = diagnosa || diagnosaLengkap || catatanDokter || tindakan;
 
   const handleBatal = () => {
@@ -342,7 +370,7 @@ function FormView({ hewan, idBooking, onBack, onSaved }: {
   };
 
   const handleSave = async () => {
-    if (!diagnosa) { setError("Diagnosa wajib diisi!"); return; }
+    if (!diagnosa)  { setError("Diagnosa wajib diisi!"); return; }
     if (!idBooking) { setError("ID Booking tidak ditemukan!"); return; }
 
     setSaving(true);
@@ -448,19 +476,23 @@ function FormView({ hewan, idBooking, onBack, onSaved }: {
                   </span>
                 </button>
                 {showDiagnosaDD && (
-                  <div
-                    style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 10, boxShadow: "0 6px 20px rgba(0,0,0,0.10)", zIndex: 100, overflow: "hidden", maxHeight: 260, overflowY: "auto" }}
-                  >
-                    <div onClick={() => { setDiagnosa(""); setShowDiagnosaDD(false); }}
-                      style={{ padding: "10px 14px", fontSize: 13, cursor: "pointer", color: "#aaa", borderBottom: "1px solid #f0f0f0" }}>
+                  <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 10, boxShadow: "0 6px 20px rgba(0,0,0,0.10)", zIndex: 100, overflow: "hidden", maxHeight: 260, overflowY: "auto" }}>
+                    <div
+                      onClick={() => { setDiagnosa(""); setShowDiagnosaDD(false); }}
+                      style={{ padding: "10px 14px", fontSize: 13, cursor: "pointer", color: "#aaa", borderBottom: "1px solid #f0f0f0" }}
+                    >
                       -- Pilih Diagnosa --
                     </div>
                     {DIAGNOSA_OPTIONS.map(d => (
-                      <div key={d} onClick={() => { setDiagnosa(d); setShowDiagnosaDD(false); }}
+                      <div
+                        key={d}
+                        onClick={() => { setDiagnosa(d); setShowDiagnosaDD(false); }}
                         style={{ padding: "10px 14px", fontSize: 14, cursor: "pointer", borderTop: "1px solid #f5f5f5", background: diagnosa === d ? G : "transparent", color: diagnosa === d ? "#fff" : "#333", fontWeight: diagnosa === d ? 700 : 500, transition: "background .12s" }}
                         onMouseEnter={e => { if (diagnosa !== d) (e.currentTarget as HTMLDivElement).style.background = "#f0faf0"; }}
                         onMouseLeave={e => { if (diagnosa !== d) (e.currentTarget as HTMLDivElement).style.background = "transparent"; }}
-                      >{d}</div>
+                      >
+                        {d}
+                      </div>
                     ))}
                   </div>
                 )}
@@ -468,17 +500,25 @@ function FormView({ hewan, idBooking, onBack, onSaved }: {
             </div>
             <div>
               <label style={labelStyle}>Deskripsi Diagnosa</label>
-              <textarea value={diagnosaLengkap} onChange={e => setDiagnosaLengkap(e.target.value)}
-                placeholder="Deskripsikan diagnosa secara lengkap..." rows={4}
-                style={{ ...inputStyle, resize: "vertical", minHeight: 90, lineHeight: 1.6 }} />
+              <textarea
+                value={diagnosaLengkap}
+                onChange={e => setDiagnosaLengkap(e.target.value)}
+                placeholder="Deskripsikan diagnosa secara lengkap..."
+                rows={4}
+                style={{ ...inputStyle, resize: "vertical", minHeight: 90, lineHeight: 1.6 }}
+              />
             </div>
           </div>
 
           <div style={cardStyle}>
             <div style={sectionTitleStyle}><Icon name="note" size={15} color={G} /> Catatan Dokter</div>
-            <textarea value={catatanDokter} onChange={e => setCatatanDokter(e.target.value)}
-              placeholder="Tambahkan catatan tambahan dari dokter..." rows={5}
-              style={{ ...inputStyle, resize: "vertical", minHeight: 100, lineHeight: 1.6 }} />
+            <textarea
+              value={catatanDokter}
+              onChange={e => setCatatanDokter(e.target.value)}
+              placeholder="Tambahkan catatan tambahan dari dokter..."
+              rows={5}
+              style={{ ...inputStyle, resize: "vertical", minHeight: 100, lineHeight: 1.6 }}
+            />
           </div>
 
           {/* Action Buttons */}
@@ -493,11 +533,10 @@ function FormView({ hewan, idBooking, onBack, onSaved }: {
                 fontWeight: 700, fontSize: 14,
                 cursor: saving ? "not-allowed" : "pointer",
                 display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "inherit",
-                transition: "all .15s",
+                fontFamily: "inherit", transition: "all .15s",
                 opacity: saving ? 0.5 : 1,
               }}
-              onMouseEnter={e => { if (!saving) { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#ccc"; }}}
+              onMouseEnter={e => { if (!saving) { (e.currentTarget as HTMLButtonElement).style.background = "#f5f5f5"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#ccc"; } }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#e0e0e0"; }}
             >
               <Icon name="x" size={15} color="currentColor" /> Batal
@@ -507,14 +546,12 @@ function FormView({ hewan, idBooking, onBack, onSaved }: {
               onClick={handleSave}
               disabled={saving}
               style={{
-                padding: "11px 28px", borderRadius: 8,
-                border: "none",
+                padding: "11px 28px", borderRadius: 8, border: "none",
                 background: saving ? "#a5d6a7" : G,
                 color: "#fff", fontWeight: 700, fontSize: 14,
                 cursor: saving ? "not-allowed" : "pointer",
                 display: "flex", alignItems: "center", gap: 6,
-                fontFamily: "inherit",
-                transition: "background .15s",
+                fontFamily: "inherit", transition: "background .15s",
               }}
             >
               <Icon name="save" size={15} color="#fff" /> {saving ? "Menyimpan..." : "Simpan Rekam Medis"}
@@ -526,24 +563,13 @@ function FormView({ hewan, idBooking, onBack, onSaved }: {
       {/* Modal Konfirmasi Batal */}
       {showCancelModal && (
         <div
-          style={{
-            position: "fixed", inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 999,
-          }}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}
           onClick={() => setShowCancelModal(false)}
         >
           <div
-            style={{
-              background: "#fff", borderRadius: 16,
-              padding: "28px 32px", maxWidth: 420, width: "90%",
-              boxShadow: "0 10px 40px rgba(0,0,0,0.18)",
-              border: "1.5px solid #e0e0e0",
-            }}
+            style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", maxWidth: 420, width: "90%", boxShadow: "0 10px 40px rgba(0,0,0,0.18)", border: "1.5px solid #e0e0e0" }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Icon warning */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#fff8e1", border: "1.5px solid #ffcc80", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
@@ -590,7 +616,9 @@ function FormView({ hewan, idBooking, onBack, onSaved }: {
 // ── DETAIL VIEW ───────────────────────────────────────────────────────────────
 
 function DetailView({ hewan, record, onBack }: {
-  hewan: HewanRow; record: RekamMedisItem; onBack: () => void;
+  hewan:  HewanRow;
+  record: RekamMedisItem;
+  onBack: () => void;
 }) {
   const tanggalFmt = new Date(record.tanggal + "T00:00:00").toLocaleDateString("id-ID", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
@@ -665,7 +693,8 @@ function DetailView({ hewan, record, onBack }: {
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={onBack}
+            <button
+              onClick={onBack}
               style={{ padding: "10px 26px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit" }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#e8f5e9"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#fff"; }}
@@ -692,12 +721,11 @@ function RekamMedisInner() {
   const namaPemilikParam = searchParams.get("nama_pemilik");
   const fotoParam        = searchParams.get("foto") ?? null;
 
-  const [view,         setView]         = useState<ViewMode>(idBookingParam ? "form" : "table");
-  const [hewanList,    setHewanList]    = useState<HewanRow[]>([]);
-  const [activeHewan,  setActiveHewan]  = useState<HewanRow | null>(null);
-  const [activeRecord, setActiveRecord] = useState<RekamMedisItem | null>(null);
-  const [loading,      setLoading]      = useState(true);
-
+  const [view,           setView]           = useState<ViewMode>(idBookingParam ? "form" : "table");
+  const [hewanList,      setHewanList]      = useState<HewanRow[]>([]);
+  const [activeHewan,    setActiveHewan]    = useState<HewanRow | null>(null);
+  const [activeRecord,   setActiveRecord]   = useState<RekamMedisItem | null>(null);
+  const [loading,        setLoading]        = useState(true);
   const [activeIdBooking, setActiveIdBooking] = useState<string | null>(idBookingParam);
 
   const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
@@ -716,15 +744,18 @@ function RekamMedisInner() {
   useEffect(() => {
     fetchHewan();
     if (idBookingParam && namaHewanParam) {
+      // ← Perbaikan: sudah_dicatat dan id_booking ditambahkan agar sesuai HewanRow
       setActiveHewan({
-        id_hewan:     0,
-        nama_hewan:   namaHewanParam ?? "",
-        jenis:        jenisHewanParam ?? "",
-        ras:          rasHewanParam ?? "",
-        umur:         null,
-        foto:         fotoParam,
-        nama_pemilik: namaPemilikParam ?? "",
-        rekam_medis:  [],
+        id_hewan:      0,
+        id_booking:    idBookingParam ? Number(idBookingParam) : null,
+        nama_hewan:    namaHewanParam   ?? "",
+        jenis:         jenisHewanParam  ?? "",
+        ras:           rasHewanParam    ?? "",
+        umur:          null,
+        foto:          fotoParam,
+        nama_pemilik:  namaPemilikParam ?? "",
+        rekam_medis:   [],
+        sudah_dicatat: false,
       });
       setActiveIdBooking(idBookingParam);
       setView("form");
@@ -758,15 +789,14 @@ function RekamMedisInner() {
             loading={loading}
             onCatat={h => {
               setActiveHewan(h);
-              setActiveIdBooking((h as HewanRow & { id_booking?: string | number }).id_booking != null
-                ? String((h as HewanRow & { id_booking?: string | number }).id_booking)
-                : null
-              );
+              // ← Perbaikan: gunakan h.id_booking langsung, tidak perlu cast
+              setActiveIdBooking(h.id_booking != null ? String(h.id_booking) : null);
               setView("form");
             }}
             onDetail={(h, rm) => { setActiveHewan(h); setActiveRecord(rm); setView("detail"); }}
           />
         )}
+
         {view === "form" && (
           <FormView
             hewan={activeHewan}
@@ -775,6 +805,7 @@ function RekamMedisInner() {
             onSaved={() => { fetchHewan(); goBack(); }}
           />
         )}
+
         {view === "detail" && activeHewan && activeRecord && (
           <DetailView hewan={activeHewan} record={activeRecord} onBack={goBack} />
         )}

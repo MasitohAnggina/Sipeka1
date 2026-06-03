@@ -23,6 +23,7 @@ use App\Http\Controllers\MidtransWebhookController;
 use App\Http\Controllers\Owner\InvoiceController;
 use App\Http\Controllers\Owner\PembayaranController;
 use App\Http\Controllers\Admin\AdminPembayaranController;
+use App\Http\Controllers\NotifikasiHotelController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -190,3 +191,8 @@ if (app()->environment('local')) {
         ]);
     });
 }
+
+// Notifikasi Pet Hotel
+Route::post('/admin/booking/{id}/notif-hotel/wa',    [NotifikasiHotelController::class, 'kirimWa']);
+Route::post('/admin/booking/{id}/notif-hotel/email', [NotifikasiHotelController::class, 'kirimEmail']);
+

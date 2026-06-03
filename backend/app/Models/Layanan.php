@@ -18,4 +18,10 @@ protected $casts = [
     'tersedia' => 'boolean',
     'harga'    => 'decimal:2',
 ];
+// Tambah di Model Layanan
+public function getSatuanDurasiAttribute(): string
+{
+    $kategoriBerbasisHari = ['Hotel Hewan', 'Rawat Inap'];
+    return in_array($this->kategori, $kategoriBerbasisHari) ? 'hari' : 'menit';
+}
 }

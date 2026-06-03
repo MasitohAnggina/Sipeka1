@@ -39,6 +39,7 @@ class LayananController extends Controller
                 'sub_kategori' => $l->sub_kategori,
                 'harga'        => (float) $l->harga,
                 'durasi'       => $l->durasi,
+                'satuan_durasi' => $l->satuan_durasi,
                 'deskripsi'    => $l->deskripsi,
             ]);
 

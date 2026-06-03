@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Eye, ChevronDown, X, RotateCcw } from "lucide-react";
+import { Eye, ChevronDown, X, RotateCcw, Bell } from "lucide-react";
 import Sidebar from "@/components/Sidebar_admin";
 import Header from "@/components/Header";
 
@@ -26,20 +26,16 @@ interface Booking {
   status:           BookingStatus;
   catatan:          string | null;
   can_edit_status:  boolean;
-
   nama_pemilik:     string;
   no_hp:            string;
-
   nama_hewan:       string;
   jenis_hewan:      string;
   ras_hewan:        string;
   foto_hewan:       string | null;
-
   tanggal_jadwal:   string;
   jam_mulai:        string;
   jam_selesai:      string;
   nama_dokter:      string;
-
   layanans:         LayananItem[];
 }
 
@@ -54,12 +50,11 @@ interface Summary {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const G           = "#2e7d32";
-const API         = "http://127.0.0.1:8000/api";
-const STORAGE_URL = "http://127.0.0.1:8000/storage/";
+const G              = "#2e7d32";
+const API            = "http://127.0.0.1:8000/api";
+const STORAGE_URL    = "http://127.0.0.1:8000/storage/";
 const ITEMS_PER_PAGE = 7;
 
-// Status yang bisa dipilih admin (berlangsung & selesai hanya bisa dari dokter)
 const ADMIN_STATUSES: BookingStatus[] = ["menunggu", "dikonfirmasi", "dibatalkan"];
 const ALL_STATUSES:   BookingStatus[] = ["menunggu", "dikonfirmasi", "berlangsung", "selesai", "dibatalkan"];
 
@@ -101,6 +96,14 @@ function normalizeFotoUrl(foto: string | null): string | null {
   if (!foto) return null;
   if (foto.startsWith("http://") || foto.startsWith("https://")) return foto;
   return STORAGE_URL + foto.replace(/^\//, "");
+}
+
+function isPetHotelBooking(layanans: LayananItem[]): boolean {
+  return layanans.some(l =>
+    l.nama_layanan.toLowerCase().includes("hotel") ||
+    l.kategori.toLowerCase().includes("hotel") ||
+    l.kategori.toLowerCase().includes("rawat inap")
+  );
 }
 
 // ── Foto Hewan ────────────────────────────────────────────────────────────────
@@ -198,14 +201,57 @@ function StatusDropdown({ value, onChange, disabled }: {
 
 // ── Detail Modal ──────────────────────────────────────────────────────────────
 
-function DetailModal({ booking, onClose, onStatusChange, saving }: {
+function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
   booking:        Booking;
+  token:          string;
   onClose:        () => void;
   onStatusChange: (id: number, status: BookingStatus) => void;
   saving:         boolean;
 }) {
-  const [localStatus, setLocalStatus] = useState<BookingStatus>(booking.status);
-  const isDirty = localStatus !== booking.status;
+  const [localStatus,  setLocalStatus]  = useState<BookingStatus>(booking.status);
+
+  // ── State notifikasi terpisah per tipe ────────────────────────────────────
+  const [notifSending, setNotifSending] = useState<"" | "wa" | "email">("");
+  const [waMsg,        setWaMsg]        = useState("");
+  const [waError,      setWaError]      = useState(false);
+  const [emailMsg,     setEmailMsg]     = useState("");
+  const [emailError,   setEmailError]   = useState(false);
+
+  const isDirty        = localStatus !== booking.status;
+  const bisaKirimNotif = isPetHotelBooking(booking.layanans) && booking.status === "selesai";
+
+  const headers = {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type":  "application/json",
+  };
+
+  // ── Handler kirim notif ───────────────────────────────────────────────────
+  const handleKirimNotif = async (tipe: "wa" | "email") => {
+    setNotifSending(tipe);
+    if (tipe === "wa")    { setWaMsg("");    setWaError(false); }
+    if (tipe === "email") { setEmailMsg(""); setEmailError(false); }
+
+    try {
+      const res  = await fetch(`${API}/admin/booking/${booking.id}/notif-hotel/${tipe}`, {
+        method: "POST",
+        headers,
+      });
+      const data = await res.json();
+
+      if (tipe === "wa") {
+        setWaMsg(data.message ?? "");
+        setWaError(!data.success);
+      } else {
+        setEmailMsg(data.message ?? "");
+        setEmailError(!data.success);
+      }
+    } catch {
+      if (tipe === "wa") { setWaMsg("Gagal terhubung ke server."); setWaError(true); }
+      else               { setEmailMsg("Gagal terhubung ke server."); setEmailError(true); }
+    } finally {
+      setNotifSending("");
+    }
+  };
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
@@ -250,14 +296,14 @@ function DetailModal({ booking, onClose, onStatusChange, saving }: {
         {/* Detail Rows */}
         <div style={{ display: "flex", flexDirection: "column" }}>
           {[
-            { label: "Pemilik",        value: booking.nama_pemilik },
-            { label: "No. HP",         value: booking.no_hp },
-            { label: "Tanggal Booking",value: booking.tanggal_booking },
-            { label: "Tanggal Dibuat", value: booking.tanggal_dibuat },
-            { label: "Jam",            value: booking.jam },
-            { label: "Dokter",         value: booking.nama_dokter },
-            { label: "Jadwal",         value: `${booking.tanggal_jadwal} (${booking.jam_mulai} - ${booking.jam_selesai})` },
-            { label: "Catatan",        value: booking.catatan || "-" },
+            { label: "Pemilik",         value: booking.nama_pemilik },
+            { label: "No. HP",          value: booking.no_hp },
+            { label: "Tanggal Booking", value: booking.tanggal_booking },
+            { label: "Tanggal Dibuat",  value: booking.tanggal_dibuat },
+            { label: "Jam",             value: booking.jam },
+            { label: "Dokter",          value: booking.nama_dokter },
+            { label: "Jadwal",          value: `${booking.tanggal_jadwal} (${booking.jam_mulai} - ${booking.jam_selesai})` },
+            { label: "Catatan",         value: booking.catatan || "-" },
           ].map(({ label, value }) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
               <span style={{ fontSize: 13, color: "#888" }}>{label}</span>
@@ -281,7 +327,7 @@ function DetailModal({ booking, onClose, onStatusChange, saving }: {
           </div>
 
           {/* Status Row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: bisaKirimNotif ? "1px solid #f0f0f0" : "none" }}>
             <span style={{ fontSize: 13, color: "#888" }}>Status</span>
             <StatusDropdown
               value={localStatus}
@@ -289,6 +335,81 @@ function DetailModal({ booking, onClose, onStatusChange, saving }: {
               disabled={!booking.can_edit_status}
             />
           </div>
+
+          {/* ── Notifikasi Pet Hotel ───────────────────────────────────────── */}
+          {bisaKirimNotif && (
+            <div style={{ paddingTop: 16 }}>
+
+              {/* Label seksi */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+                <Bell size={13} color="#2e7d32" />
+                <span style={{ fontSize: 13, color: "#2e7d32", fontWeight: 600 }}>Notifikasi Penjemputan</span>
+                <span style={{ fontSize: 11, color: "#aaa", marginLeft: 4 }}>· Pet Hotel</span>
+              </div>
+
+              {/* Tombol WhatsApp */}
+              <div style={{ marginBottom: 10 }}>
+                {waMsg && (
+                  <div style={{
+                    background: waError ? "#fff3e0" : "#f0faf2",
+                    border: `1px solid ${waError ? "#ffe0b2" : "#c8e6c9"}`,
+                    borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12,
+                    color: waError ? "#e65100" : "#2e7d32",
+                  }}>
+                    {waMsg}
+                  </div>
+                )}
+                <button
+                  disabled={notifSending === "wa"}
+                  onClick={() => handleKirimNotif("wa")}
+                  style={{
+                    width: "100%", padding: "11px", borderRadius: 8,
+                    border: "1.5px solid #25d366",
+                    background: notifSending === "wa" ? "#f5f5f5" : "#e8fdf0",
+                    color: notifSending === "wa" ? "#aaa" : "#128c3e",
+                    fontSize: 13, cursor: notifSending === "wa" ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  📱 {notifSending === "wa" ? "Mengirim WhatsApp..." : "Kirim via WhatsApp"}
+                </button>
+              </div>
+
+              {/* Tombol Email */}
+              <div>
+                {emailMsg && (
+                  <div style={{
+                    background: emailError ? "#fff3e0" : "#f0faf2",
+                    border: `1px solid ${emailError ? "#ffe0b2" : "#c8e6c9"}`,
+                    borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12,
+                    color: emailError ? "#e65100" : "#2e7d32",
+                  }}>
+                    {emailMsg}
+                  </div>
+                )}
+                <button
+                  disabled={notifSending === "email"}
+                  onClick={() => handleKirimNotif("email")}
+                  style={{
+                    width: "100%", padding: "11px", borderRadius: 8,
+                    border: "1.5px solid #1565c0",
+                    background: notifSending === "email" ? "#f5f5f5" : "#e3f2fd",
+                    color: notifSending === "email" ? "#aaa" : "#1565c0",
+                    fontSize: 13, cursor: notifSending === "email" ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  📧 {notifSending === "email" ? "Mengirim Email..." : "Kirim via Email"}
+                </button>
+              </div>
+
+              <p style={{ fontSize: 11, color: "#aaa", textAlign: "center", margin: "8px 0 0" }}>
+                Notifikasi dikirim ke pemilik hewan
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -346,10 +467,9 @@ export default function DataBookingPage() {
   const [currentPage,   setCurrentPage]   = useState(1);
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
 
-  const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
-  const headers = { "Authorization": `Bearer ${token ?? ""}`, "Content-Type": "application/json" };
+  const token   = typeof window !== "undefined" ? (sessionStorage.getItem("token") ?? "") : "";
+  const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
-  // ── Fetch summary & booking saat mount ──────────────────────────────────────
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true);
@@ -358,10 +478,8 @@ export default function DataBookingPage() {
           fetch(`${API}/admin/booking/summary`, { headers }),
           fetch(`${API}/admin/booking`,         { headers }),
         ]);
-
         const dataSummary = await resSummary.json();
         const dataBooking = await resBooking.json();
-
         if (dataSummary.success) setSummary(dataSummary.data);
         if (dataBooking.success && Array.isArray(dataBooking.data)) {
           const sorted = [...dataBooking.data].sort((a, b) => {
@@ -378,12 +496,10 @@ export default function DataBookingPage() {
         setLoading(false);
       }
     };
-
     fetchAll();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Update status ────────────────────────────────────────────────────────────
   const handleStatusChange = async (id: number, status: BookingStatus) => {
     setSaving(true);
     try {
@@ -392,20 +508,14 @@ export default function DataBookingPage() {
         body: JSON.stringify({ status }),
       });
       const data = await res.json();
-
       if (data.success) {
         setBookings(prev => prev.map(b => b.id === id ? { ...b, status, can_edit_status: data.data.can_edit_status } : b));
         setSummary(prev => {
           if (!prev) return prev;
           const old = detailBooking?.status;
           if (!old || old === status) return prev;
-          return {
-            ...prev,
-            [old]:    Math.max(0, prev[old] - 1),
-            [status]: prev[status] + 1,
-          };
+          return { ...prev, [old]: Math.max(0, prev[old] - 1), [status]: prev[status] + 1 };
         });
-        setDetailBooking(prev => prev?.id === id ? { ...prev, status, can_edit_status: data.data.can_edit_status } : prev);
         setDetailBooking(null);
       } else {
         setError(data.message ?? "Gagal mengubah status");
@@ -417,7 +527,6 @@ export default function DataBookingPage() {
     }
   };
 
-  // ── Filter (client-side) ─────────────────────────────────────────────────────
   const filtered = bookings.filter(b =>
     (filterPemilik === "" || b.nama_pemilik.toLowerCase().includes(filterPemilik.toLowerCase())) &&
     (filterTanggal === "" || b.tanggal_booking.includes(filterTanggal)) &&
@@ -433,10 +542,7 @@ export default function DataBookingPage() {
   const isFilterChanged = filterPemilik !== "" || filterTanggal !== "" || filterLayanan !== "" || filterStatus !== "";
 
   const handleResetFilter = () => {
-    setFilterPemilik("");
-    setFilterTanggal("");
-    setFilterLayanan("");
-    setFilterStatus("");
+    setFilterPemilik(""); setFilterTanggal(""); setFilterLayanan(""); setFilterStatus("");
   };
 
   return (
@@ -508,7 +614,6 @@ export default function DataBookingPage() {
             </div>
           </div>
 
-          {/* Info bar */}
           <div style={{ marginBottom: 12, fontSize: 13, color: "#888" }}>
             {loading ? "Memuat data..." : `Menampilkan ${filtered.length} booking${isFilterChanged ? " (difilter)" : ""}`}
           </div>
@@ -541,21 +646,16 @@ export default function DataBookingPage() {
                         onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
-                        {/* No. Antrian */}
                         <td style={{ padding: "10px 16px" }}>
                           <div style={{ width: 40, height: 40, borderRadius: 8, background: G, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>
                             {String(b.no_antrian ?? 0).padStart(3, "0")}
                           </div>
                         </td>
-
-                        {/* No. Booking */}
                         <td style={{ padding: "10px 16px" }}>
                           <span style={{ fontSize: 12, color: G, background: "#f0faf2", padding: "3px 8px", borderRadius: 6, border: "1px solid #c8e6c9", whiteSpace: "nowrap" }}>
                             {b.no_booking}
                           </span>
                         </td>
-
-                        {/* Hewan */}
                         <td style={{ padding: "10px 16px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 38, height: 38, borderRadius: 10, overflow: "hidden", flexShrink: 0 }}>
@@ -567,33 +667,19 @@ export default function DataBookingPage() {
                             </div>
                           </div>
                         </td>
-
-                        {/* Pemilik */}
                         <td style={{ padding: "10px 16px", fontSize: 13 }}>{b.nama_pemilik}</td>
-
-                        {/* Tanggal */}
                         <td style={{ padding: "10px 16px" }}>
                           <div style={{ fontSize: 13 }}>{b.tanggal_booking}</div>
                           <div style={{ fontSize: 12, color: "#aaa", marginTop: 1 }}>Dibuat: {b.tanggal_dibuat}</div>
                         </td>
-
-                        {/* Jam */}
                         <td style={{ padding: "10px 16px", fontSize: 13 }}>{b.jam}</td>
-
-                        {/* Layanan */}
                         <td style={{ padding: "10px 16px", fontSize: 13, maxWidth: 150 }}>
                           {b.layanans?.length > 0 ? b.layanans.map(l => l.nama_layanan).join(", ") : "-"}
                         </td>
-
-                        {/* Dokter */}
                         <td style={{ padding: "10px 16px", fontSize: 13, color: "#555" }}>{b.nama_dokter}</td>
-
-                        {/* Status */}
                         <td style={{ padding: "10px 16px" }}>
                           <StatusBadge value={b.status} />
                         </td>
-
-                        {/* Aksi */}
                         <td style={{ padding: "10px 16px" }}>
                           <button onClick={() => setDetailBooking(b)}
                             style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
@@ -610,7 +696,6 @@ export default function DataBookingPage() {
               </div>
             )}
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "16px", borderTop: "1.5px solid #e0e0e0" }}>
                 <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}
@@ -637,6 +722,7 @@ export default function DataBookingPage() {
       {detailBooking && (
         <DetailModal
           booking={detailBooking}
+          token={token}
           onClose={() => setDetailBooking(null)}
           onStatusChange={handleStatusChange}
           saving={saving}

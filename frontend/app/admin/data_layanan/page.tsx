@@ -326,7 +326,11 @@ export default function DataLayananKlinikPage() {
                             <span style={{ display: "inline-block", marginTop: "3px", padding: "1px 8px", borderRadius: "20px", fontSize: "10px", fontWeight: 500, background: kt.bg, color: kt.color }}>{l.kategori}</span>
                           </td>
                           <td style={{ ...td, fontWeight: 500, color: "#2E7D32" }}>{formatHarga(l.harga)}</td>
-                          <td style={td}>{l.durasi ? `${l.durasi} mnt` : "-"}</td>
+                          <td style={td}>
+  {l.durasi
+    ? `${l.durasi} ${l.kategori === "Hotel Hewan" ? "hari" : "mnt"}`
+    : "-"}
+</td>
                           <td style={td}>{l.kapasitas ? `${l.kapasitas}/hr` : "-"}</td>
                           <td style={td}>
                             <span style={{ display: "inline-block", padding: "3px 12px", borderRadius: "20px", fontSize: "11px", fontWeight: 600, background: st.bg, color: st.color, whiteSpace: "nowrap" }}>{l.status}</span>
@@ -403,7 +407,9 @@ export default function DataLayananKlinikPage() {
                   <input style={modalInputStyle} placeholder="150000" type="number" value={form.harga} onChange={(e) => setForm((f) => ({ ...f, harga: e.target.value }))} />
                 </div>
                 <div>
-                  <label style={modalLabel}>Durasi (Menit)</label>
+                  <label style={modalLabel}>
+  Durasi ({form.kategori === "Hotel Hewan" ? "Hari" : "Menit"})
+</label>
                   <input style={modalInputStyle} placeholder="30" type="number" value={form.durasi} onChange={(e) => setForm((f) => ({ ...f, durasi: e.target.value }))} />
                 </div>
               </div>
