@@ -36,27 +36,40 @@ class AuthController extends Controller
     }
 
     public function login(Request $request)
-    {
-        $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
-        ]);
+{
+    $request->validate([
+        'email'    => 'required|email',
+        'password' => 'required',
+    ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
-            return response()->json([
-                'message' => 'Email atau password salah',
-            ], 401);
-        }
-
-        $user  = User::where('email', $request->email)->firstOrFail();
-        $token = $user->createToken('auth_token')->plainTextToken;
-
+    if (!Auth::attempt($request->only('email', 'password'))) {
         return response()->json([
-            'message' => 'Login berhasil',
-            'token'   => $token,
-            'user'    => $user,
-        ]);
+            'message' => 'Email atau password salah',
+        ], 401);
     }
+
+    $user  = User::where('email', $request->email)->firstOrFail();
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    // ── Auto buat data dokter jika belum ada ─────────────────────────────
+    if ($user->role === 'dokter') {
+        \App\Models\Dokter::firstOrCreate(
+            ['id_user' => $user->id_user],
+            [
+                'nama_dokter'  => $user->nama,
+                'spesialisasi' => '-',
+                'no_hp'        => $user->no_hp ?? '-',
+            ]
+        );
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
+    return response()->json([
+        'message' => 'Login berhasil',
+        'token'   => $token,
+        'user'    => $user,
+    ]);
+}
 
     public function logout(Request $request)
     {

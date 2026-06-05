@@ -33,8 +33,8 @@ const navItems: NavItem[] = [
   { label: "Dashboard",       href: "/owner_pet/dashboard",       icon: LayoutDashboard, key: "dashboard"  },
   { label: "Data Hewan",      href: "/owner_pet/data_hewan",      icon: Cat,             key: "hewan"      },
   { label: "Booking Layanan", href: "/owner_pet/booking_layanan", icon: CalendarCheck,   key: "booking"    },
-  { label: "Riwayat Layanan", href: "/owner_pet/riwayat_layanan", icon: ClipboardList,   key: "riwayat"    },
   { label: "Pembayaran",      href: "/owner_pet/pembayaran",      icon: CreditCard,      key: "pembayaran" },
+  { label: "Riwayat Layanan", href: "/owner_pet/riwayat_layanan", icon: ClipboardList,   key: "riwayat"    },
   { label: "Profile",         href: "/owner_pet/profile",         icon: UserCircle,      key: "profile"    },
 ];
 

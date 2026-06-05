@@ -36,8 +36,8 @@ const navItems: NavItem[] = [
   { label: "Jadwal",                href: "/admin/jadwal",                icon: CalendarCheck,   key: "jadwal"     },
   { label: "Data Layanan",          href: "/admin/data_layanan",          icon: Stethoscope,     key: "layanan"    },
   { label: "Data Obat",             href: "/admin/data_obat",             icon: FileText,        key: "obat"       },
+   { label: "Verifikasi Pembayaran", href: "/admin/verifikasi_pembayaran", icon: CreditCard,      key: "pembayaran" },
   { label: "Riwayat Layanan",       href: "/admin/riwayat_layanan_hewan", icon: ClipboardList,   key: "riwayat"    },
-  { label: "Verifikasi Pembayaran", href: "/admin/verifikasi_pembayaran", icon: CreditCard,      key: "pembayaran" },
   { label: "Profile",               href: "/admin/profile",               icon: UserCircle,      key: "profile"    },
 ];
 

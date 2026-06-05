@@ -22,36 +22,19 @@ class RiwayatLayananController extends Controller
                 'booking.hewan',
                 'booking.layanans',
                 'booking.jadwal.dokter',
+                'booking.resep.pembayaran',
                 'rekamMedis.dokter',
                 'resep.details',
             ])
-                ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
+                ->whereHas('booking', fn($q) => $q
+                    ->where('id_user', $idUser)
+                    ->where('status', 'selesai') // ← hanya yang sudah selesai/lunas
+                )
                 ->orderBy('tanggal', 'desc')
                 ->get()
                 ->map(fn($r) => $this->fmt($r));
 
-            $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
-                'booking', fn($q) => $q->where('id_user', $idUser)
-            )->pluck('id_booking');
-
-            $bookingTanpaRiwayat = Booking::with([
-                'hewan',
-                'layanans',
-                'jadwal.dokter',
-            ])
-                ->where('id_user', $idUser)
-                ->where('status', 'selesai')
-                ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
-                ->orderBy('tanggal_booking', 'desc')
-                ->get()
-                ->map(fn($b) => $this->fmtFromBooking($b));
-
-            $merged = collect($riwayat)
-                ->merge(collect($bookingTanpaRiwayat))
-                ->sortByDesc('tanggal')
-                ->values();
-
-            return response()->json(['success' => true, 'data' => $merged]);
+            return response()->json(['success' => true, 'data' => $riwayat]);
 
         } catch (\Exception $e) {
             return response()->json([
@@ -81,11 +64,13 @@ class RiwayatLayananController extends Controller
             ];
 
             $rows = RiwayatLayanan::with(['booking.layanans', 'resep.details'])
-                ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
+                ->whereHas('booking', fn($q) => $q
+                    ->where('id_user', $idUser)
+                    ->where('status', 'selesai') // ← hanya yang selesai
+                )
                 ->get();
 
             foreach ($rows as $r) {
-                // Ambil kategori dari resep jika ada, fallback ke booking
                 $resep = $r->resep ?? null;
 
                 if ($resep && $resep->details->where('tipe', 'layanan')->count() > 0) {
@@ -102,25 +87,6 @@ class RiwayatLayananController extends Controller
                     $kategoris = $r->booking?->layanans?->pluck('kategori')->unique() ?? collect();
                 }
 
-                foreach ($kategoris as $kat) {
-                    $key = array_key_exists($kat, $stats) ? $kat : 'Lainnya';
-                    $stats[$key]++;
-                }
-                $stats['total']++;
-            }
-
-            $bookingIdsWithRiwayat = RiwayatLayanan::whereHas(
-                'booking', fn($q) => $q->where('id_user', $idUser)
-            )->pluck('id_booking');
-
-            $bookingTanpaRiwayat = Booking::with('layanans')
-                ->where('id_user', $idUser)
-                ->where('status', 'selesai')
-                ->whereNotIn('id_booking', $bookingIdsWithRiwayat)
-                ->get();
-
-            foreach ($bookingTanpaRiwayat as $b) {
-                $kategoris = $b->layanans?->pluck('kategori')->unique() ?? collect();
                 foreach ($kategoris as $kat) {
                     $key = array_key_exists($kat, $stats) ? $kat : 'Lainnya';
                     $stats[$key]++;
@@ -152,10 +118,14 @@ class RiwayatLayananController extends Controller
                 'booking.hewan',
                 'booking.layanans',
                 'booking.jadwal.dokter',
+                'booking.resep.pembayaran',
                 'rekamMedis.dokter',
                 'resep.details',
             ])
-                ->whereHas('booking', fn($q) => $q->where('id_user', $idUser))
+                ->whereHas('booking', fn($q) => $q
+                    ->where('id_user', $idUser)
+                    ->where('status', 'selesai')
+                )
                 ->findOrFail($id);
 
             return response()->json([
@@ -177,9 +147,6 @@ class RiwayatLayananController extends Controller
     // HELPERS
     // =========================================================================
 
-    /**
-     * Ambil info dokter dari jadwal booking.
-     */
     private function getDokterDariJadwal(Booking $booking): ?array
     {
         $jadwal = $booking->jadwal;
@@ -202,10 +169,6 @@ class RiwayatLayananController extends Controller
         return null;
     }
 
-    /**
-     * Ambil layanan aktual dari resep (tipe = 'layanan').
-     * Kategori diambil dari tabel layanan via $kategoriMap.
-     */
     private function fmtLayananDariResep($resep, $kategoriMap = null): array
     {
         if (!$resep) return [];
@@ -222,9 +185,6 @@ class RiwayatLayananController extends Controller
             ->toArray();
     }
 
-    /**
-     * Ambil obat dari resep (tipe = 'obat').
-     */
     private function fmtObat($resep): array
     {
         if (!$resep) return [];
@@ -242,17 +202,15 @@ class RiwayatLayananController extends Controller
             ->toArray();
     }
 
-    /**
-     * Format data dari model RiwayatLayanan.
-     */
     private function fmt(RiwayatLayanan $r, bool $detail = false): array
     {
-        $booking  = $r->booking;
-        $hewan    = $booking?->hewan;
-        $layanans = $booking?->layanans ?? collect();
-        $tanggal  = $r->tanggal ? \Carbon\Carbon::parse($r->tanggal) : null;
-        $rekam    = $r->rekamMedis ?? null;
-        $resep    = $r->resep ?? null;
+        $booking    = $r->booking;
+        $hewan      = $booking?->hewan;
+        $layanans   = $booking?->layanans ?? collect();
+        $tanggal    = $r->tanggal ? \Carbon\Carbon::parse($r->tanggal) : null;
+        $rekam      = $r->rekamMedis ?? null;
+        $resep      = $r->resep ?? null;
+        $pembayaran = $booking?->resep?->pembayaran ?? null;
 
         // ── Dokter ───────────────────────────────────────────────────────────
         $dokterDariJadwal = $booking ? $this->getDokterDariJadwal($booking) : null;
@@ -263,7 +221,7 @@ class RiwayatLayananController extends Controller
               ]
             : $dokterDariJadwal;
 
-        // ── Pre-load kategori layanan dari resep (hindari N+1) ───────────────
+        // ── Kategori layanan dari resep ──────────────────────────────────────
         $layananIds = collect($resep?->details ?? [])
             ->where('tipe', 'layanan')
             ->pluck('id_referensi')
@@ -271,11 +229,10 @@ class RiwayatLayananController extends Controller
             ->unique();
 
         $kategoriMap = $layananIds->isNotEmpty()
-            ? Layanan::whereIn('id_layanan', $layananIds)
-                ->pluck('kategori', 'id_layanan')
+            ? Layanan::whereIn('id_layanan', $layananIds)->pluck('kategori', 'id_layanan')
             : collect();
 
-        // ── Layanan: gunakan data aktual dari resep jika ada ─────────────────
+        // ── Layanan ──────────────────────────────────────────────────────────
         $layananDariResep = $this->fmtLayananDariResep($resep, $kategoriMap);
         $adaLayananResep  = count($layananDariResep) > 0;
 
@@ -288,16 +245,8 @@ class RiwayatLayananController extends Controller
                 'harga_saat_booking' => (float) $l->pivot->harga_saat_booking,
             ]);
 
-        // ── Grand total: hitung ulang dari layanan aktual + obat ─────────────
-        $totalLayanan = $adaLayananResep
-            ? collect($layananDariResep)->sum('harga_saat_booking')
-            : $layanans->sum(fn($l) => (float) $l->pivot->harga_saat_booking);
-
-        $totalObat = collect($resep?->details ?? [])
-            ->where('tipe', 'obat')
-            ->sum(fn($d) => (float) $d->subtotal);
-
-        $grandTotalFinal = $totalLayanan + $totalObat;
+        // ── Grand total langsung dari tabel (sudah diisi saat lunas) ─────────
+        $grandTotalFinal = (float) $r->grand_total;
 
         $base = [
             'id_riwayat'          => $r->id_riwayat,
@@ -307,7 +256,8 @@ class RiwayatLayananController extends Controller
             'hari'                => $tanggal?->translatedFormat('l'),
             'jam'                 => $booking?->jam ?? '-',
             'grand_total'         => $grandTotalFinal,
-            'status_bayar'        => 'menunggu',
+            'status_bayar'        => $pembayaran?->status ?? 'lunas',
+            'metode_bayar'        => $pembayaran?->metode ?? null,
             'catatan'             => $r->catatan,
             'no_booking'          => $booking?->no_booking,
             'no_antrian'          => $booking?->no_antrian,
@@ -325,17 +275,12 @@ class RiwayatLayananController extends Controller
                 'foto'     => $hewan->foto ? asset('storage/' . $hewan->foto) : null,
             ] : null,
 
-            // Layanan aktual dari resep (jika ada), fallback ke booking
-            'layanans' => $layanansOutput->values(),
-
+            'layanans'         => $layanansOutput->values(),
             'layanan_utama'    => $layanansOutput->first()['nama_layanan']
-                                    ?? $layanans->first()?->nama_layanan
-                                    ?? '-',
+                                    ?? $layanans->first()?->nama_layanan ?? '-',
             'layanan_kategori' => $layanansOutput->first()['kategori']
-                                    ?? $layanans->first()?->kategori
-                                    ?? '-',
+                                    ?? $layanans->first()?->kategori ?? '-',
 
-            // ── Rekam Medis ───────────────────────────────────────────────
             'rekam_medis' => $rekam ? [
                 'diagnosa'         => $rekam->diagnosa,
                 'diagnosa_lengkap' => $rekam->diagnosa_lengkap,
@@ -351,7 +296,6 @@ class RiwayatLayananController extends Controller
                     ->toArray(),
             ] : null,
 
-            // ── Obat dari resep ───────────────────────────────────────────
             'obat' => $this->fmtObat($resep),
         ];
 
@@ -363,59 +307,5 @@ class RiwayatLayananController extends Controller
         }
 
         return $base;
-    }
-
-    /**
-     * Format data langsung dari Booking (tanpa RiwayatLayanan).
-     * id_riwayat dibuat negatif agar frontend tahu ini bukan dari tabel riwayat.
-     */
-    private function fmtFromBooking(Booking $b): array
-    {
-        $hewan      = $b->hewan;
-        $layanans   = $b->layanans ?? collect();
-        $tanggal    = $b->tanggal_booking
-            ? \Carbon\Carbon::parse($b->tanggal_booking) : null;
-        $grandTotal = $layanans->sum(fn($l) => (float) $l->pivot->harga_saat_booking);
-
-        $dokterDariJadwal = $this->getDokterDariJadwal($b);
-
-        return [
-            'id_riwayat'          => -$b->id_booking,
-            'tanggal'             => $tanggal?->format('Y-m-d'),
-            'tanggal_dd'          => $tanggal?->format('d'),
-            'bulan'               => $tanggal?->translatedFormat('M Y'),
-            'hari'                => $tanggal?->translatedFormat('l'),
-            'jam'                 => $b->jam ?? '-',
-            'grand_total'         => $grandTotal,
-            'status_bayar'        => 'menunggu',
-            'catatan'             => null,
-            'no_booking'          => $b->no_booking,
-            'no_antrian'          => $b->no_antrian,
-            'status_booking'      => $b->status,
-            'nama_dokter'         => $dokterDariJadwal['nama_dokter'] ?? '-',
-            'spesialisasi_dokter' => $dokterDariJadwal['spesialisasi'] ?? '-',
-
-            'hewan' => $hewan ? [
-                'id_hewan' => $hewan->id_hewan,
-                'nama'     => $hewan->nama_hewan,
-                'jenis'    => $hewan->jenis,
-                'ras'      => $hewan->ras,
-                'umur'     => $hewan->umur !== null ? $hewan->umur . ' Tahun' : '-',
-                'berat'    => $hewan->berat !== null ? $hewan->berat . ' Kg' : '-',
-                'foto'     => $hewan->foto ? asset('storage/' . $hewan->foto) : null,
-            ] : null,
-
-            'layanans' => $layanans->map(fn($l) => [
-                'id_layanan'         => $l->id_layanan,
-                'nama_layanan'       => $l->nama_layanan,
-                'kategori'           => $l->kategori,
-                'harga_saat_booking' => (float) $l->pivot->harga_saat_booking,
-            ])->values(),
-
-            'layanan_utama'    => $layanans->first()?->nama_layanan ?? '-',
-            'layanan_kategori' => $layanans->first()?->kategori ?? '-',
-            'rekam_medis'      => null,
-            'obat'             => [],
-        ];
     }
 }

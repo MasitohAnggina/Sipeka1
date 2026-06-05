@@ -33,8 +33,8 @@ const navItems: NavItem[] = [
   { label: "Dashboard",           href: "/dokter/dashboard",                icon: LayoutDashboard, key: "dashboard"   },
   { label: "Booking",             href: "/dokter/data_booking",             icon: CalendarCheck,   key: "booking"     },
   { label: "Jadwal Dokter",       href: "/dokter/jadwal_pemeriksaan",       icon: CalendarCheck,   key: "jadwal"      },
-  { label: "Layanan dan Obat",    href: "/dokter/memilih_layanan_dan_obat", icon: Stethoscope,     key: "pemeriksaan" },
   { label: "Rekam Medis",         href: "/dokter/catat_rekam_medis",        icon: FileText,        key: "rekam"       },
+  { label: "Layanan dan Obat",    href: "/dokter/memilih_layanan_dan_obat", icon: Stethoscope,     key: "pemeriksaan" },
   { label: "Riwayat Medis Hewan", href: "/dokter/riwayat_medis_hewan",      icon: ClipboardList,   key: "riwayat"     },
   { label: "Profile",             href: "/dokter/profile",                  icon: UserCircle,      key: "profile"     },
 ];

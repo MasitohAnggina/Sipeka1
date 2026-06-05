@@ -79,4 +79,8 @@ class Booking extends Model
         $max = self::where('tanggal_booking', $tanggal)->max('no_antrian');
         return ($max ?? 0) + 1;
     }
+    public function resep()
+{
+    return $this->hasOne(Resep::class, 'id_booking', 'id_booking');
+}
 }

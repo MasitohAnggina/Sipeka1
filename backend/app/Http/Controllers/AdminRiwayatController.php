@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Booking;
+use App\Models\Pembayaran;
 use App\Models\RiwayatLayanan;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,7 @@ class AdminRiwayatController extends Controller
             'booking.jadwal.dokter',
             'rekamMedis',
         ])
+        ->whereHas('booking', fn($q) => $q->where('status', 'selesai')) // ← hanya selesai
         ->orderBy('tanggal', 'desc')
         ->get()
         ->map(fn($r) => $this->formatRiwayat($r));
@@ -27,10 +29,10 @@ class AdminRiwayatController extends Controller
 
     public function summary(): JsonResponse
     {
-        $total           = RiwayatLayanan::count();
+        $total           = RiwayatLayanan::whereHas('booking', fn($q) => $q->where('status', 'selesai'))->count();
         $selesai         = Booking::where('status', 'selesai')->count();
         $dibatalkan      = Booking::where('status', 'dibatalkan')->count();
-        $totalPendapatan = RiwayatLayanan::sum('grand_total');
+        $totalPendapatan = Pembayaran::where('status', 'lunas')->sum('jumlah');
 
         return response()->json([
             'success' => true,
@@ -51,7 +53,7 @@ class AdminRiwayatController extends Controller
         return [
             'id_riwayat'      => $r->id_riwayat,
             'tanggal'         => $r->tanggal?->format('Y-m-d'),
-            'grand_total'     => $r->grand_total,
+            'grand_total'     => (float) $r->grand_total,
             'catatan'         => $r->catatan,
             'no_booking'      => $booking?->no_booking         ?? '-',
             'status_booking'  => $booking?->status             ?? '-',
@@ -59,8 +61,10 @@ class AdminRiwayatController extends Controller
             'no_hp'           => $booking?->user?->no_hp       ?? '-',
             'nama_hewan'      => $booking?->hewan?->nama_hewan ?? '-',
             'jenis_hewan'     => $booking?->hewan?->jenis      ?? '-',
-            'foto_hewan'      => $booking?->hewan?->foto       ? asset('storage/' . $booking->hewan->foto) : null,
-            'nama_dokter'     => $dokter?->nama_dokter         ?? '-',
+            'foto_hewan'      => $booking?->hewan?->foto
+                                    ? asset('storage/' . $booking->hewan->foto)
+                                    : null,
+            'nama_dokter'     => $dokter?->nama_dokter ?? '-',
             'layanans'        => $booking?->layanans?->map(fn($l) => [
                 'nama_layanan'       => $l->nama_layanan,
                 'harga_saat_booking' => $l->pivot->harga_saat_booking,

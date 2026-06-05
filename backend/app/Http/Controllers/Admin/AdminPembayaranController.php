@@ -4,18 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pembayaran;
+use App\Models\RiwayatLayanan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AdminPembayaranController extends Controller
 {
-    /**
-     * GET /api/admin/pembayaran
-     *
-     * Semua data pembayaran untuk halaman verifikasi admin.
-     * Bisa difilter dengan query string: ?status=pending_cash
-     */
     public function index(Request $request): JsonResponse
     {
         $query = Pembayaran::with([
@@ -26,7 +21,6 @@ class AdminPembayaranController extends Controller
             ])
             ->orderByDesc('created_at');
 
-        // Filter opsional: ?status=pending_cash&metode=cash
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -42,12 +36,6 @@ class AdminPembayaranController extends Controller
         ]);
     }
 
-    /**
-     * PATCH /api/admin/pembayaran/{id}/selesai
-     *
-     * Admin mengkonfirmasi pembayaran cash sudah diterima.
-     * Body (opsional): { "catatan_admin": "...", "no_referensi": "..." }
-     */
     public function konfirmasiCash(Request $request, int $id): JsonResponse
     {
         $request->validate([
@@ -57,7 +45,6 @@ class AdminPembayaranController extends Controller
 
         $pembayaran = Pembayaran::findOrFail($id);
 
-        // Hanya bisa konfirmasi jika masih pending_cash
         if ($pembayaran->status !== 'pending_cash') {
             return response()->json([
                 'success' => false,
@@ -73,6 +60,22 @@ class AdminPembayaranController extends Controller
             'no_referensi'      => $request->no_referensi,
         ]);
 
+        // ── Buat RiwayatLayanan otomatis setelah lunas ────────────────────
+        $resep = $pembayaran->resep;
+        if ($resep) {
+            RiwayatLayanan::updateOrCreate(
+    ['id_booking' => $resep->id_booking],
+    [
+        'tanggal'     => now()->toDateString(),
+        'grand_total' => $resep->grand_total ?? 0,
+        'catatan'     => null,
+    ]
+);
+            // Update status booking jadi selesai
+            $resep->booking?->update(['status' => 'selesai']);
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         $pembayaran->load(['resep.hewan', 'resep.details', 'user', 'dikonfirmasiOleh']);
 
         return response()->json([
@@ -82,10 +85,6 @@ class AdminPembayaranController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/admin/pembayaran/{id}
-     * Detail satu pembayaran.
-     */
     public function show(int $id): JsonResponse
     {
         $pembayaran = Pembayaran::with([
@@ -101,7 +100,6 @@ class AdminPembayaranController extends Controller
         ]);
     }
 
-    // ── Format helper ────────────────────────────────────────────────────
     private function formatPembayaran(Pembayaran $p): array
     {
         $resep = $p->resep;
@@ -123,7 +121,7 @@ class AdminPembayaranController extends Controller
 
             'pemilik' => [
                 'id'    => $user?->id_user,
-                'nama'  => $user?->name,
+                'nama'  => $user?->nama,
                 'no_hp' => $user?->no_hp,
                 'email' => $user?->email,
             ],
