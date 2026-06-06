@@ -16,6 +16,7 @@ import {
   LogOut,
   X,
   CheckCircle2,
+  ShieldCheck, // ← tambah import ini
 } from "lucide-react";
 import { clearToken } from "@/lib/auth";
 
@@ -36,7 +37,7 @@ const navItems: NavItem[] = [
   { label: "Jadwal",                href: "/admin/jadwal",                icon: CalendarCheck,   key: "jadwal"     },
   { label: "Data Layanan",          href: "/admin/data_layanan",          icon: Stethoscope,     key: "layanan"    },
   { label: "Data Obat",             href: "/admin/data_obat",             icon: FileText,        key: "obat"       },
-   { label: "Verifikasi Pembayaran", href: "/admin/verifikasi_pembayaran", icon: CreditCard,      key: "pembayaran" },
+  { label: "Verifikasi Pembayaran", href: "/admin/verifikasi_pembayaran", icon: CreditCard,      key: "pembayaran" },
   { label: "Riwayat Layanan",       href: "/admin/riwayat_layanan_hewan", icon: ClipboardList,   key: "riwayat"    },
   { label: "Profile",               href: "/admin/profile",               icon: UserCircle,      key: "profile"    },
 ];
@@ -235,7 +236,7 @@ export default function SidebarAdmin({ activePage }: SidebarProps) {
         }}
       >
         {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", padding: "18px 16px", borderBottom: "1.5px solid #e0e0e0", flexShrink: 0 }}>
+<div style={{ display: "flex", alignItems: "center", paddingTop: "18px", paddingBottom: "18px", paddingLeft: "4px", paddingRight: "16px", borderBottom: "1.5px solid #e0e0e0", flexShrink: 0 }}>
           <Image src="/images/logo.png" alt="Sipeka" width={130} height={38} style={{ width: "auto", height: "auto" }} priority />
         </div>
 
@@ -247,8 +248,12 @@ export default function SidebarAdmin({ activePage }: SidebarProps) {
             border: "1px solid #a5d6a7",
             borderRadius: 20, padding: "3px 10px",
             letterSpacing: ".03em",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
           }}>
-            ⚙️ Admin
+            <ShieldCheck size={13} /> {/* ← ganti emoji dengan icon ini */}
+            Admin
           </span>
         </div>
 

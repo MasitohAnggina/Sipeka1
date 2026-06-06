@@ -155,13 +155,14 @@ function StatCard({
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
-        overflow: "hidden",
-        boxShadow: hov ? "0 8px 24px rgba(0,0,0,0.10)" : "0 2px 8px rgba(0,0,0,0.06)",
-        transform: hov ? "translateY(-3px)" : "none",
-        transition: "all .2s ease",
-        padding: "16px", display: "flex", alignItems: "flex-start", gap: 12, cursor: "default",
-      }}
+  background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
+  overflow: "hidden",
+  boxShadow: hov ? "0 8px 24px rgba(0,0,0,0.10)" : "0 2px 8px rgba(0,0,0,0.06)",
+  transform: hov ? "translateY(-3px)" : "none",
+  transition: "all .2s ease",
+  padding: "16px", display: "flex", alignItems: "flex-start", gap: 12, cursor: "default",
+  height: "100%", boxSizing: "border-box",
+}}
     >
       <div style={{
         width: 42, height: 42, borderRadius: 10, background: iconBg,
@@ -280,10 +281,10 @@ export default function DashboardAdminPage() {
     {
       icon:      <Banknote size={18} />,
       label:     "Pendapatan Bulan Ini",
-      value:     loading ? "—"
-        : data?.stat_cards.pendapatan_bulan_ini != null
-          ? `Rp ${data.stat_cards.pendapatan_bulan_ini.toLocaleString("id-ID")}`
-          : "—",
+      value: loading ? "—"
+  : data?.stat_cards.pendapatan_bulan_ini != null
+    ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(data.stat_cards.pendapatan_bulan_ini)
+    : "—",
       sub:       !loading && data?.stat_cards.pendapatan_bulan_ini == null ? "Segera hadir" : null,
       iconBg:    "#fff8e1",
       iconColor: "#e65100",
@@ -361,7 +362,7 @@ export default function DashboardAdminPage() {
             )}
 
             {/* ── Stat Cards ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24, alignItems: "stretch" }}>
               {statCards.map((s, i) => (
                 <div key={s.label} style={{ animation: `fadeUp .35s ease both`, animationDelay: `${i * 60}ms` }}>
                   <StatCard {...s} loading={loading} />

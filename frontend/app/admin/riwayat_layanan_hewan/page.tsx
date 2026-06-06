@@ -153,10 +153,15 @@ export default function RiwayatLayananPage() {
 
         if (dataSummary.success) setSummary(dataSummary.data);
         if (dataRiwayat.success && Array.isArray(dataRiwayat.data)) {
-          setRiwayat(dataRiwayat.data);
-        } else {
-          setError(dataRiwayat.message ?? "Gagal memuat riwayat layanan");
-        }
+  setRiwayat(
+    [...dataRiwayat.data].sort((a, b) => {
+      const dateDiff = new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime();
+      return dateDiff !== 0 ? dateDiff : b.id_riwayat - a.id_riwayat;
+    })
+  );
+} else {
+  setError(dataRiwayat.message ?? "Gagal memuat riwayat layanan");
+}
       } catch {
         setError("Gagal terhubung ke server.");
       } finally {

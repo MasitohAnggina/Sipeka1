@@ -85,7 +85,9 @@ $bookingDibatalkan  = $bookingBulanIni->where('status', 'dibatalkan')->count();
                         'dibatalkan' => $bookingDibatalkan,
                     ],
                     'total_hewan'          => $totalHewan,
-                    'pendapatan_bulan_ini' => null, // dummy, belum ada tabel pembayaran
+                    'pendapatan_bulan_ini' => \App\Models\Pembayaran::where('status', 'lunas')
+    ->where('created_at', '>=', $bulanIni)
+    ->sum('jumlah'),
                 ],
                 'pasien_terbaru'      => $pasienTerbaru,
                 'ringkasan_kunjungan' => [

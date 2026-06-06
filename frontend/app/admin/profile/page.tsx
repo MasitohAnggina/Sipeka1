@@ -233,10 +233,6 @@ export default function ProfileAdminPage() {
               {fotoError   && <div style={{ marginTop: 6, fontSize: 11, color: "#c62828" }}>⚠ {fotoError}</div>}
               {fotoSuccess && <div style={{ marginTop: 6, fontSize: 11, color: G }}>✓ {fotoSuccess}</div>}
             </div>
-
-            <div style={{ background: G_LIGHT, color: G, fontSize: 11, fontWeight: 700, padding: "5px 13px", borderRadius: 20, border: "1px solid #c8e6c9", letterSpacing: ".04em", textTransform: "uppercase", flexShrink: 0 }}>
-              🛡 Admin
-            </div>
           </div>
 
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

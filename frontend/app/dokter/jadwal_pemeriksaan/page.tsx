@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/Sidebar_dokter";
 import Header from "@/components/Header";
-import { Plus, Pencil, ChevronLeft, ChevronRight, Clock, CalendarDays, CheckCircle, Ban } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Clock, CalendarDays, CheckCircle, Ban } from "lucide-react";
 
 type StatusJadwal = "Aktif" | "Libur";
 
@@ -40,16 +40,10 @@ function isToday(dateStr: string) {
   return dateStr === new Date().toISOString().split("T")[0];
 }
 
-// ── Shared Styles ─────────────────────────────────────────────────────────────
-
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "8px 10px", border: "1px solid #e0e0e0",
   borderRadius: 8, fontSize: 13, fontFamily: "inherit",
   outline: "none", boxSizing: "border-box", background: "#fff", color: "#333",
-};
-
-const filterLabel: React.CSSProperties = {
-  display: "block", fontSize: 12, fontWeight: 500, color: "#666", marginBottom: 6,
 };
 
 const card: React.CSSProperties = {
@@ -82,7 +76,7 @@ const modalInputStyle: React.CSSProperties = {
   outline: "none", background: "#fff", boxSizing: "border-box", color: "#333",
 };
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
+// ── Modal Tambah/Edit ─────────────────────────────────────────────────────────
 
 function JadwalModal({ open, onClose, onSave, existing }: {
   open: boolean;
@@ -116,17 +110,17 @@ function JadwalModal({ open, onClose, onSave, existing }: {
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, width: 460, maxWidth: "calc(100vw - 32px)", boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", display: "flex", flexDirection: "column" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, width: 460, maxWidth: "calc(100vw - 32px)", boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit" }}>
 
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #f0f0f0" }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a" }}>
             {existing ? "Edit Jadwal" : "Tambah Jadwal Baru"}
           </span>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "#888" }}>✕</button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#888", display: "flex" }}>
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Body */}
         <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
             <label style={modalLabelStyle}>Tanggal</label>
@@ -154,9 +148,8 @@ function JadwalModal({ open, onClose, onSave, existing }: {
           )}
         </div>
 
-        {/* Footer */}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", padding: "14px 20px", borderTop: "1px solid #f0f0f0" }}>
-          <button onClick={onClose} style={{ padding: "7px 18px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#555", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={onClose} style={{ padding: "7px 18px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", color: "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
             Batal
           </button>
           <button
@@ -172,17 +165,48 @@ function JadwalModal({ open, onClose, onSave, existing }: {
   );
 }
 
+// ── Modal Konfirmasi Hapus ────────────────────────────────────────────────────
+
+function DeleteModal({ tanggal, onConfirm, onCancel, deleting }: {
+  tanggal: string; onConfirm: () => void; onCancel: () => void; deleting: boolean;
+}) {
+  const tgl = formatTanggal(tanggal);
+  return (
+    <div onClick={onCancel} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px", width: 360, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#fff5f5", border: "1.5px solid #fecaca", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+          <Trash2 size={20} color="#dc2626" />
+        </div>
+        <h3 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700, color: "#111" }}>Hapus Jadwal?</h3>
+        <p style={{ margin: "0 0 22px", fontSize: 13, color: "#888", lineHeight: 1.55 }}>
+          Jadwal tanggal <strong>{tgl.hari}, {tgl.full}</strong> akan dihapus permanen dan tidak bisa dikembalikan.
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={onCancel} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #e0e0e0", background: "#fff", fontSize: 13, fontWeight: 600, color: "#555", cursor: "pointer", fontFamily: "inherit" }}>
+            Batal
+          </button>
+          <button onClick={onConfirm} disabled={deleting} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "none", background: deleting ? "#ccc" : "#dc2626", fontSize: 13, fontWeight: 600, color: "#fff", cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+            {deleting ? "Menghapus..." : "Ya, Hapus"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function KelolaJadwalDokter() {
-  const [jadwal,      setJadwal]      = useState<JadwalDokter[]>([]);
-  const [modalOpen,   setModalOpen]   = useState(false);
-  const [editTarget,  setEditTarget]  = useState<JadwalDokter | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState("");
+  const [jadwal,       setJadwal]       = useState<JadwalDokter[]>([]);
+  const [modalOpen,    setModalOpen]    = useState(false);
+  const [editTarget,   setEditTarget]   = useState<JadwalDokter | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<JadwalDokter | null>(null);
+  const [deleting,     setDeleting]     = useState(false);
+  const [currentPage,  setCurrentPage]  = useState(1);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
 
-  const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
+  const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const headers = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
   useEffect(() => {
@@ -213,27 +237,11 @@ export default function KelolaJadwalDokter() {
     const url    = isEdit ? `${API}/dokter/jadwal/${editTarget!.id}` : `${API}/dokter/jadwal`;
     const method = isEdit ? "PUT" : "POST";
     try {
-      const res = await fetch(url, {
-        method, headers,
-        body: JSON.stringify({
-          tanggal:     data.tanggal,
-          jam_mulai:   data.jamMulai   || null,
-          jam_selesai: data.jamSelesai || null,
-          status:      data.status,
-        }),
-      });
+      const res    = await fetch(url, { method, headers, body: JSON.stringify({ tanggal: data.tanggal, jam_mulai: data.jamMulai || null, jam_selesai: data.jamSelesai || null, status: data.status }) });
       const result = await res.json();
       if (result.success) {
         const j = result.data;
-        const formatted: JadwalDokter = {
-          id:         j.id,
-          tanggal:    j.tanggal,
-          jamMulai:   j.jam_mulai   ?? "",
-          jamSelesai: j.jam_selesai ?? "",
-          status:     j.status,
-          hari:       j.hari,
-          durasi:     j.durasi,
-        };
+        const formatted: JadwalDokter = { id: j.id, tanggal: j.tanggal, jamMulai: j.jam_mulai ?? "", jamSelesai: j.jam_selesai ?? "", status: j.status, hari: j.hari, durasi: j.durasi };
         if (isEdit) {
           setJadwal(prev => prev.map(jj => jj.id === editTarget!.id ? formatted : jj));
         } else {
@@ -247,61 +255,72 @@ export default function KelolaJadwalDokter() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res  = await fetch(`${API}/dokter/jadwal/${deleteTarget.id}`, { method: "DELETE", headers });
+      const data = await res.json();
+      if (data.success) {
+        setJadwal(prev => prev.filter(j => j.id !== deleteTarget.id));
+        setDeleteTarget(null);
+      } else {
+        setError(data.message ?? "Gagal menghapus jadwal.");
+      }
+    } catch {
+      setError("Gagal terhubung ke server.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const updateStatus = async (id: number, status: StatusJadwal) => {
     try {
-      const res = await fetch(`${API}/dokter/jadwal/${id}/status`, {
-        method: "PATCH", headers,
-        body: JSON.stringify({ status }),
-      });
+      const res    = await fetch(`${API}/dokter/jadwal/${id}/status`, { method: "PATCH", headers, body: JSON.stringify({ status }) });
       const result = await res.json();
       if (result.success) {
         const j = result.data;
-        setJadwal(prev => prev.map(jj => jj.id === id ? {
-          ...jj,
-          status:     j.status,
-          jamMulai:   j.jam_mulai   ?? "",
-          jamSelesai: j.jam_selesai ?? "",
-          durasi:     j.durasi,
-        } : jj));
+        setJadwal(prev => prev.map(jj => jj.id === id ? { ...jj, status: j.status, jamMulai: j.jam_mulai ?? "", jamSelesai: j.jam_selesai ?? "", durasi: j.durasi } : jj));
       }
     } catch {
       setError("Gagal update status");
     }
   };
 
-  const sorted = [...jadwal].sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+  const sorted     = [...jadwal].sort((a, b) => b.tanggal.localeCompare(a.tanggal));
   const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
   const paginated  = sorted.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const stats = [
-    {
-      label: "Total Jadwal", value: jadwal.length, sub: "Jadwal terdaftar",
-      bg: "#fff", labelColor: "#888", valColor: "#1a1a1a",
-      icon: <CalendarDays size={20} color="#2e7d32" />, iconBg: "#e8f5e9",
-    },
-    {
-      label: "Hari Aktif", value: jadwal.filter(j => j.status === "Aktif").length, sub: "Siap praktik",
-      bg: "#e8f5e9", labelColor: "#2e7d32", valColor: "#1b5e20",
-      icon: <CheckCircle size={20} color="#2e7d32" />, iconBg: "#c8e6c9",
-    },
-    {
-      label: "Hari Libur", value: jadwal.filter(j => j.status === "Libur").length, sub: "Tidak praktik",
-      bg: "#fff8e1", labelColor: "#e65100", valColor: "#bf360c",
-      icon: <Ban size={20} color="#e65100" />, iconBg: "#ffe0b2",
-    },
+    { label: "Total Jadwal", value: jadwal.length,                                   sub: "Jadwal terdaftar", bg: "#fff",    labelColor: "#888",   valColor: "#1a1a1a", icon: <CalendarDays size={20} color={G} />,       iconBg: "#e8f5e9" },
+    { label: "Hari Aktif",   value: jadwal.filter(j => j.status === "Aktif").length, sub: "Siap praktik",    bg: "#e8f5e9", labelColor: G,         valColor: "#1b5e20", icon: <CheckCircle  size={20} color={G} />,       iconBg: "#c8e6c9" },
+    { label: "Hari Libur",   value: jadwal.filter(j => j.status === "Libur").length, sub: "Tidak praktik",   bg: "#fff8e1", labelColor: "#e65100", valColor: "#bf360c", icon: <Ban          size={20} color="#e65100" />, iconBg: "#ffe0b2" },
   ];
 
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "'Inter', sans-serif" }}>
       <Sidebar activePage="jadwal" />
+
+      {/* Modals */}
+      <JadwalModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} existing={editTarget} />
+      {deleteTarget && (
+        <DeleteModal
+          tanggal={deleteTarget.tanggal}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
+      )}
+
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <Header title="Kelola Jadwal" subtitle="Atur ketersediaan jadwal pemeriksaan di klinik"  />
+        <Header title="Kelola Jadwal" subtitle="Atur ketersediaan jadwal pemeriksaan di klinik" />
 
         <main style={{ flex: 1, overflowY: "auto", background: "#f5f7f5", padding: 24 }}>
 
           {error && (
             <div style={{ background: "#ffebee", border: "1px solid #ffcdd2", borderRadius: 8, padding: "10px 14px", marginBottom: 16, fontSize: 13, color: "#c62828" }}>
               {error}
+              <button onClick={() => setError("")} style={{ marginLeft: 12, background: "none", border: "none", color: "#c62828", cursor: "pointer", fontSize: 13 }}>✕</button>
             </div>
           )}
 
@@ -326,7 +345,7 @@ export default function KelolaJadwalDokter() {
           {/* Toolbar */}
           <div style={{ ...card, display: "flex", justifyContent: "flex-end" }}>
             <button onClick={openAdd}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: G, color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: "none", background: G, color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
               <Plus size={15} /> Tambah Jadwal
             </button>
           </div>
@@ -356,11 +375,8 @@ export default function KelolaJadwalDokter() {
                       const tgl   = formatTanggal(j.tanggal);
                       const today = isToday(j.tanggal);
                       const st    = statusConfig[j.status];
-
-                      let durasi = "—";
-                      if (j.durasi) {
-                        durasi = `${Math.floor(j.durasi / 60)} jam${j.durasi % 60 ? ` ${j.durasi % 60} mnt` : ""}`;
-                      }
+                      let durasi  = "—";
+                      if (j.durasi) durasi = `${Math.floor(j.durasi / 60)} jam${j.durasi % 60 ? ` ${j.durasi % 60} mnt` : ""}`;
 
                       return (
                         <tr key={j.id}
@@ -371,11 +387,7 @@ export default function KelolaJadwalDokter() {
                           <td style={td}>
                             <span style={{ fontSize: 13 }}>
                               {tgl.short}
-                              {today && (
-                                <span style={{ display: "inline-block", marginLeft: 6, fontSize: 10, background: G, color: "#fff", borderRadius: 10, padding: "1px 7px", verticalAlign: "middle" }}>
-                                  Hari ini
-                                </span>
-                              )}
+                              {today && <span style={{ display: "inline-block", marginLeft: 6, fontSize: 10, background: G, color: "#fff", borderRadius: 10, padding: "1px 7px", verticalAlign: "middle" }}>Hari ini</span>}
                             </span>
                           </td>
                           <td style={{ ...td, color: "#555" }}>{j.hari ?? tgl.hari}</td>
@@ -398,13 +410,22 @@ export default function KelolaJadwalDokter() {
                             </select>
                           </td>
                           <td style={td}>
-                            <button onClick={() => openEdit(j)}
-                              style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 7, border: "1px solid #c8e6c9", background: "#fff", color: G, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
-                              onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.color = "#fff"; }}
-                              onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = G; }}
-                            >
-                              <Pencil size={12} /> Edit
-                            </button>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={() => openEdit(j)}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 7, border: `1.5px solid ${G}`, background: "#fff", color: G, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                                onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.color = "#fff"; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = G; }}
+                              >
+                                <Pencil size={12} /> Edit
+                              </button>
+                              <button onClick={() => setDeleteTarget(j)}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 7, border: "1.5px solid #dc2626", background: "#fff", color: "#dc2626", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                                onMouseEnter={e => { e.currentTarget.style.background = "#dc2626"; e.currentTarget.style.color = "#fff"; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#dc2626"; }}
+                              >
+                                <Trash2 size={12} /> Hapus
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -430,8 +451,6 @@ export default function KelolaJadwalDokter() {
 
         </main>
       </div>
-
-      <JadwalModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} existing={editTarget} />
     </div>
   );
 }

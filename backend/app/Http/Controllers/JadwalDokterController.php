@@ -170,6 +170,102 @@ public function adminIndex(Request $request): JsonResponse
 
     return response()->json(['success' => true, 'data' => $jadwal]);
 }
+// GET semua dokter (untuk dropdown form)
+public function adminGetDokter(): JsonResponse
+{
+    $dokter = Dokter::orderBy('nama_dokter')->get(['id_dokter', 'nama_dokter']);
+    return response()->json(['success' => true, 'data' => $dokter]);
+}
+
+public function adminStore(Request $request): JsonResponse
+{
+    $validated = $request->validate([
+        'id_dokter'   => ['required', 'exists:dokter,id_dokter'],
+        'tanggal'     => ['required', 'date', 'after_or_equal:today',
+                          Rule::unique('jadwal')->where('id_dokter', $request->id_dokter)],
+        'jam_mulai'   => ['nullable', 'date_format:H:i', 'required_if:status,Aktif'],
+        'jam_selesai' => ['nullable', 'date_format:H:i', 'required_if:status,Aktif', 'after:jam_mulai'],
+        'status'      => ['required', Rule::in(['Aktif', 'Libur'])],
+    ], [
+        'tanggal.unique'          => 'Jadwal pada tanggal ini sudah ada untuk dokter ini.',
+        'tanggal.after_or_equal'  => 'Tanggal tidak boleh sebelum hari ini.',
+        'jam_selesai.after'       => 'Jam selesai harus setelah jam mulai.',
+        'jam_mulai.required_if'   => 'Jam mulai wajib diisi jika status Aktif.',
+        'jam_selesai.required_if' => 'Jam selesai wajib diisi jika status Aktif.',
+    ]);
+
+    $tanggal = Carbon::parse($validated['tanggal']);
+
+    $jadwal = Jadwal::create([
+        'id_dokter'   => $validated['id_dokter'],
+        'tanggal'     => $validated['tanggal'],
+        'hari'        => $tanggal->locale('id')->isoFormat('dddd'),
+        'jam_mulai'   => $validated['status'] === 'Aktif' ? $validated['jam_mulai']   : null,
+        'jam_selesai' => $validated['status'] === 'Aktif' ? $validated['jam_selesai'] : null,
+        'durasi'      => $validated['status'] === 'Aktif'
+                            ? Jadwal::hitungDurasi($validated['jam_mulai'], $validated['jam_selesai'])
+                            : null,
+        'status'      => $validated['status'],
+    ]);
+
+    $jadwal->load('dokter');
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Jadwal berhasil ditambahkan.',
+        'data'    => array_merge($this->formatJadwal($jadwal), [
+            'nama_dokter' => $jadwal->dokter->nama_dokter ?? '-',
+            'id_dokter'   => $jadwal->id_dokter,
+        ]),
+    ], 201);
+}
+
+public function adminUpdate(Request $request, int $idJadwal): JsonResponse
+{
+    $jadwal = Jadwal::findOrFail($idJadwal);
+
+    $validated = $request->validate([
+        'id_dokter'   => ['required', 'exists:dokter,id_dokter'],
+        'tanggal'     => ['required', 'date',
+                          Rule::unique('jadwal')->where('id_dokter', $request->id_dokter)->ignore($idJadwal, 'id_jadwal')],
+        'jam_mulai'   => ['nullable', 'date_format:H:i', 'required_if:status,Aktif'],
+        'jam_selesai' => ['nullable', 'date_format:H:i', 'required_if:status,Aktif', 'after:jam_mulai'],
+        'status'      => ['required', Rule::in(['Aktif', 'Libur'])],
+    ]);
+
+    $tanggal = Carbon::parse($validated['tanggal']);
+
+    $jadwal->update([
+        'id_dokter'   => $validated['id_dokter'],
+        'tanggal'     => $validated['tanggal'],
+        'hari'        => $tanggal->locale('id')->isoFormat('dddd'),
+        'jam_mulai'   => $validated['status'] === 'Aktif' ? $validated['jam_mulai']   : null,
+        'jam_selesai' => $validated['status'] === 'Aktif' ? $validated['jam_selesai'] : null,
+        'durasi'      => $validated['status'] === 'Aktif'
+                            ? Jadwal::hitungDurasi($validated['jam_mulai'], $validated['jam_selesai'])
+                            : null,
+        'status'      => $validated['status'],
+    ]);
+
+    $jadwal->load('dokter');
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Jadwal berhasil diperbarui.',
+        'data'    => array_merge($this->formatJadwal($jadwal->fresh()), [
+            'nama_dokter' => $jadwal->dokter->nama_dokter ?? '-',
+            'id_dokter'   => $jadwal->id_dokter,
+        ]),
+    ]);
+}
+
+public function adminDestroy(int $idJadwal): JsonResponse
+{
+    $jadwal = Jadwal::findOrFail($idJadwal);
+    $jadwal->delete();
+
+    return response()->json(['success' => true, 'message' => 'Jadwal berhasil dihapus.']);
+}
     private function formatJadwal(Jadwal $j): array
     {
         return [

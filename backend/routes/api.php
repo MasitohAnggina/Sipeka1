@@ -134,7 +134,11 @@ Route::middleware('auth:sanctum')->group(function () {
     //  ADMIN
     // ────────────────────────────────────────────────────────────────────────
 
-    Route::get('/admin/jadwal',   [JadwalDokterController::class, 'adminIndex']);
+    Route::get('/admin/jadwal',              [JadwalDokterController::class, 'adminIndex']);
+    Route::post('/admin/jadwal',             [JadwalDokterController::class, 'adminStore']);
+    Route::put('/admin/jadwal/{id_jadwal}',  [JadwalDokterController::class, 'adminUpdate']);
+    Route::delete('/admin/jadwal/{id_jadwal}', [JadwalDokterController::class, 'adminDestroy']);
+    Route::get('/admin/dokter-list', [JadwalDokterController::class, 'adminGetDokter']);
     Route::get('/admin/profile',  [AdminController::class, 'getProfile']);
     Route::put('/admin/profile',  [AdminController::class, 'updateProfile']);
     Route::post('/admin/foto',    [AdminController::class, 'uploadFoto']);

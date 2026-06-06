@@ -233,7 +233,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
         }}
       >
         {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", padding: "18px 16px", borderBottom: "1.5px solid #e0e0e0", flexShrink: 0 }}>
+<div style={{ display: "flex", alignItems: "center", paddingTop: "18px", paddingBottom: "18px", paddingLeft: "4px", paddingRight: "16px", borderBottom: "1.5px solid #e0e0e0", flexShrink: 0 }}>
           <Image src="/images/logo.png" alt="Sipeka" width={130} height={38} style={{ width: "auto", height: "auto" }} priority />
         </div>
 
@@ -245,8 +245,12 @@ export default function Sidebar({ activePage }: SidebarProps) {
             border: "1px solid #90caf9",
             borderRadius: 20, padding: "3px 10px",
             letterSpacing: ".03em",
+            display: "inline-flex",   // ← tambah
+            alignItems: "center",     // ← tambah
+            gap: "5px",               // ← tambah
           }}>
-            🩺 Dokter
+            <Stethoscope size={13} /> {/* ← ganti emoji */}
+            Dokter
           </span>
         </div>
 

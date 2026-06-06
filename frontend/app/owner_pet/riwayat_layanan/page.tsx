@@ -551,9 +551,10 @@ function RiwayatLayananContent() {
           if (rRes.success) {
             // ── Urutkan dari terbaru ke terlama berdasarkan tanggal + jam ──
             // parseDateTime menangani jam format "HH:mm" maupun "HH:mm:ss"
-            const sorted = [...rRes.data].sort((a: RiwayatItem, b: RiwayatItem) =>
-              parseDateTime(b.tanggal, b.jam) - parseDateTime(a.tanggal, a.jam)
-            );
+            const sorted = [...rRes.data].sort((a: RiwayatItem, b: RiwayatItem) => {
+  const dateDiff = parseDateTime(b.tanggal, b.jam) - parseDateTime(a.tanggal, a.jam);
+  return dateDiff !== 0 ? dateDiff : b.id_riwayat - a.id_riwayat;
+});
             setRiwayat(sorted);
           }
           if (sRes.success) setStats(sRes.data);

@@ -191,9 +191,14 @@ export default function RiwayatMedisHewan() {
     })
       .then(res => res.json())
       .then(json => {
-        if (json.success) setData(json.data);
-        else setError(json.message ?? "Gagal memuat data");
-      })
+  if (json.success) setData(
+    [...json.data].sort((a, b) => {
+      const dateDiff = new Date(b.tanggal ?? "1970-01-01").getTime() - new Date(a.tanggal ?? "1970-01-01").getTime();
+      return dateDiff !== 0 ? dateDiff : b.id_rekam_medis - a.id_rekam_medis;
+    })
+  );
+  else setError(json.message ?? "Gagal memuat data");
+})
       .catch(() => setError("Tidak dapat terhubung ke server"))
       .finally(() => setLoading(false));
   }, []);

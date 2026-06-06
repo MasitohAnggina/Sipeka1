@@ -245,15 +245,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
         }}
       >
         {/* Logo */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            padding: "18px 16px",
-            borderBottom: "1.5px solid #e0e0e0",
-            flexShrink: 0,
-          }}
-        >
+<div style={{ display: "flex", alignItems: "center", paddingTop: "18px", paddingBottom: "18px", paddingLeft: "4px", paddingRight: "16px", borderBottom: "1.5px solid #e0e0e0", flexShrink: 0 }}>
           <Image
             src="/images/logo.png"
             alt="Sipeka"
