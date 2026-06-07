@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx-js-style";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar_admin";
 
@@ -93,6 +94,79 @@ function FotoHewan({ foto, nama, jenis, size = 36 }: {
   );
 }
 
+// ── Export Excel ──────────────────────────────────────────────────────────────
+
+function exportToExcel(data: RiwayatRecord[]) {
+  const headers = ["Tanggal", "No. Booking", "Nama Hewan", "Jenis Hewan", "Nama Pemilik", "No. HP", "Layanan", "Nama Dokter", "Diagnosa", "Grand Total", "Status"];
+
+  const rows = data.map((r) => [
+    r.tanggal,
+    r.no_booking,
+    r.nama_hewan,
+    r.jenis_hewan,
+    r.nama_pemilik,
+    r.no_hp,
+    r.layanans.map((l) => l.nama_layanan).join(", ") || "-",
+    r.nama_dokter,
+    r.diagnosa ?? "-",
+    r.grand_total,
+    STATUS_LABEL[r.status_booking] ?? r.status_booking,
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+  const headerStyle = {
+    font:      { bold: true, color: { rgb: "FFFFFF" }, name: "Arial", sz: 11 },
+    fill:      { patternType: "solid", fgColor: { rgb: "2E7D32" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top:    { style: "thin", color: { rgb: "FFFFFF" } },
+      bottom: { style: "thin", color: { rgb: "FFFFFF" } },
+      left:   { style: "thin", color: { rgb: "FFFFFF" } },
+      right:  { style: "thin", color: { rgb: "FFFFFF" } },
+    },
+  };
+
+  headers.forEach((_, i) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+    if (ws[cellRef]) ws[cellRef].s = headerStyle;
+  });
+
+  rows.forEach((_, rowIdx) => {
+    const isEven = rowIdx % 2 === 0;
+    headers.forEach((_, colIdx) => {
+      const cellRef = XLSX.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          font:  { name: "Arial", sz: 10 },
+          fill:  { patternType: "solid", fgColor: { rgb: isEven ? "FFFFFF" : "F1F8E9" } },
+          alignment: { vertical: "center" },
+          border: {
+            top:    { style: "thin", color: { rgb: "E0E0E0" } },
+            bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+            left:   { style: "thin", color: { rgb: "E0E0E0" } },
+            right:  { style: "thin", color: { rgb: "E0E0E0" } },
+          },
+        };
+      }
+    });
+  });
+
+  ws["!cols"] = [
+    { wch: 14 }, { wch: 18 }, { wch: 16 }, { wch: 14 },
+    { wch: 20 }, { wch: 16 }, { wch: 30 }, { wch: 20 },
+    { wch: 24 }, { wch: 18 }, { wch: 14 },
+  ];
+  ws["!rows"] = [{ hpt: 22 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Riwayat Layanan");
+
+  const now = new Date();
+  const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  XLSX.writeFile(wb, `riwayat_layanan_${timestamp}.xlsx`, { cellStyles: true });
+}
+
 // ── Shared Styles ─────────────────────────────────────────────────────────────
 
 const inputStyle: React.CSSProperties = {
@@ -136,6 +210,7 @@ export default function RiwayatLayananPage() {
   const [filterTanggal, setFilterTanggal] = useState("");
   const [filterLayanan, setFilterLayanan] = useState("");
   const [currentPage,   setCurrentPage]   = useState(1);
+  const [exporting,     setExporting]     = useState(false);
 
   const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const headers = { "Authorization": `Bearer ${token ?? ""}`, "Content-Type": "application/json" };
@@ -153,15 +228,15 @@ export default function RiwayatLayananPage() {
 
         if (dataSummary.success) setSummary(dataSummary.data);
         if (dataRiwayat.success && Array.isArray(dataRiwayat.data)) {
-  setRiwayat(
-    [...dataRiwayat.data].sort((a, b) => {
-      const dateDiff = new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime();
-      return dateDiff !== 0 ? dateDiff : b.id_riwayat - a.id_riwayat;
-    })
-  );
-} else {
-  setError(dataRiwayat.message ?? "Gagal memuat riwayat layanan");
-}
+          setRiwayat(
+            [...dataRiwayat.data].sort((a, b) => {
+              const dateDiff = new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime();
+              return dateDiff !== 0 ? dateDiff : b.id_riwayat - a.id_riwayat;
+            })
+          );
+        } else {
+          setError(dataRiwayat.message ?? "Gagal memuat riwayat layanan");
+        }
       } catch {
         setError("Gagal terhubung ke server.");
       } finally {
@@ -185,12 +260,21 @@ export default function RiwayatLayananPage() {
 
   const layananOptions = [...new Set(riwayat.flatMap(r => r.layanans.map(l => l.nama_layanan)))].sort();
 
+  function handleExport() {
+    setExporting(true);
+    setTimeout(() => {
+      // Export data yang sudah difilter (bukan hanya halaman ini)
+      exportToExcel(filtered.length > 0 ? filtered : riwayat);
+      setExporting(false);
+    }, 100);
+  }
+
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "'Inter', sans-serif" }}>
       <Sidebar activePage="riwayat" />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <Header title="Riwayat Layanan" subtitle="Histori lengkap semua layanan yang telah dilakukan"  />
+        <Header title="Riwayat Layanan" subtitle="Histori lengkap semua layanan yang telah dilakukan" />
 
         <main style={{ flex: 1, overflowY: "auto", background: "#f5f7f5", padding: 24 }}>
 
@@ -201,20 +285,20 @@ export default function RiwayatLayananPage() {
           )}
 
           {/* Summary Cards */}
-<div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 20 }}>
-  <div style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: 10, padding: "16px 20px" }}>
-    <p style={{ fontSize: 12, color: "#888", margin: 0, fontWeight: 500 }}>Total Riwayat</p>
-    <p style={{ fontSize: 26, fontWeight: 700, color: "#1a1a1a", margin: "4px 0 0" }}>{summary?.total ?? 0}</p>
-  </div>
-  <div style={{ background: "#fff8e1", border: "1px solid #e8e8e8", borderRadius: 10, padding: "16px 20px" }}>
-    <p style={{ fontSize: 12, color: "#e65100", margin: 0, fontWeight: 500 }}>Total Pendapatan</p>
-    <p style={{ fontSize: 20, fontWeight: 700, color: "#bf360c", margin: "4px 0 0" }}>{formatRupiah(summary?.total_pendapatan ?? 0)}</p>
-  </div>
-</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginBottom: 20 }}>
+            <div style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: 10, padding: "16px 20px" }}>
+              <p style={{ fontSize: 12, color: "#888", margin: 0, fontWeight: 500 }}>Total Riwayat</p>
+              <p style={{ fontSize: 26, fontWeight: 700, color: "#1a1a1a", margin: "4px 0 0" }}>{summary?.total ?? 0}</p>
+            </div>
+            <div style={{ background: "#fff8e1", border: "1px solid #e8e8e8", borderRadius: 10, padding: "16px 20px" }}>
+              <p style={{ fontSize: 12, color: "#e65100", margin: 0, fontWeight: 500 }}>Total Pendapatan</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: "#bf360c", margin: "4px 0 0" }}>{formatRupiah(summary?.total_pendapatan ?? 0)}</p>
+            </div>
+          </div>
 
-          {/* Filter */}
+          {/* Filter + Tombol Export */}
           <div style={card}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr auto", gap: 14, alignItems: "flex-end" }}>
               <div>
                 <label style={filterLabel}>Nama Hewan / Pemilik</label>
                 <input style={inputStyle} placeholder="Cari nama hewan atau pemilik..." value={filterNama} onChange={e => setFilterNama(e.target.value)} />
@@ -230,7 +314,53 @@ export default function RiwayatLayananPage() {
                   {layananOptions.map(l => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
+              <div>
+                <button
+                  onClick={handleExport}
+                  disabled={exporting || loading || riwayat.length === 0}
+                  style={{
+                    height: 38,
+                    padding: "0 16px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: exporting ? "#a5d6a7" : G,
+                    color: "#fff",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: exporting || loading || riwayat.length === 0 ? "not-allowed" : "pointer",
+                    fontFamily: "inherit",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    whiteSpace: "nowrap",
+                    opacity: loading || riwayat.length === 0 ? 0.6 : 1,
+                    transition: "background .2s",
+                  }}
+                  onMouseEnter={e => { if (!exporting && !loading) e.currentTarget.style.background = "#1b5e20"; }}
+                  onMouseLeave={e => { if (!exporting) e.currentTarget.style.background = G; }}
+                >
+                  {exporting ? (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: "spin .7s linear infinite" }}>
+                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".3"/>
+                        <path d="M21 12a9 9 0 00-9-9"/>
+                      </svg>
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      Export Excel
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
+
           </div>
 
           {/* Table */}
@@ -324,6 +454,8 @@ export default function RiwayatLayananPage() {
 
         </main>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

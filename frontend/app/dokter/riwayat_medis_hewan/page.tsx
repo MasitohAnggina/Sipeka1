@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import * as XLSX from "xlsx-js-style";
 import Sidebar from "@/components/Sidebar_dokter";
 import Header from "@/components/Header";
-import { FileText, Search, Info } from "lucide-react";
+import { FileText, Search, Info, Download } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,84 @@ function formatTanggal(dateStr: string | null): string {
   return new Date(dateStr + "T00:00:00").toLocaleDateString("id-ID", {
     day: "numeric", month: "short", year: "numeric",
   });
+}
+
+// ── Export Excel ──────────────────────────────────────────────────────────────
+
+function exportToExcel(data: RiwayatItem[]) {
+  const headers = ["Tanggal", "Nama Hewan", "Jenis", "Nama Pemilik", "Diagnosa", "Diagnosa Lengkap", "Tindakan / Obat", "Catatan Dokter", "Dokter"];
+
+  const rows = data.map((r) => [
+    formatTanggal(r.tanggal),
+    r.nama_hewan,
+    r.jenis,
+    r.nama_pemilik,
+    r.diagnosa,
+    r.diagnosa_lengkap ?? "-",
+    r.tindakan ?? "-",
+    r.catatan_dokter ?? "-",
+    r.nama_dokter,
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+  const headerStyle = {
+    font:      { bold: true, color: { rgb: "FFFFFF" }, name: "Arial", sz: 11 },
+    fill:      { patternType: "solid", fgColor: { rgb: "2E7D32" } },
+    alignment: { horizontal: "center", vertical: "center" },
+    border: {
+      top:    { style: "thin", color: { rgb: "FFFFFF" } },
+      bottom: { style: "thin", color: { rgb: "FFFFFF" } },
+      left:   { style: "thin", color: { rgb: "FFFFFF" } },
+      right:  { style: "thin", color: { rgb: "FFFFFF" } },
+    },
+  };
+
+  headers.forEach((_, i) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+    if (ws[cellRef]) ws[cellRef].s = headerStyle;
+  });
+
+  rows.forEach((_, rowIdx) => {
+    const isEven = rowIdx % 2 === 0;
+    headers.forEach((_, colIdx) => {
+      const cellRef = XLSX.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          font:      { name: "Arial", sz: 10 },
+          fill:      { patternType: "solid", fgColor: { rgb: isEven ? "FFFFFF" : "F1F8E9" } },
+          alignment: { vertical: "center", wrapText: true },
+          border: {
+            top:    { style: "thin", color: { rgb: "E0E0E0" } },
+            bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+            left:   { style: "thin", color: { rgb: "E0E0E0" } },
+            right:  { style: "thin", color: { rgb: "E0E0E0" } },
+          },
+        };
+      }
+    });
+  });
+
+  ws["!cols"] = [
+    { wch: 16 }, // Tanggal
+    { wch: 16 }, // Nama Hewan
+    { wch: 12 }, // Jenis
+    { wch: 20 }, // Nama Pemilik
+    { wch: 20 }, // Diagnosa
+    { wch: 30 }, // Diagnosa Lengkap
+    { wch: 30 }, // Tindakan
+    { wch: 30 }, // Catatan Dokter
+    { wch: 18 }, // Dokter
+  ];
+
+  ws["!rows"] = [{ hpt: 22 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Riwayat Medis");
+
+  const now = new Date();
+  const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  XLSX.writeFile(wb, `riwayat_medis_${timestamp}.xlsx`, { cellStyles: true });
 }
 
 // ── Shared Styles ─────────────────────────────────────────────────────────────
@@ -106,14 +185,10 @@ function HewanCell({ foto, nama, jenis, pemilik }: {
 
 function TindakanCell({ tindakan }: { tindakan: string | null }) {
   if (!tindakan) return <span style={{ fontSize: 12, color: "#bbb", fontStyle: "italic" }}>—</span>;
-
-  // Pisah per baris jika multi-line
   const lines = tindakan.split("\n").map(l => l.trim()).filter(Boolean);
-
   if (lines.length === 1) {
     return <span style={{ fontSize: 12, color: "#444", lineHeight: 1.5 }}>{lines[0]}</span>;
   }
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       {lines.map((line, i) => (
@@ -178,10 +253,11 @@ function SkeletonRow() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function RiwayatMedisHewan() {
-  const [data,    setData]    = useState<RiwayatItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
-  const [search,  setSearch]  = useState("");
+  const [data,      setData]      = useState<RiwayatItem[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [error,     setError]     = useState("");
+  const [search,    setSearch]    = useState("");
+  const [exporting, setExporting] = useState(false);
 
   const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
 
@@ -191,14 +267,14 @@ export default function RiwayatMedisHewan() {
     })
       .then(res => res.json())
       .then(json => {
-  if (json.success) setData(
-    [...json.data].sort((a, b) => {
-      const dateDiff = new Date(b.tanggal ?? "1970-01-01").getTime() - new Date(a.tanggal ?? "1970-01-01").getTime();
-      return dateDiff !== 0 ? dateDiff : b.id_rekam_medis - a.id_rekam_medis;
-    })
-  );
-  else setError(json.message ?? "Gagal memuat data");
-})
+        if (json.success) setData(
+          [...json.data].sort((a, b) => {
+            const dateDiff = new Date(b.tanggal ?? "1970-01-01").getTime() - new Date(a.tanggal ?? "1970-01-01").getTime();
+            return dateDiff !== 0 ? dateDiff : b.id_rekam_medis - a.id_rekam_medis;
+          })
+        );
+        else setError(json.message ?? "Gagal memuat data");
+      })
       .catch(() => setError("Tidak dapat terhubung ke server"))
       .finally(() => setLoading(false));
   }, []);
@@ -208,21 +284,26 @@ export default function RiwayatMedisHewan() {
     r.nama_pemilik.toLowerCase().includes(search.toLowerCase())
   );
 
+  function handleExport() {
+    setExporting(true);
+    setTimeout(() => {
+      exportToExcel(filtered.length > 0 ? filtered : data);
+      setExporting(false);
+    }, 100);
+  }
+
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
       <Sidebar activePage="riwayat" />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
-        <Header
-          title="Riwayat Medis Hewan"
-          subtitle="Riwayat rekam medis yang sudah dicatat"
-        />
+        <Header title="Riwayat Medis Hewan" subtitle="Riwayat rekam medis yang sudah dicatat" />
 
         <div style={{ padding: "22px 28px" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
 
             <div style={cardStyle}>
-              {/* Header Tab-like */}
+              {/* Header */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 20px", borderBottom: "1.5px solid #f0f0f0" }}>
                 <FileText style={{ width: 15, height: 15, color: G }} />
                 <span style={{ fontWeight: 700, fontSize: 14, color: G }}>Rekam Medis</span>
@@ -233,8 +314,41 @@ export default function RiwayatMedisHewan() {
                 )}
               </div>
 
-              <div style={{ padding: "16px 20px 12px" }}>
+              {/* Search + Export */}
+              <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <SearchBar value={search} onChange={setSearch} />
+
+                <button
+                  onClick={handleExport}
+                  disabled={exporting || loading || data.length === 0}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "8px 16px", borderRadius: 8, border: "none",
+                    background: exporting ? "#a5d6a7" : G,
+                    color: "#fff", fontSize: 13, fontWeight: 600,
+                    cursor: exporting || loading || data.length === 0 ? "not-allowed" : "pointer",
+                    fontFamily: "inherit", whiteSpace: "nowrap",
+                    opacity: loading || data.length === 0 ? 0.6 : 1,
+                    transition: "background .2s",
+                  }}
+                  onMouseEnter={e => { if (!exporting && !loading) e.currentTarget.style.background = "#1b5e20"; }}
+                  onMouseLeave={e => { if (!exporting) e.currentTarget.style.background = G; }}
+                >
+                  {exporting ? (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: "spin .7s linear infinite" }}>
+                        <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" opacity=".3"/>
+                        <path d="M21 12a9 9 0 00-9-9"/>
+                      </svg>
+                      Mengekspor...
+                    </>
+                  ) : (
+                    <>
+                      <Download style={{ width: 13, height: 13 }} />
+                      Export Excel
+                    </>
+                  )}
+                </button>
               </div>
 
               {/* Error */}
@@ -270,37 +384,26 @@ export default function RiwayatMedisHewan() {
                         onMouseEnter={e => (e.currentTarget.style.background = "#f0faf0")}
                         onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? "#fff" : "#fafafa")}
                       >
-                        {/* Tanggal */}
                         <td style={{ ...tdS, whiteSpace: "nowrap" }}>
                           <span style={{ fontWeight: 600, fontSize: 13 }}>{formatTanggal(r.tanggal)}</span>
                         </td>
-
-                        {/* Hewan & Pemilik */}
                         <td style={tdS}>
                           <HewanCell foto={r.foto} nama={r.nama_hewan} jenis={r.jenis} pemilik={r.nama_pemilik} />
                         </td>
-
-                        {/* Diagnosa */}
                         <td style={tdS}>
                           <div style={{ fontWeight: 700, fontSize: 13, color: "#1a1a1a" }}>{r.diagnosa}</div>
                           {r.diagnosa_lengkap && (
                             <div style={{ fontSize: 11, color: "#888", marginTop: 3, lineHeight: 1.4 }}>{r.diagnosa_lengkap}</div>
                           )}
                         </td>
-
-                        {/* Tindakan */}
                         <td style={{ ...tdS, maxWidth: 200 }}>
                           <TindakanCell tindakan={r.tindakan} />
                         </td>
-
-                        {/* Catatan Dokter */}
                         <td style={{ ...tdS, maxWidth: 180 }}>
                           {r.catatan_dokter
                             ? <span style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>{r.catatan_dokter}</span>
                             : <span style={{ fontSize: 12, color: "#bbb", fontStyle: "italic" }}>—</span>}
                         </td>
-
-                        {/* Dokter */}
                         <td style={{ ...tdS, whiteSpace: "nowrap" }}>
                           <span style={{ fontSize: 12, color: "#555" }}>{r.nama_dokter}</span>
                         </td>
@@ -320,6 +423,8 @@ export default function RiwayatMedisHewan() {
           </div>
         </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
