@@ -174,12 +174,13 @@ export default function RegisterPage() {
           <div className="input-group">
             <label className="label">Password</label>
             <input
-              type={showPassword ? "text" : "password"}
-              className="input"
-              placeholder="********"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+  type={showPassword ? "text" : "password"}
+  className="input"
+  placeholder="********"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  onKeyDown={(e) => { if (e.key === "Enter") handleRegister(); }}
+/>
           </div>
 
           {error && <p className="error">{error}</p>}
