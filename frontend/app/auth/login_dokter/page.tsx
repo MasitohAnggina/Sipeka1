@@ -165,12 +165,13 @@ export default function LoginPage() {
           <div className="input-group">
             <label className="label">Email</label>
             <input
-              type="email"
-              className="input"
-              placeholder="fulan@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+  type="email"
+  className="input"
+  placeholder="fulan@gmail.com"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
+/>
           </div>
 
           <div className="input-group">
@@ -179,12 +180,13 @@ export default function LoginPage() {
               <a href="#">Forgot password?</a>
             </div>
             <input
-              type={showPassword ? "text" : "password"}
-              className="input"
-              placeholder="********"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+  type={showPassword ? "text" : "password"}
+  className="input"
+  placeholder="********"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
+/>
           </div>
 
           {error && <p className="error">{error}</p>}
