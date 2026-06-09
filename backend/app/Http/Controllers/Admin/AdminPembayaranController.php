@@ -64,13 +64,13 @@ class AdminPembayaranController extends Controller
         $resep = $pembayaran->resep;
         if ($resep) {
             RiwayatLayanan::updateOrCreate(
-    ['id_booking' => $resep->id_booking],
-    [
-        'tanggal'     => now()->toDateString(),
-        'grand_total' => $resep->grand_total ?? 0,
-        'catatan'     => null,
-    ]
-);
+                ['id_booking' => $resep->id_booking],
+                [
+                    'tanggal'     => now()->toDateString(),
+                    'grand_total' => $resep->grand_total ?? 0,
+                    'catatan'     => null,
+                ]
+            );
             // Update status booking jadi selesai
             $resep->booking?->update(['status' => 'selesai']);
         }
@@ -85,8 +85,10 @@ class AdminPembayaranController extends Controller
         ]);
     }
 
-    public function show(int $id): JsonResponse
+    public function show($id): JsonResponse
     {
+        $id = (int) $id;
+
         $pembayaran = Pembayaran::with([
                 'resep.hewan',
                 'resep.details',

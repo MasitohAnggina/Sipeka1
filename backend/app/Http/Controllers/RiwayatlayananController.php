@@ -4,15 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Layanan;
+use App\Models\Resep;
 use App\Models\RiwayatLayanan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RiwayatLayananController extends Controller
 {
-    // =========================================================================
-    // GET /api/riwayat
-    // =========================================================================
     public function index(Request $request): JsonResponse
     {
         try {
@@ -46,9 +44,6 @@ class RiwayatLayananController extends Controller
         }
     }
 
-    // =========================================================================
-    // GET /api/riwayat/stats
-    // =========================================================================
     public function stats(Request $request): JsonResponse
     {
         try {
@@ -106,9 +101,6 @@ class RiwayatLayananController extends Controller
         }
     }
 
-    // =========================================================================
-    // GET /api/riwayat/{id}
-    // =========================================================================
     public function show(Request $request, int $id): JsonResponse
     {
         try {
@@ -221,7 +213,7 @@ class RiwayatLayananController extends Controller
               ]
             : $dokterDariJadwal;
 
-        // ── Kategori layanan dari resep ──────────────────────────────────────
+        // ── Pre-load kategori layanan dari resep ─────────────────────────────
         $layananIds = collect($resep?->details ?? [])
             ->where('tipe', 'layanan')
             ->pluck('id_referensi')
@@ -245,8 +237,10 @@ class RiwayatLayananController extends Controller
                 'harga_saat_booking' => (float) $l->pivot->harga_saat_booking,
             ]);
 
-        // ── Grand total langsung dari tabel (sudah diisi saat lunas) ─────────
-        $grandTotalFinal = (float) $r->grand_total;
+        // ── Grand total: pakai grand_total dari resep jika ada (FIX) ─────────
+        $grandTotalFinal = $resep
+            ? (float) $resep->grand_total
+            : $layanans->sum(fn($l) => (float) $l->pivot->harga_saat_booking);
 
         $base = [
             'id_riwayat'          => $r->id_riwayat,
@@ -307,5 +301,83 @@ class RiwayatLayananController extends Controller
         }
 
         return $base;
+    }
+
+    // ── fmtFromBooking: lookup resep untuk data booking yang belum jadi riwayat ──
+    private function fmtFromBooking(Booking $b): array
+    {
+        $hewan    = $b->hewan;
+        $layanans = $b->layanans ?? collect();
+        $tanggal  = $b->tanggal_booking
+            ? \Carbon\Carbon::parse($b->tanggal_booking) : null;
+
+        // Cek apakah booking ini punya resep
+        $resep = Resep::where('id_booking', $b->id_booking)->with('details')->first();
+
+        // Grand total dari resep jika ada, fallback ke pivot
+        $grandTotal = $resep
+            ? (float) $resep->grand_total
+            : $layanans->sum(fn($l) => (float) $l->pivot->harga_saat_booking);
+
+        // Layanan dari resep jika ada, fallback ke pivot
+        if ($resep) {
+            $layananIds  = collect($resep->details)->where('tipe', 'layanan')->pluck('id_referensi')->filter()->unique();
+            $kategoriMap = $layananIds->isNotEmpty()
+                ? Layanan::whereIn('id_layanan', $layananIds)->pluck('kategori', 'id_layanan')
+                : collect();
+
+            $layanansOutput = collect($resep->details)
+                ->where('tipe', 'layanan')
+                ->map(fn($d) => [
+                    'id_layanan'         => $d->id_referensi,
+                    'nama_layanan'       => $d->nama_item,
+                    'kategori'           => $kategoriMap->get($d->id_referensi) ?? 'Layanan',
+                    'harga_saat_booking' => (float) ($d->harga_satuan * $d->qty),
+                ])->values();
+        } else {
+            $layanansOutput = $layanans->map(fn($l) => [
+                'id_layanan'         => $l->id_layanan,
+                'nama_layanan'       => $l->nama_layanan,
+                'kategori'           => $l->kategori,
+                'harga_saat_booking' => (float) $l->pivot->harga_saat_booking,
+            ])->values();
+        }
+
+        $dokterDariJadwal = $this->getDokterDariJadwal($b);
+
+        return [
+            'id_riwayat'          => -$b->id_booking,
+            'tanggal'             => $tanggal?->format('Y-m-d'),
+            'tanggal_dd'          => $tanggal?->format('d'),
+            'bulan'               => $tanggal?->translatedFormat('M Y'),
+            'hari'                => $tanggal?->translatedFormat('l'),
+            'jam'                 => $b->jam ?? '-',
+            'grand_total'         => $grandTotal,
+            'status_bayar'        => 'menunggu',
+            'catatan'             => null,
+            'no_booking'          => $b->no_booking,
+            'no_antrian'          => $b->no_antrian,
+            'status_booking'      => $b->status,
+            'nama_dokter'         => $dokterDariJadwal['nama_dokter'] ?? '-',
+            'spesialisasi_dokter' => $dokterDariJadwal['spesialisasi'] ?? '-',
+
+            'hewan' => $hewan ? [
+                'id_hewan' => $hewan->id_hewan,
+                'nama'     => $hewan->nama_hewan,
+                'jenis'    => $hewan->jenis,
+                'ras'      => $hewan->ras,
+                'umur'     => $hewan->umur !== null ? $hewan->umur . ' Tahun' : '-',
+                'berat'    => $hewan->berat !== null ? $hewan->berat . ' Kg' : '-',
+                'foto'     => $hewan->foto ? asset('storage/' . $hewan->foto) : null,
+            ] : null,
+
+            'layanans'         => $layanansOutput,
+            'layanan_utama'    => $layanansOutput->first()['nama_layanan']
+                                    ?? $layanans->first()?->nama_layanan ?? '-',
+            'layanan_kategori' => $layanansOutput->first()['kategori']
+                                    ?? $layanans->first()?->kategori ?? '-',
+            'rekam_medis'      => null,
+            'obat'             => $resep ? $this->fmtObat($resep) : [],
+        ];
     }
 }
