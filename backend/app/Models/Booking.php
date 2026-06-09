@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
@@ -25,14 +23,18 @@ class Booking extends Model
         'tanggal_selesai',
         'notif_terkirim',
         'notif_dikirim_at',
+        'cancel_confirmed',
+        'cancelled_at',
     ];
 
     protected $casts = [
-        'tanggal_booking' => 'date',
-        'tanggal_dibuat'  => 'date',
-        'tanggal_selesai'  => 'date',       // ← tambah
-        'notif_terkirim'   => 'boolean',    // ← tambah
+        'tanggal_booking'  => 'date',
+        'tanggal_dibuat'   => 'date',
+        'tanggal_selesai'  => 'date',
+        'notif_terkirim'   => 'boolean',
         'notif_dikirim_at' => 'datetime',
+        'cancel_confirmed' => 'boolean',
+        'cancelled_at'     => 'datetime',
     ];
 
     public function user()
@@ -65,12 +67,16 @@ class Booking extends Model
         return $this->hasOne(RiwayatLayanan::class, 'id_booking', 'id_booking');
     }
 
+    public function resep()
+    {
+        return $this->hasOne(Resep::class, 'id_booking', 'id_booking');
+    }
+
     public static function generateNoBooking(): string
     {
         do {
             $no = 'BK' . strtoupper(substr(uniqid(), -6));
         } while (self::where('no_booking', $no)->exists());
-
         return $no;
     }
 
@@ -79,8 +85,4 @@ class Booking extends Model
         $max = self::where('tanggal_booking', $tanggal)->max('no_antrian');
         return ($max ?? 0) + 1;
     }
-    public function resep()
-{
-    return $this->hasOne(Resep::class, 'id_booking', 'id_booking');
-}
 }

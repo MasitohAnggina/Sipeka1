@@ -1,4 +1,6 @@
+
 "use client";
+
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar_owner_pet";
@@ -44,8 +46,8 @@ function Btn({ onClick, variant = "outline", children, fullWidth = false, style:
   );
 }
 
-function SmallBtn({ onClick, variant = "outline", children }: {
-  onClick(): void; variant?: "solid" | "outline"; children: React.ReactNode;
+function SmallBtn({ onClick, variant = "outline", children, danger = false }: {
+  onClick(): void; variant?: "solid" | "outline"; children: React.ReactNode; danger?: boolean;
 }) {
   const { pressed, handlers } = usePress();
   const base: React.CSSProperties = {
@@ -53,7 +55,18 @@ function SmallBtn({ onClick, variant = "outline", children }: {
     cursor: "pointer", fontFamily: "inherit", width: "100%",
     transition: "background .15s, color .15s, border-color .15s, transform .1s",
     transform: pressed ? "scale(0.96)" : "scale(1)",
+    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
   };
+  if (danger) {
+    return (
+      <button onClick={onClick} style={{
+        ...base,
+        border: `1.5px solid ${pressed ? "#b71c1c" : "#e53935"}`,
+        background: pressed ? "#ffebee" : "#fff",
+        color: pressed ? "#b71c1c" : "#e53935",
+      }} {...handlers}>{children}</button>
+    );
+  }
   return (
     <button onClick={onClick} style={variant === "solid"
       ? { ...base, border: "none", background: pressed ? "#1b5e20" : G, color: "#fff" }
@@ -62,24 +75,19 @@ function SmallBtn({ onClick, variant = "outline", children }: {
   );
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 interface Pet {
   id: string; id_hewan: number; name: string; breed: string;
   age: string; weight: string; type: string; emoji: string; photo?: string;
 }
-
 interface BookingItem {
   id_booking: number; no_booking: string; no_antrian: number;
   tanggal_booking: string; jam: string; status: string;
   hewan_nama: string; layanan_nama: string; updated_at?: string;
 }
-
 interface RiwayatItem {
   id_riwayat: number; tanggal: string; bulan: string;
   hewan_nama: string; layanan_utama: string; layanan_detail: string; status: string;
 }
-
 interface DashboardData {
   user: { nama: string; foto_profile: string | null };
   hewan: Pet[];
@@ -89,54 +97,43 @@ interface DashboardData {
   riwayat_terakhir: RiwayatItem[];
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const G       = "#2e7d32";
 const POLL_MS = 15_000;
 
 const STATUS_CFG: Record<string, { label: string; bg: string; border: string; color: string }> = {
-  menunggu:     { label: "Menunggu Konfirmasi", bg: "#fffde7", border: "#ffe082", color: "#f57f17" },
-  dikonfirmasi: { label: "Dikonfirmasi",         bg: "#e3f2fd", border: "#90caf9", color: "#1565c0" },
-  diproses:     { label: "Sedang Diproses",      bg: "#e3f2fd", border: "#90caf9", color: "#1565c0" },
-  dibatalkan:   { label: "Dibatalkan",           bg: "#fce4ec", border: "#f48fb1", color: "#c62828" },
-  selesai:      { label: "Selesai",              bg: "#e8f5e9", border: "#a5d6a7", color: "#2e7d32" },
+  menunggu:            { label: "Menunggu Konfirmasi",       bg: "#fffde7", border: "#ffe082", color: "#f57f17" },
+  menunggu_pembatalan: { label: "Menunggu Konfirmasi Batal", bg: "#fff3e0", border: "#ffb74d", color: "#e65100" },
+  dikonfirmasi:        { label: "Dikonfirmasi",              bg: "#e3f2fd", border: "#90caf9", color: "#1565c0" },
+  diproses:            { label: "Sedang Diproses",           bg: "#e3f2fd", border: "#90caf9", color: "#1565c0" },
+  dibatalkan:          { label: "Dibatalkan",                bg: "#fce4ec", border: "#f48fb1", color: "#c62828" },
+  selesai:             { label: "Selesai",                   bg: "#e8f5e9", border: "#a5d6a7", color: "#2e7d32" },
 };
 
 const STATUS_TOAST: Record<string, { title: string; msg: string; type: "success" | "info" | "error" }> = {
   dikonfirmasi: { title: "Booking dikonfirmasi!", msg: "Jadwal kunjungan Anda telah dikonfirmasi oleh klinik.", type: "success" },
   diproses:     { title: "Hewan sedang diproses", msg: "Hewan Anda sedang mendapat penanganan dari dokter.", type: "info" },
   dibatalkan:   { title: "Booking dibatalkan",    msg: "Booking Anda telah dibatalkan.", type: "error" },
-  selesai:      { title: "Layanan selesai!",       msg: "Terima kasih, hewan Anda telah selesai ditangani.", type: "success" },
+  selesai:      { title: "Layanan selesai!",      msg: "Terima kasih, hewan Anda telah selesai ditangani.", type: "success" },
 };
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDate(d: string) {
   if (!d) return "–";
   return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
 }
-
 function todayStr() {
   return new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
-
-function getAuthToken(): string {
-  return typeof window !== "undefined" ? (sessionStorage.getItem("token") ?? "") : "";
-}
-
 function jamSejak(dateStr?: string): number {
   if (!dateStr) return 0;
   return (Date.now() - new Date(dateStr).getTime()) / 3_600_000;
 }
-
 function isBookingVisible(b: BookingItem): boolean {
-  const sudahAkhir = b.status === "selesai" || b.status === "dibatalkan";
+  const statusLower = b.status.toLowerCase();
+  const sudahAkhir  = statusLower === "selesai" || statusLower === "dibatalkan";
   if (!sudahAkhir) return true;
   return jamSejak(b.updated_at) < 24;
 }
-
-// ── Sub-components ────────────────────────────────────────────────────────────
 
 function Badge({ children, variant = "green" }: { children: React.ReactNode; variant?: "green" | "blue" | "amber" | "red" }) {
   const map: Record<string, React.CSSProperties> = {
@@ -152,20 +149,14 @@ function Badge({ children, variant = "green" }: { children: React.ReactNode; var
   );
 }
 
-// ── Icon Stat Card ────────────────────────────────────────────────────────────
-
 type IconVariant = "green" | "red" | "blue" | "amber";
-
 const ICON_STYLE: Record<IconVariant, { bg: string; color: string }> = {
   green: { bg: "#e8f5e9", color: "#2e7d32" },
   red:   { bg: "#fce4ec", color: "#c62828" },
   blue:  { bg: "#e3f2fd", color: "#1565c0" },
   amber: { bg: "#fff8e1", color: "#a16207" },
 };
-
-function IconStatCard({
-  label, value, sub, subColor, icon, variant = "blue",
-}: {
+function IconStatCard({ label, value, sub, subColor, icon, variant = "blue" }: {
   label: string; value: string | number; sub?: string;
   subColor?: string; icon: React.ReactNode; variant?: IconVariant;
 }) {
@@ -222,8 +213,6 @@ function Skeleton({ w = "100%", h = 16, radius = 6 }: { w?: string | number; h?:
   return <div style={{ width: w, height: h, borderRadius: radius, background: "linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />;
 }
 
-// ── Status Stepper ────────────────────────────────────────────────────────────
-
 const STEPS = [
   { key: "menunggu",     label: "Menunggu" },
   { key: "dikonfirmasi", label: "Dikonfirmasi" },
@@ -232,15 +221,20 @@ const STEPS = [
 ];
 
 function StatusStepper({ status }: { status: string }) {
-  if (status === "dibatalkan") {
+  const statusLower = status.toLowerCase();
+  if (statusLower === "dibatalkan" || statusLower === "menunggu_pembatalan") {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#fce4ec", borderRadius: 8, marginTop: 10 }}>
         <XCircle size={16} color="#c62828" />
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#c62828" }}>Booking ini telah dibatalkan</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#c62828" }}>
+          {statusLower === "menunggu_pembatalan"
+            ? "Menunggu konfirmasi pembatalan dari admin"
+            : "Booking ini telah dibatalkan"}
+        </span>
       </div>
     );
   }
-  const activeIdx = STEPS.findIndex(s => s.key === status);
+  const activeIdx = STEPS.findIndex(s => s.key === statusLower);
   return (
     <div style={{ display: "flex", alignItems: "center", marginTop: 12, padding: "6px 0" }}>
       {STEPS.map((step, i) => {
@@ -262,20 +256,23 @@ function StatusStepper({ status }: { status: string }) {
   );
 }
 
-// ── Single Booking Card ───────────────────────────────────────────────────────
-
-function BookingCard({ booking }: { booking: BookingItem }) {
-  const cfg        = STATUS_CFG[booking.status] ?? STATUS_CFG["menunggu"];
-  const isSelesai  = booking.status === "selesai";
-  const isBatal    = booking.status === "dibatalkan";
-  const sudahAkhir = isSelesai || isBatal;
+function BookingCard({
+  booking,
+  onBatal,
+}: {
+  booking: BookingItem;
+  onBatal?: (id_booking: number, no_booking: string, hewan_nama: string) => void;
+}) {
+  const statusLower = booking.status.toLowerCase();
+  const cfg         = STATUS_CFG[statusLower] ?? STATUS_CFG["menunggu"];
+  const isSelesai   = statusLower === "selesai";
+  const isBatal     = statusLower === "dibatalkan";
+  // Tombol batalkan muncul hanya saat menunggu atau dikonfirmasi
+  const bisaBatal   = statusLower === "menunggu" || statusLower === "dikonfirmasi";
+  const sudahAkhir  = isSelesai || isBatal;
 
   const jam      = jamSejak(booking.updated_at);
-  const jamLabel = jam < 1
-    ? "Baru saja"
-    : jam < 24
-      ? `${Math.floor(jam)} jam lalu`
-      : `${Math.floor(jam / 24)} hari lalu`;
+  const jamLabel = jam < 1 ? "Baru saja" : jam < 24 ? `${Math.floor(jam)} jam lalu` : `${Math.floor(jam / 24)} hari lalu`;
   const sisaJam  = Math.max(0, 24 - jam);
 
   return (
@@ -296,22 +293,19 @@ function BookingCard({ booking }: { booking: BookingItem }) {
           )}
         </div>
       )}
-
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{booking.hewan_nama}</div>
         <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 9px", borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>
           {cfg.label}
         </span>
       </div>
-
       <div style={{ fontSize: 12, color: "#666", marginBottom: 8 }}>{booking.layanan_nama}</div>
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         {[
-          { icon: <Calendar size={12} color="#888" />,     label: "Tanggal",     val: fmtDate(booking.tanggal_booking) },
-          { icon: <Clock size={12} color="#888" />,        label: "Jam",         val: `${booking.jam} WIB` },
-          { icon: <Hash size={12} color="#888" />,         label: "No. Booking", val: `#${booking.no_booking}` },
-          { icon: <ListOrdered size={12} color="#888" />,  label: "Antrian",     val: String(booking.no_antrian).padStart(3, "0") },
+          { icon: <Calendar size={12} color="#888" />,    label: "Tanggal",     val: fmtDate(booking.tanggal_booking) },
+          { icon: <Clock size={12} color="#888" />,       label: "Jam",         val: `${booking.jam} WIB` },
+          { icon: <Hash size={12} color="#888" />,        label: "No. Booking", val: `#${booking.no_booking}` },
+          { icon: <ListOrdered size={12} color="#888" />, label: "Antrian",     val: String(booking.no_antrian).padStart(3, "0") },
         ].map(({ icon, label, val }) => (
           <div key={label} style={{ background: "rgba(255,255,255,0.65)", borderRadius: 8, padding: "6px 10px" }}>
             <div style={{ fontSize: 10, color: "#888", marginBottom: 1, display: "flex", alignItems: "center", gap: 4 }}>
@@ -321,15 +315,86 @@ function BookingCard({ booking }: { booking: BookingItem }) {
           </div>
         ))}
       </div>
+      {bisaBatal && onBatal && (
+        <button
+          onClick={() => onBatal(booking.id_booking, booking.no_booking, booking.hewan_nama)}
+          style={{ marginTop: 10, width: "100%", padding: "8px 0", borderRadius: 8, border: "1.5px solid #e53935", background: "#fff", color: "#e53935", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background .15s, color .15s" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#ffebee"; e.currentTarget.style.color = "#b71c1c"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = "#e53935"; }}
+        >
+          <XCircle size={13} /> Batalkan Booking
+        </button>
+      )}
     </div>
   );
 }
 
-// ── Booking Info Panel ────────────────────────────────────────────────────────
+interface BatalConfirmData {
+  id_booking: number;
+  no_booking: string;
+  hewan_nama: string;
+}
 
-function BookingInfoPanel({ bookings, onBuat }: { bookings: BookingItem[]; onBuat(): void }) {
+function BatalConfirmModal({ data, onCancel, onConfirm, loading }: {
+  data: BatalConfirmData; onCancel: () => void; onConfirm: () => void; loading: boolean;
+}) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1300, fontFamily: "'Poppins', sans-serif", padding: 16 }}
+    >
+      <div style={{ background: "#fff", borderRadius: 14, padding: "24px 28px", width: "100%", maxWidth: 360, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#fce4ec", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <AlertTriangle size={22} color="#e53935" />
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a" }}>Batalkan Booking?</div>
+            <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Tindakan ini tidak dapat diurungkan</div>
+          </div>
+        </div>
+        <div style={{ background: "#fafafa", borderRadius: 10, padding: "12px 14px", marginBottom: 16, border: "1px solid #f0f0f0" }}>
+          <div style={{ fontSize: 12, color: "#888", marginBottom: 2 }}>Booking yang akan dibatalkan:</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{data.hewan_nama}</div>
+          <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>No. Booking: #{data.no_booking}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "10px 12px", background: "#fff8e1", borderRadius: 8, marginBottom: 20, border: "1px solid #ffe082" }}>
+          <AlertTriangle size={13} color="#f57f17" style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ fontSize: 12, color: "#8d5524", lineHeight: 1.5 }}>
+            Admin klinik akan mendapat notifikasi pembatalan ini dan perlu mengkonfirmasinya.
+          </span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <button
+            onClick={onCancel} disabled={loading}
+            style={{ padding: "10px 0", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#666", fontSize: 13, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit" }}
+          >
+            Tidak, Kembali
+          </button>
+          <button
+            onClick={onConfirm} disabled={loading}
+            style={{ padding: "10px 0", borderRadius: 8, border: "none", background: loading ? "#ccc" : "#e53935", color: "#fff", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background .15s" }}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = "#b71c1c"; }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = "#e53935"; }}
+          >
+            {loading ? (
+              <><span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.6s linear infinite", display: "inline-block" }} />Membatalkan...</>
+            ) : (
+              <><XCircle size={14} /> Ya, Batalkan</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BookingInfoPanel({ bookings, onBuat, onBatal }: {
+  bookings: BookingItem[];
+  onBuat: () => void;
+  onBatal: (id_booking: number, no_booking: string, hewan_nama: string) => void;
+}) {
   const visibleBookings = (bookings ?? []).filter(isBookingVisible);
-
   if (visibleBookings.length === 0) {
     return (
       <div>
@@ -344,17 +409,13 @@ function BookingInfoPanel({ bookings, onBuat }: { bookings: BookingItem[]; onBua
       </div>
     );
   }
-
-  // FIX: ambil tanggal terbaru dari semua visible bookings
   const tanggalTerbaru = visibleBookings
     .map(b => b.tanggal_booking)
     .filter(Boolean)
     .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime())[0];
-
   const tglLabel = tanggalTerbaru
     ? new Date(tanggalTerbaru).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })
     : "";
-
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -365,34 +426,41 @@ function BookingInfoPanel({ bookings, onBuat }: { bookings: BookingItem[]; onBua
           {visibleBookings.length} hewan
         </span>
       </div>
-
-      <div style={{
-        display: "flex", flexDirection: "column", gap: 10, marginBottom: 12,
-        maxHeight: 460, overflowY: visibleBookings.length > 2 ? "auto" : "visible",
-        paddingRight: visibleBookings.length > 2 ? 2 : 0,
-      }}>
-        {visibleBookings.map(b => <BookingCard key={b.id_booking} booking={b} />)}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12, maxHeight: 460, overflowY: visibleBookings.length > 2 ? "auto" : "visible", paddingRight: visibleBookings.length > 2 ? 2 : 0 }}>
+        {visibleBookings.map(b => (
+          <BookingCard key={b.id_booking} booking={b} onBatal={onBatal} />
+        ))}
       </div>
-
       <Btn onClick={onBuat} variant="solid" fullWidth>+ Buat Booking Baru</Btn>
     </div>
   );
 }
 
-// ── Main Dashboard ────────────────────────────────────────────────────────────
-
+// ── MAIN DASHBOARD ────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
-  const [data,    setData]    = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  const [data,        setData]        = useState<DashboardData | null>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  const [batalConfirm, setBatalConfirm] = useState<BatalConfirmData | null>(null);
+  const [batalLoading, setBatalLoading] = useState(false);
 
   const { toasts, toast, removeToast } = useToast();
   const prevStatusRef = useRef<string | null>(null);
   const prevBookingId = useRef<number | null>(null);
-  const token = getAuthToken();
+
+  // ── FIX: token dibaca di dalam useEffect/callback, bukan di luar komponen
+  // Ini memastikan selalu membaca sessionStorage setelah hydration selesai
+  const getToken = useCallback(() => {
+    return sessionStorage.getItem("token") ?? "";
+  }, []);
 
   const fetchDashboard = useCallback(async (isPolling = false) => {
+    const token = getToken();
+    if (!token) {
+      router.push("/auth/login");
+      return;
+    }
     try {
       const r = await fetch(`${API_URL}/api/owner_pet/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -400,15 +468,13 @@ export default function DashboardPage() {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const res = await r.json();
       if (!res.success) throw new Error("Response tidak sukses");
-
       const incoming = res.data as DashboardData;
-
       if (isPolling && incoming.booking_aktif) {
         const baru    = incoming.booking_aktif;
         const samaPet = prevBookingId.current === baru.id_booking;
         const berubah = samaPet && prevStatusRef.current !== null && prevStatusRef.current !== baru.status;
         if (berubah) {
-          const t = STATUS_TOAST[baru.status];
+          const t = STATUS_TOAST[baru.status.toLowerCase()];
           if (t) toast[t.type](t.title, t.msg);
         }
         prevStatusRef.current = baru.status;
@@ -417,7 +483,6 @@ export default function DashboardPage() {
         prevStatusRef.current = incoming.booking_aktif.status;
         prevBookingId.current = incoming.booking_aktif.id_booking;
       }
-
       setData(incoming);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
@@ -428,45 +493,84 @@ export default function DashboardPage() {
     } finally {
       if (!isPolling) setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, router]);
+  }, [getToken, router, toast]);
 
   useEffect(() => {
-    if (!token) { router.push("/auth/login"); return; }
     fetchDashboard(false);
     const interval = setInterval(() => fetchDashboard(true), POLL_MS);
     return () => clearInterval(interval);
-  }, [fetchDashboard, token, router]);
+  }, [fetchDashboard]);
+
+  const handleBatal = useCallback((id_booking: number, no_booking: string, hewan_nama: string) => {
+    setBatalConfirm({ id_booking, no_booking, hewan_nama });
+  }, []);
+
+  // ── FIX UTAMA: token dibaca langsung dari sessionStorage saat handler dipanggil
+  const handleDoConfirmBatal = useCallback(async () => {
+    if (!batalConfirm) return;
+    setBatalLoading(true);
+    try {
+      const token = getToken(); // ← baca saat klik, bukan saat render
+      if (!token) {
+        toast.error("Sesi habis", "Silakan login ulang.");
+        router.push("/auth/login");
+        return;
+      }
+      const res  = await fetch(`${API_URL}/api/booking/${batalConfirm.id_booking}/batal`, {
+        method:  "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const json = await res.json();
+      if (json.success) {
+        setBatalConfirm(null);
+        toast.info(
+          "Permintaan terkirim",
+          "Admin klinik akan segera mengkonfirmasi pembatalan booking Anda."
+        );
+        fetchDashboard(false);
+      } else {
+        toast.error("Gagal membatalkan", json.message ?? "Terjadi kesalahan, coba lagi.");
+      }
+    } catch {
+      toast.error("Gagal membatalkan", "Tidak dapat terhubung ke server.");
+    } finally {
+      setBatalLoading(false);
+    }
+  }, [batalConfirm, getToken, toast, router, fetchDashboard]);
 
   const handleBooking = (petId?: number) => {
     if (petId) sessionStorage.setItem("sipeka_booking_pet", String(petId));
     router.push("/owner_pet/booking_layanan");
   };
 
-const displayRiwayat = useMemo(() =>
-  (data?.riwayat_terakhir ?? [])
-    .sort((a, b) => b.id_riwayat - a.id_riwayat)
-    .slice(0, 10),
-  [data]
-);
+  const displayRiwayat = useMemo(() =>
+    (data?.riwayat_terakhir ?? [])
+      .sort((a, b) => b.id_riwayat - a.id_riwayat)
+      .slice(0, 10),
+    [data]
+  );
+
   const visibleBookings = useMemo(
-  () =>
-    (data?.bookings_hari_ini ?? [])
-      .filter(isBookingVisible)
-      .sort((a, b) => {
-        const dateA = new Date(a.updated_at ?? a.tanggal_booking ?? 0).getTime();
-        const dateB = new Date(b.updated_at ?? b.tanggal_booking ?? 0).getTime();
-        return dateB - dateA; // terbaru di atas
-      }),
-  [data]
-);
+    () =>
+      (data?.bookings_hari_ini ?? [])
+        .filter(isBookingVisible)
+        .sort((a, b) => {
+          const dateA = new Date(a.updated_at ?? a.tanggal_booking ?? 0).getTime();
+          const dateB = new Date(b.updated_at ?? b.tanggal_booking ?? 0).getTime();
+          return dateB - dateA;
+        }),
+    [data]
+  );
 
   if (loading) {
     return (
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
         <Sidebar activePage="dashboard" />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
-          <Header title="Dashboard" subtitle="Selamat datang di SIPEKA" />
+          <Header title="Dashboard" subtitle="Selamat datang di SIPEKA" role="owner" />
           <div style={{ padding: "20px 28px 32px", display: "flex", flexDirection: "column", gap: 16 }}>
             <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
@@ -504,46 +608,35 @@ const displayRiwayat = useMemo(() =>
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
       <Sidebar activePage="dashboard" />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
-        <Header title="Dashboard" subtitle="Selamat datang di SIPEKA" />
-        <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
-
+        <Header title="Dashboard" subtitle="Selamat datang di SIPEKA" role="owner" />
+        <style>{`
+          @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+          @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.3} }
+          @keyframes spin    { to{transform:rotate(360deg)} }
+        `}</style>
         <div style={{ padding: "20px 28px 32px" }}>
-
-          {/* Greeting */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>Halo, {user.nama}!</div>
             <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>{todayStr()}</div>
           </div>
-
-          {/* Stat Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
             <IconStatCard
-              label="Hewan Saya"
-              value={hewan.length}
+              label="Hewan Saya" value={hewan.length}
               sub={hewan.length > 0 ? hewan.map(p => p.name).join(", ") : "Belum ada hewan"}
-              icon={<PawPrint size={22} />}
-              variant="amber"
+              icon={<PawPrint size={22} />} variant="amber"
             />
             <IconStatCard
-              label="Booking Terjadwal"
-              value={visibleBookings.length}
-              sub={visibleBookings.length > 0
-                ? visibleBookings.map(b => b.hewan_nama).join(", ")
-                : "Belum ada booking"}
+              label="Booking Terjadwal" value={visibleBookings.length}
+              sub={visibleBookings.length > 0 ? visibleBookings.map(b => b.hewan_nama).join(", ") : "Belum ada booking"}
               subColor={visibleBookings.length > 0 ? "#1565c0" : "#aaa"}
-              icon={<Calendar size={22} />}
-              variant="blue"
+              icon={<Calendar size={22} />} variant="blue"
             />
             <IconStatCard
-              label="Total Kunjungan"
-              value={total_kunjungan}
+              label="Total Kunjungan" value={total_kunjungan}
               sub="Riwayat layanan selesai"
-              icon={<Activity size={22} />}
-              variant="green"
+              icon={<Activity size={22} />} variant="green"
             />
           </div>
-
-          {/* Hewan Saya */}
           <div style={{ marginBottom: 24 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: 0 }}>Hewan Saya</h2>
@@ -571,17 +664,15 @@ const displayRiwayat = useMemo(() =>
               </div>
             )}
           </div>
-
-          {/* Informasi Booking + Riwayat Terakhir */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-
-            {/* Informasi Booking */}
             <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: "0 0 14px" }}>Informasi Booking</h2>
-              <BookingInfoPanel bookings={visibleBookings} onBuat={() => handleBooking()} />
+              <BookingInfoPanel
+                bookings={visibleBookings}
+                onBuat={() => handleBooking()}
+                onBatal={handleBatal}
+              />
             </div>
-
-            {/* Riwayat Terakhir */}
             <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: 0 }}>Riwayat Terakhir</h2>
@@ -589,7 +680,6 @@ const displayRiwayat = useMemo(() =>
                   Lihat Semua
                 </Btn>
               </div>
-
               {displayRiwayat.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "30px 0", color: "#aaa", fontSize: 13 }}>
                   Belum ada riwayat layanan
@@ -614,11 +704,17 @@ const displayRiwayat = useMemo(() =>
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </div>
-
+      {batalConfirm && (
+        <BatalConfirmModal
+          data={batalConfirm}
+          onCancel={() => { if (!batalLoading) setBatalConfirm(null); }}
+          onConfirm={handleDoConfirmBatal}
+          loading={batalLoading}
+        />
+      )}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );

@@ -7,7 +7,13 @@ import Header from "@/components/Header";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type BookingStatus = "menunggu" | "dikonfirmasi" | "berlangsung" | "selesai" | "dibatalkan";
+type BookingStatus =
+  | "menunggu"
+  | "dikonfirmasi"
+  | "berlangsung"
+  | "selesai"
+  | "dibatalkan"
+  | "menunggu_pembatalan";
 
 interface LayananItem {
   id_layanan:         number;
@@ -40,12 +46,13 @@ interface Booking {
 }
 
 interface Summary {
-  total:        number;
-  menunggu:     number;
-  dikonfirmasi: number;
-  berlangsung:  number;
-  selesai:      number;
-  dibatalkan:   number;
+  total:               number;
+  menunggu:            number;
+  dikonfirmasi:        number;
+  berlangsung:         number;
+  selesai:             number;
+  dibatalkan:          number;
+  menunggu_pembatalan: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -56,22 +63,26 @@ const STORAGE_URL    = "http://127.0.0.1:8000/storage/";
 const ITEMS_PER_PAGE = 7;
 
 const ADMIN_STATUSES: BookingStatus[] = ["menunggu", "dikonfirmasi", "dibatalkan"];
-const ALL_STATUSES:   BookingStatus[] = ["menunggu", "dikonfirmasi", "berlangsung", "selesai", "dibatalkan"];
+const ALL_STATUSES:   BookingStatus[] = [
+  "menunggu", "dikonfirmasi", "berlangsung", "selesai", "dibatalkan", "menunggu_pembatalan",
+];
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
-  menunggu:     "Menunggu",
-  dikonfirmasi: "Dikonfirmasi",
-  berlangsung:  "Berlangsung",
-  selesai:      "Selesai",
-  dibatalkan:   "Dibatalkan",
+  menunggu:            "Menunggu",
+  dikonfirmasi:        "Dikonfirmasi",
+  berlangsung:         "Berlangsung",
+  selesai:             "Selesai",
+  dibatalkan:          "Dibatalkan",
+  menunggu_pembatalan: "Menunggu Konfirmasi Batal",
 };
 
 const statusStyle: Record<BookingStatus, { bg: string; color: string; border: string }> = {
-  menunggu:     { bg: "#fff8e1", color: "#e65100", border: "#e6510030" },
-  dikonfirmasi: { bg: "#e3f2fd", color: "#1565c0", border: "#1565c030" },
-  berlangsung:  { bg: "#f3e5f5", color: "#6a1b9a", border: "#6a1b9a30" },
-  selesai:      { bg: "#e8f5e9", color: "#2e7d32", border: "#2e7d3230" },
-  dibatalkan:   { bg: "#ffebee", color: "#c62828", border: "#c6282830" },
+  menunggu:            { bg: "#fff8e1", color: "#e65100", border: "#e6510030" },
+  dikonfirmasi:        { bg: "#e3f2fd", color: "#1565c0", border: "#1565c030" },
+  berlangsung:         { bg: "#f3e5f5", color: "#6a1b9a", border: "#6a1b9a30" },
+  selesai:             { bg: "#e8f5e9", color: "#2e7d32", border: "#2e7d3230" },
+  dibatalkan:          { bg: "#ffebee", color: "#c62828", border: "#c6282830" },
+  menunggu_pembatalan: { bg: "#fff3e0", color: "#e65100", border: "#ffb74d50" },
 };
 
 const speciesEmoji: Record<string, string> = {
@@ -134,10 +145,11 @@ function FotoHewan({ foto, nama, jenis, size = 38 }: {
 // ── Status Badge ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ value }: { value: BookingStatus }) {
-  const st = statusStyle[value];
+  const st    = statusStyle[value]    ?? { bg: "#f5f5f5", color: "#666", border: "#e0e0e030" };
+  const label = STATUS_LABEL[value]   ?? value;
   return (
     <span style={{ display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 12, background: st.bg, color: st.color, border: `1.5px solid ${st.border}`, whiteSpace: "nowrap" }}>
-      {STATUS_LABEL[value]}
+      {label}
     </span>
   );
 }
@@ -151,7 +163,7 @@ function StatusDropdown({ value, onChange, disabled }: {
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const st  = statusStyle[value];
+  const st  = statusStyle[value] ?? { bg: "#f5f5f5", color: "#666", border: "#e0e0e030" };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -176,7 +188,7 @@ function StatusDropdown({ value, onChange, disabled }: {
         onClick={() => setOpen(o => !o)}
         style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: st.bg, color: st.color, border: `1.5px solid ${st.border}`, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
       >
-        {STATUS_LABEL[value]}
+        {STATUS_LABEL[value] ?? value}
         <ChevronDown size={11} style={{ opacity: 0.7 }} />
       </button>
 
@@ -209,8 +221,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
   saving:         boolean;
 }) {
   const [localStatus,  setLocalStatus]  = useState<BookingStatus>(booking.status);
-
-  // ── State notifikasi terpisah per tipe ────────────────────────────────────
   const [notifSending, setNotifSending] = useState<"" | "wa" | "email">("");
   const [waMsg,        setWaMsg]        = useState("");
   const [waError,      setWaError]      = useState(false);
@@ -225,7 +235,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
     "Content-Type":  "application/json",
   };
 
-  // ── Handler kirim notif ───────────────────────────────────────────────────
   const handleKirimNotif = async (tipe: "wa" | "email") => {
     setNotifSending(tipe);
     if (tipe === "wa")    { setWaMsg("");    setWaError(false); }
@@ -257,7 +266,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", maxHeight: "90vh", overflowY: "auto" }}>
 
-        {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
             <h2 style={{ fontSize: 18, margin: 0, fontWeight: "normal" }}>Detail Booking</h2>
@@ -268,7 +276,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
           </button>
         </div>
 
-        {/* No Booking & Antrian */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f0faf2", border: "1.5px solid #c8e6c9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
@@ -284,7 +291,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
           </div>
         </div>
 
-        {/* Hewan Info */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
           <FotoHewan foto={booking.foto_hewan} nama={booking.nama_hewan} jenis={booking.jenis_hewan} size={52} />
           <div>
@@ -293,7 +299,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
           </div>
         </div>
 
-        {/* Detail Rows */}
         <div style={{ display: "flex", flexDirection: "column" }}>
           {[
             { label: "Pemilik",         value: booking.nama_pemilik },
@@ -311,7 +316,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
             </div>
           ))}
 
-          {/* Layanan */}
           <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
             <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>Layanan</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -326,7 +330,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
             </div>
           </div>
 
-          {/* Status Row */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: bisaKirimNotif ? "1px solid #f0f0f0" : "none" }}>
             <span style={{ fontSize: 13, color: "#888" }}>Status</span>
             <StatusDropdown
@@ -336,70 +339,39 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
             />
           </div>
 
-          {/* ── Notifikasi Pet Hotel ───────────────────────────────────────── */}
           {bisaKirimNotif && (
             <div style={{ paddingTop: 16 }}>
-
-              {/* Label seksi */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
                 <Bell size={13} color="#2e7d32" />
                 <span style={{ fontSize: 13, color: "#2e7d32", fontWeight: 600 }}>Notifikasi Penjemputan</span>
                 <span style={{ fontSize: 11, color: "#aaa", marginLeft: 4 }}>· Pet Hotel</span>
               </div>
 
-              {/* Tombol WhatsApp */}
               <div style={{ marginBottom: 10 }}>
                 {waMsg && (
-                  <div style={{
-                    background: waError ? "#fff3e0" : "#f0faf2",
-                    border: `1px solid ${waError ? "#ffe0b2" : "#c8e6c9"}`,
-                    borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12,
-                    color: waError ? "#e65100" : "#2e7d32",
-                  }}>
+                  <div style={{ background: waError ? "#fff3e0" : "#f0faf2", border: `1px solid ${waError ? "#ffe0b2" : "#c8e6c9"}`, borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12, color: waError ? "#e65100" : "#2e7d32" }}>
                     {waMsg}
                   </div>
                 )}
                 <button
                   disabled={notifSending === "wa"}
                   onClick={() => handleKirimNotif("wa")}
-                  style={{
-                    width: "100%", padding: "11px", borderRadius: 8,
-                    border: "1.5px solid #25d366",
-                    background: notifSending === "wa" ? "#f5f5f5" : "#e8fdf0",
-                    color: notifSending === "wa" ? "#aaa" : "#128c3e",
-                    fontSize: 13, cursor: notifSending === "wa" ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  }}
+                  style={{ width: "100%", padding: "11px", borderRadius: 8, border: "1.5px solid #25d366", background: notifSending === "wa" ? "#f5f5f5" : "#e8fdf0", color: notifSending === "wa" ? "#aaa" : "#128c3e", fontSize: 13, cursor: notifSending === "wa" ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                 >
                   📱 {notifSending === "wa" ? "Mengirim WhatsApp..." : "Kirim via WhatsApp"}
                 </button>
               </div>
 
-              {/* Tombol Email */}
               <div>
                 {emailMsg && (
-                  <div style={{
-                    background: emailError ? "#fff3e0" : "#f0faf2",
-                    border: `1px solid ${emailError ? "#ffe0b2" : "#c8e6c9"}`,
-                    borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12,
-                    color: emailError ? "#e65100" : "#2e7d32",
-                  }}>
+                  <div style={{ background: emailError ? "#fff3e0" : "#f0faf2", border: `1px solid ${emailError ? "#ffe0b2" : "#c8e6c9"}`, borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12, color: emailError ? "#e65100" : "#2e7d32" }}>
                     {emailMsg}
                   </div>
                 )}
                 <button
                   disabled={notifSending === "email"}
                   onClick={() => handleKirimNotif("email")}
-                  style={{
-                    width: "100%", padding: "11px", borderRadius: 8,
-                    border: "1.5px solid #1565c0",
-                    background: notifSending === "email" ? "#f5f5f5" : "#e3f2fd",
-                    color: notifSending === "email" ? "#aaa" : "#1565c0",
-                    fontSize: 13, cursor: notifSending === "email" ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  }}
+                  style={{ width: "100%", padding: "11px", borderRadius: 8, border: "1.5px solid #1565c0", background: notifSending === "email" ? "#f5f5f5" : "#e3f2fd", color: notifSending === "email" ? "#aaa" : "#1565c0", fontSize: 13, cursor: notifSending === "email" ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                 >
                   📧 {notifSending === "email" ? "Mengirim Email..." : "Kirim via Email"}
                 </button>
@@ -412,7 +384,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
           )}
         </div>
 
-        {/* Footer */}
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
           <button onClick={onClose}
             style={{ padding: "10px 20px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
@@ -572,8 +543,8 @@ export default function DataBookingPage() {
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
             />
             <SummaryCard
-              iconBg="#e3f2fd" label="Dikonfirmasi" value={summary?.dikonfirmasi ?? 0} sub="Owner boleh datang"
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1565c0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
+              iconBg="#fff3e0" label="Menunggu Konfirmasi Batal" value={summary?.menunggu_pembatalan ?? 0} sub="Perlu dikonfirmasi"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>}
             />
           </div>
 

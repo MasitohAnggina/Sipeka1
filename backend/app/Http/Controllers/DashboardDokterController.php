@@ -28,32 +28,33 @@ class DashboardDokterController extends Controller
         $bulanIni = Carbon::now()->startOfMonth();
         $tahunIni = Carbon::now()->startOfYear();
 
-        // Ambil semua id_jadwal milik dokter ini
+        // Semua id_jadwal milik dokter ini
         $jadwalIds = Jadwal::where('id_dokter', $dokter->id_dokter)
             ->pluck('id_jadwal');
 
-        // ── 1. Jadwal & Booking hari ini ──────────────────────────────────────
+        // id_jadwal hari ini milik dokter ini
         $jadwalHariIniIds = Jadwal::where('id_dokter', $dokter->id_dokter)
             ->whereDate('tanggal', $today)
             ->pluck('id_jadwal');
 
-        // ── 2. Booking bulan ini (ganti dari hari ini) ────────────────────────────
-$bookingBulanIni    = Booking::where('created_at', '>=', $bulanIni)->get();
+        // ── Booking bulan ini milik dokter ini ────────────────────────────────
+        $bookingBulanIni   = Booking::whereIn('id_jadwal', $jadwalIds)
+            ->where('created_at', '>=', $bulanIni)
+            ->get();
 
-$totalBooking       = $bookingBulanIni->count();
-$bookingSelesai     = $bookingBulanIni->where('status', 'selesai')->count();
-$bookingMenunggu    = $bookingBulanIni->whereIn('status', ['menunggu', 'dikonfirmasi', 'berlangsung'])->count();
-$bookingDibatalkan  = $bookingBulanIni->where('status', 'dibatalkan')->count();
-$bookingDibatalkan = Booking::whereIn('id_jadwal', $jadwalHariIniIds)
-            ->where('status', 'dibatalkan')
-            ->count();
+        $totalBooking      = $bookingBulanIni->count();
+        $bookingSelesai    = $bookingBulanIni->where('status', 'selesai')->count();
+        $bookingMenunggu   = $bookingBulanIni->whereIn('status', [
+                                'menunggu', 'dikonfirmasi', 'berlangsung', 'menunggu_pembatalan'
+                             ])->count();
+        $bookingDibatalkan = $bookingBulanIni->where('status', 'dibatalkan')->count();
 
-        // ── 2. Rekam medis bulan ini ──────────────────────────────────────────
+        // ── Rekam medis bulan ini ─────────────────────────────────────────────
         $rekamMedisBulanIni = RekamMedis::where('id_dokter', $dokter->id_dokter)
             ->where('created_at', '>=', $bulanIni)
             ->count();
 
-        // ── 3. Pasien terbaru ─────────────────────────────────────────────────
+        // ── Pasien terbaru ────────────────────────────────────────────────────
         $pasienTerbaru = Booking::with(['hewan.user', 'riwayatLayanan.rekamMedis', 'layanans'])
             ->whereIn('id_jadwal', $jadwalIds)
             ->whereNotIn('status', ['dibatalkan'])
@@ -80,7 +81,7 @@ $bookingDibatalkan = Booking::whereIn('id_jadwal', $jadwalHariIniIds)
                 ];
             });
 
-        // ── 4. Ringkasan kunjungan ────────────────────────────────────────────
+        // ── Ringkasan kunjungan ───────────────────────────────────────────────
         $kunjunganBulanIni = Booking::whereIn('id_jadwal', $jadwalIds)
             ->where('status', 'selesai')
             ->where('created_at', '>=', $bulanIni)

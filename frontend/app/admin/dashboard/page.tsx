@@ -29,7 +29,7 @@ interface PasienTerbaru {
   nama_pemilik: string;
   nama_dokter: string;
   layanan: string;
-  status: "menunggu" | "dikonfirmasi" | "berlangsung" | "selesai" | "dibatalkan";
+  status: "menunggu" | "dikonfirmasi" | "berlangsung" | "selesai" | "dibatalkan" | "menunggu_pembatalan";
   diagnosa: string | null;
   waktu: string;
 }
@@ -108,12 +108,13 @@ function hewanEmoji(jenis: string) {
 
 function getStatusStyle(status: string): { bg: string; color: string; dot: string; label: string } {
   switch (status) {
-    case "selesai":      return { bg: "#e8f5e9", color: G,         dot: G,         label: "Selesai"       };
-    case "menunggu":     return { bg: "#fff8e1", color: "#b45309", dot: "#f59e0b", label: "Menunggu"      };
-    case "dikonfirmasi": return { bg: "#e3f2fd", color: "#1565c0", dot: "#1e88e5", label: "Dikonfirmasi"  };
-    case "berlangsung":  return { bg: "#f3e8ff", color: "#6a1b9a", dot: "#9c27b0", label: "Berlangsung"   };
-    case "dibatalkan":   return { bg: "#fce4ec", color: "#c62828", dot: "#e53935", label: "Dibatalkan"    };
-    default:             return { bg: "#f5f5f5", color: "#888",    dot: "#bbb",    label: status          };
+    case "selesai":             return { bg: "#e8f5e9", color: G,         dot: G,         label: "Selesai"                  };
+    case "menunggu":            return { bg: "#fff8e1", color: "#b45309", dot: "#f59e0b", label: "Menunggu"                 };
+    case "dikonfirmasi":        return { bg: "#e3f2fd", color: "#1565c0", dot: "#1e88e5", label: "Dikonfirmasi"             };
+    case "berlangsung":         return { bg: "#f3e8ff", color: "#6a1b9a", dot: "#9c27b0", label: "Berlangsung"              };
+    case "dibatalkan":          return { bg: "#fce4ec", color: "#c62828", dot: "#e53935", label: "Dibatalkan"               };
+    case "menunggu_pembatalan": return { bg: "#fff3e0", color: "#e65100", dot: "#ffb74d", label: "Menunggu Konfirmasi Batal" };
+    default:                    return { bg: "#f5f5f5", color: "#888",    dot: "#bbb",    label: status                    };
   }
 }
 
@@ -155,14 +156,14 @@ function StatCard({
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-  background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
-  overflow: "hidden",
-  boxShadow: hov ? "0 8px 24px rgba(0,0,0,0.10)" : "0 2px 8px rgba(0,0,0,0.06)",
-  transform: hov ? "translateY(-3px)" : "none",
-  transition: "all .2s ease",
-  padding: "16px", display: "flex", alignItems: "flex-start", gap: 12, cursor: "default",
-  height: "100%", boxSizing: "border-box",
-}}
+        background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
+        overflow: "hidden",
+        boxShadow: hov ? "0 8px 24px rgba(0,0,0,0.10)" : "0 2px 8px rgba(0,0,0,0.06)",
+        transform: hov ? "translateY(-3px)" : "none",
+        transition: "all .2s ease",
+        padding: "16px", display: "flex", alignItems: "flex-start", gap: 12, cursor: "default",
+        height: "100%", boxSizing: "border-box",
+      }}
     >
       <div style={{
         width: 42, height: 42, borderRadius: 10, background: iconBg,
@@ -249,7 +250,6 @@ export default function DashboardAdminPage() {
   const jadwal  = data?.stat_cards.jadwal_hari_ini;
   const booking = data?.stat_cards.booking_hari_ini;
 
-  // Stat cards — pakai lucide icons, Total Pasien/Hewan berdasarkan booking Bulan Ini
   const statCards = [
     {
       icon:      <CalendarDays size={18} />,
@@ -282,17 +282,15 @@ export default function DashboardAdminPage() {
       icon:      <Banknote size={18} />,
       label:     "Pendapatan Bulan Ini",
       value: loading ? "—"
-  : data?.stat_cards.pendapatan_bulan_ini != null
-    ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(data.stat_cards.pendapatan_bulan_ini)
-    : "—",
+        : data?.stat_cards.pendapatan_bulan_ini != null
+          ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(data.stat_cards.pendapatan_bulan_ini)
+          : "—",
       sub:       !loading && data?.stat_cards.pendapatan_bulan_ini == null ? "Segera hadir" : null,
       iconBg:    "#fff8e1",
       iconColor: "#e65100",
       accent:    "#e65100",
     },
   ];
-
-  // ── Shared styles ────────────────────────────────────────────────────────────
 
   const cardStyle: React.CSSProperties = {
     background: "#fff", borderRadius: 14,
@@ -312,17 +310,13 @@ export default function DashboardAdminPage() {
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
         <Sidebar activePage="dashboard" />
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
-          <Header title="Dashboard" subtitle={`Selamat datang, Admin · ${today}`} />
+          <Header title="Dashboard" subtitle={`Selamat datang, Admin · ${today}`} role="admin" />
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12 }}>
             <div style={{ fontSize: 40 }}>⚠️</div>
             <div style={{ fontSize: 15, color: "#c62828", fontWeight: 600, maxWidth: 420, textAlign: "center" }}>{error}</div>
             <button
               onClick={() => fetchDashboard(false)}
-              style={{
-                marginTop: 8, padding: "10px 24px", borderRadius: 8,
-                border: `1.5px solid ${G}`, background: "#fff", color: G,
-                fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
-              }}
+              style={{ marginTop: 8, padding: "10px 24px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
             >
               Coba Lagi
             </button>
@@ -344,19 +338,13 @@ export default function DashboardAdminPage() {
       <Sidebar activePage="dashboard" />
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
-        <Header title="Dashboard" subtitle={`Selamat datang, Admin · ${today}`} />
+        <Header title="Dashboard" subtitle={`Selamat datang, Admin · ${today}`} role="admin" />
 
         <div style={{ padding: "24px 28px" }}>
           <div style={{ maxWidth: 1200, margin: "0 auto" }}>
 
-            {/* ── Error inline (polling gagal tapi ada data lama) ── */}
             {error && data && (
-              <div style={{
-                background: "#fff8e1", border: "1.5px solid #ffe082",
-                borderRadius: 10, padding: "10px 16px", color: "#795548",
-                fontSize: 12, fontWeight: 500, marginBottom: 16,
-                display: "flex", alignItems: "center", gap: 8,
-              }}>
+              <div style={{ background: "#fff8e1", border: "1.5px solid #ffe082", borderRadius: 10, padding: "10px 16px", color: "#795548", fontSize: 12, fontWeight: 500, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
                 ⚠️ Gagal memperbarui data terbaru. Menampilkan data sebelumnya.
               </div>
             )}
@@ -405,28 +393,14 @@ export default function DashboardAdminPage() {
                       return (
                         <div
                           key={p.id_booking}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 14,
-                            padding: "12px 0",
-                            borderBottom: i < list.length - 1 ? "1px solid #f0f0f0" : "none",
-                            animation: `fadeUp .3s ease both`, animationDelay: `${i * 50}ms`,
-                          }}
+                          style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: i < list.length - 1 ? "1px solid #f0f0f0" : "none", animation: `fadeUp .3s ease both`, animationDelay: `${i * 50}ms` }}
                         >
-                          {/* Avatar */}
-                          <div style={{
-                            width: 46, height: 46, borderRadius: 12,
-                            background: p.foto ? "transparent" : "#f0faf0",
-                            border: "1.5px solid #e0e0e0",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: 22, flexShrink: 0, overflow: "hidden",
-                          }}>
+                          <div style={{ width: 46, height: 46, borderRadius: 12, background: p.foto ? "transparent" : "#f0faf0", border: "1.5px solid #e0e0e0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, overflow: "hidden" }}>
                             {p.foto
                               ? <img src={p.foto} alt={p.nama_hewan} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }} />
                               : hewanEmoji(p.jenis)
                             }
                           </div>
-
-                          {/* Info */}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>{p.nama_pemilik}</div>
                             <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
@@ -435,23 +409,13 @@ export default function DashboardAdminPage() {
                             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
                               <span style={{ fontSize: 11, color: "#bbb" }}>{p.waktu}</span>
                               {p.layanan && p.layanan !== "-" && (
-                                <>
-                                  <span style={{ fontSize: 11, color: "#ddd" }}>·</span>
-                                  <span style={{ fontSize: 11, color: "#888" }}>{p.layanan}</span>
-                                </>
+                                <><span style={{ fontSize: 11, color: "#ddd" }}>·</span><span style={{ fontSize: 11, color: "#888" }}>{p.layanan}</span></>
                               )}
                               <span style={{ fontSize: 11, color: "#ddd" }}>·</span>
                               <span style={{ fontSize: 11, color: "#888" }}>dr. {p.nama_dokter}</span>
                             </div>
                           </div>
-
-                          {/* Status badge */}
-                          <span style={{
-                            padding: "4px 12px", borderRadius: 999,
-                            fontSize: 11, fontWeight: 700,
-                            background: status.bg, color: status.color,
-                            whiteSpace: "nowrap", flexShrink: 0,
-                          }}>
+                          <span style={{ padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: status.bg, color: status.color, whiteSpace: "nowrap", flexShrink: 0 }}>
                             {status.label}
                           </span>
                         </div>
@@ -471,30 +435,13 @@ export default function DashboardAdminPage() {
                   </div>
                   <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
                     {loading ? (
-                      <>
-                        <Skeleton w="100%" h={88} r={12} />
-                        <Skeleton w="100%" h={88} r={12} />
-                      </>
+                      <><Skeleton w="100%" h={88} r={12} /><Skeleton w="100%" h={88} r={12} /></>
                     ) : (
                       [
-                        {
-                          label: "Total Bulan Ini",
-                          value: data?.ringkasan_kunjungan.bulan_ini ?? 0,
-                          sub:   new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
-                          bg: "#f0faf0", border: "#c8e6c9", valColor: G, subColor: "#5d8a5e",
-                        },
-                        {
-                          label: "Total Tahun Ini",
-                          value: data?.ringkasan_kunjungan.tahun_ini ?? 0,
-                          sub:   `Jan – Des ${new Date().getFullYear()}`,
-                          bg: "#e3f2fd", border: "#bbdefb", valColor: "#1565c0", subColor: "#5c7a9e",
-                        },
+                        { label: "Total Bulan Ini", value: data?.ringkasan_kunjungan.bulan_ini ?? 0, sub: new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" }), bg: "#f0faf0", border: "#c8e6c9", valColor: G, subColor: "#5d8a5e" },
+                        { label: "Total Tahun Ini",  value: data?.ringkasan_kunjungan.tahun_ini ?? 0, sub: `Jan – Des ${new Date().getFullYear()}`,                                         bg: "#e3f2fd", border: "#bbdefb", valColor: "#1565c0", subColor: "#5c7a9e" },
                       ].map((item, i) => (
-                        <div key={item.label} style={{
-                          borderRadius: 12, padding: "16px 18px",
-                          background: item.bg, border: `1.5px solid ${item.border}`,
-                          animation: `fadeUp .35s ease both`, animationDelay: `${i * 80}ms`,
-                        }}>
+                        <div key={item.label} style={{ borderRadius: 12, padding: "16px 18px", background: item.bg, border: `1.5px solid ${item.border}`, animation: `fadeUp .35s ease both`, animationDelay: `${i * 80}ms` }}>
                           <div style={{ fontSize: 12, color: "#888", fontWeight: 500, marginBottom: 6 }}>{item.label}</div>
                           <div style={{ fontSize: 32, fontWeight: 700, color: item.valColor, lineHeight: 1 }}>{item.value}</div>
                           <div style={{ fontSize: 12, color: item.subColor, marginTop: 4 }}>{item.sub}</div>
@@ -512,21 +459,18 @@ export default function DashboardAdminPage() {
                     </div>
                     <div style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
                       {[
-  { label: "Selesai",    value: booking.selesai,    color: G,         Icon: CheckCircle },
-  { label: "Menunggu",   value: booking.menunggu,   color: "#f59e0b", Icon: Clock       },
-  { label: "Dibatalkan", value: booking.dibatalkan, color: "#e53935", Icon: XCircle     },
-].map(({ label, value, color, Icon }) => (
-  <div key={label} style={{
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "10px 14px", borderRadius: 10, background: "#f9f9f9",
-  }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Icon size={15} color={color} />
-      <span style={{ fontSize: 13, fontWeight: 600, color }}>{label}</span>
-    </div>
-    <span style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>{value}</span>
-  </div>
-))}
+                        { label: "Selesai",    value: booking.selesai,    color: G,         Icon: CheckCircle },
+                        { label: "Menunggu",   value: booking.menunggu,   color: "#f59e0b", Icon: Clock       },
+                        { label: "Dibatalkan", value: booking.dibatalkan, color: "#e53935", Icon: XCircle     },
+                      ].map(({ label, value, color, Icon }) => (
+                        <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, background: "#f9f9f9" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <Icon size={15} color={color} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{label}</span>
+                          </div>
+                          <span style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>{value}</span>
+                        </div>
+                      ))}
                       <div style={{ textAlign: "center", paddingTop: 4, fontSize: 12, color: "#bbb" }}>
                         Total: <strong style={{ color: "#555" }}>{booking.total}</strong> booking
                       </div>
