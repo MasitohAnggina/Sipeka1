@@ -16,8 +16,7 @@ import {
   Zap, Eye as EyeIcon, Phone, Mail, Weight, Timer,
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
-
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000") + "/api";
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 interface Obat {
   id: number; nama: string; kategori: string; satuan: string;

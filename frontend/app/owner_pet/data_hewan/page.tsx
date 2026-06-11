@@ -5,7 +5,7 @@ import Image from "next/image";
 import Sidebar from "@/components/Sidebar_owner_pet";
 import Header from "@/components/Header";
 import { useRouter } from "next/navigation";
-import { Camera, X } from "lucide-react";
+import { Camera, X, PawPrint, Clock, AlertCircle } from "lucide-react";
 import { ToastContainer, useToast } from "@/components/Toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -17,7 +17,6 @@ interface Pet {
   age: string;
   weight: string;
   type: string;
-  emoji: string;
   photo?: string;
   nama_hewan: string;
   jenis: string;
@@ -106,8 +105,8 @@ function PetForm({
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const cancelPress = usePressedState();
-  const savePress   = usePressedState();
+  const cancelPress      = usePressedState();
+  const savePress        = usePressedState();
   const removePhotoPress = usePressedState();
 
   const set =
@@ -461,7 +460,8 @@ function PetCard({
             style={{ objectFit: "contain" }}
           />
         ) : (
-          <div style={{ fontSize: 52 }}>{pet.emoji}</div>
+          // ✅ Ganti emoji dengan icon lucide
+          <PawPrint size={52} color="#fff" />
         )}
       </div>
 
@@ -759,19 +759,20 @@ export default function HewanPage() {
 
           {loading ? (
             <div style={{ textAlign: "center", padding: "60px 0", color: "#888" }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
+              {/* ✅ Ganti emoji ⏳ dengan icon lucide */}
+              <Clock size={32} color="#aaa" style={{ marginBottom: 8 }} />
               <div style={{ fontSize: 14 }}>Memuat data hewan...</div>
             </div>
           ) : pets.length === 0 ? (
             <div style={{ textAlign: "center", padding: "60px 0", color: "#999" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🐾</div>
+              {/* ✅ Ganti emoji 🐾 dengan icon lucide */}
+              <PawPrint size={48} color="#c8e6c9" style={{ marginBottom: 12 }} />
               <div style={{ fontSize: 16, fontWeight: 600 }}>Belum ada hewan</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>
                 Klik + Tambah Hewan untuk menambahkan hewan peliharaan
               </div>
             </div>
           ) : (
-            // ── 5 kolom grid ──
             <div
               style={{
                 display: "grid",

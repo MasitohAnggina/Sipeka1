@@ -13,7 +13,7 @@ import {
   RefreshCw, Info,
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000") + "/api";
 const G = "#2e7d32";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -705,12 +705,10 @@ function HewanSection({
 ══════════════════════════════════════════════════════════════════════ */
 export default function PembayaranPage() {
   const [data,     setData]     = useState<HewanInvoice[]>([]);
-  // ✅ FIX: initial false agar SSR dan client sama-sama mulai dari false
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [modalInv, setModalInv] = useState<Invoice | null>(null);
   const [cashInv,  setCashInv]  = useState<Invoice | null>(null);
-  // ✅ FIX: mounted guard — fetch hanya jalan di client
   const [mounted,  setMounted]  = useState(false);
 
   useEffect(() => {
@@ -738,7 +736,6 @@ export default function PembayaranPage() {
     }
   }, []);
 
-  // ✅ FIX: fetch hanya jalan setelah mounted (client-side only)
   useEffect(() => {
     if (mounted) fetchInvoice();
   }, [mounted, fetchInvoice]);
@@ -835,7 +832,7 @@ export default function PembayaranPage() {
                 bg: "#fef9ee", border: "#fed7aa",
                 label: "Belum Dibayar",
                 value: totalBelumBayar,
-                sub: totalBelumBayar > 0 ? fmt(totalNominalBelumBayar) : "Semua lunas ",
+                sub: totalBelumBayar > 0 ? fmt(totalNominalBelumBayar) : "Semua lunas",
                 valueColor: "#b45309",
               },
               {
@@ -882,9 +879,9 @@ export default function PembayaranPage() {
           {/* Tombol refresh */}
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
             <button
-  onClick={fetchInvoice}
-  disabled={!mounted || loading}
-  suppressHydrationWarning
+              onClick={fetchInvoice}
+              disabled={!mounted || loading}
+              suppressHydrationWarning
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "7px 14px", borderRadius: 8,
@@ -925,13 +922,21 @@ export default function PembayaranPage() {
             </div>
           )}
 
-          {/* Empty state — hanya tampil setelah mounted & tidak loading */}
+          {/* Empty state */}
           {mounted && !loading && !error && data.length === 0 && (
             <div style={{
               textAlign: "center", padding: "4rem 2rem",
               background: "#fff", borderRadius: 14, border: "1px solid #e8e8e8",
             }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>🐾</div>
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: "#e8f5e9", border: "2px solid #c8e6c9",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 16px",
+                color: G,
+              }}>
+                <PawPrint style={{ width: 30, height: 30 }} />
+              </div>
               <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1a1a", marginBottom: 6 }}>Belum ada invoice</div>
               <div style={{ fontSize: 13, color: "#888" }}>Invoice akan muncul setelah dokter membuat resep untuk hewan kamu.</div>
             </div>

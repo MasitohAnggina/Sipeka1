@@ -6,7 +6,7 @@ import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar_admin";
 import { getToken } from "@/lib/auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000") + "/api";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 interface DetailItem {

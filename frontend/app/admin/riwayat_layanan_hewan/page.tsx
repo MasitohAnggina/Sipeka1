@@ -202,6 +202,7 @@ const pageBtn = (active: boolean): React.CSSProperties => ({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function RiwayatLayananPage() {
+  const [mounted,       setMounted]       = useState(false); // ✅ FIX hydration
   const [riwayat,       setRiwayat]       = useState<RiwayatRecord[]>([]);
   const [summary,       setSummary]       = useState<Summary | null>(null);
   const [loading,       setLoading]       = useState(true);
@@ -212,11 +213,19 @@ export default function RiwayatLayananPage() {
   const [currentPage,   setCurrentPage]   = useState(1);
   const [exporting,     setExporting]     = useState(false);
 
-  const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
-  const headers = { "Authorization": `Bearer ${token ?? ""}`, "Content-Type": "application/json" };
+  // ✅ FIX: set mounted=true setelah client hydrate
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const fetchAll = async () => {
+      const token = sessionStorage.getItem("token");
+      const headers = {
+        "Authorization": `Bearer ${token ?? ""}`,
+        "Content-Type": "application/json",
+      };
+
       setLoading(true);
       try {
         const [resSummary, resRiwayat] = await Promise.all([
@@ -244,7 +253,6 @@ export default function RiwayatLayananPage() {
       }
     };
     fetchAll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = riwayat.filter(r =>
@@ -263,11 +271,13 @@ export default function RiwayatLayananPage() {
   function handleExport() {
     setExporting(true);
     setTimeout(() => {
-      // Export data yang sudah difilter (bukan hanya halaman ini)
       exportToExcel(filtered.length > 0 ? filtered : riwayat);
       setExporting(false);
     }, 100);
   }
+
+  // ✅ FIX: disabled hanya dihitung setelah mounted, sehingga SSR dan client selalu sama
+  const exportDisabled = !mounted || exporting || loading || riwayat.length === 0;
 
   return (
     <div style={{ display: "flex", height: "100vh", fontFamily: "'Inter', sans-serif" }}>
@@ -317,7 +327,8 @@ export default function RiwayatLayananPage() {
               <div>
                 <button
                   onClick={handleExport}
-                  disabled={exporting || loading || riwayat.length === 0}
+                  disabled={exportDisabled}
+                  suppressHydrationWarning 
                   style={{
                     height: 38,
                     padding: "0 16px",
@@ -327,16 +338,16 @@ export default function RiwayatLayananPage() {
                     color: "#fff",
                     fontSize: 13,
                     fontWeight: 600,
-                    cursor: exporting || loading || riwayat.length === 0 ? "not-allowed" : "pointer",
+                    cursor: exportDisabled ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
                     display: "flex",
                     alignItems: "center",
                     gap: 6,
                     whiteSpace: "nowrap",
-                    opacity: loading || riwayat.length === 0 ? 0.6 : 1,
+                    opacity: exportDisabled ? 0.6 : 1,
                     transition: "background .2s",
                   }}
-                  onMouseEnter={e => { if (!exporting && !loading) e.currentTarget.style.background = "#1b5e20"; }}
+                  onMouseEnter={e => { if (!exportDisabled) e.currentTarget.style.background = "#1b5e20"; }}
                   onMouseLeave={e => { if (!exporting) e.currentTarget.style.background = G; }}
                 >
                   {exporting ? (
@@ -360,7 +371,6 @@ export default function RiwayatLayananPage() {
                 </button>
               </div>
             </div>
-
           </div>
 
           {/* Table */}

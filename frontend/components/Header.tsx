@@ -454,6 +454,12 @@ export default function Header({ title, subtitle, role }: HeaderProps) {
   const [confirmSuccess,     setConfirmSuccess]     = useState(false);
   const [detectedRole,       setDetectedRole]       = useState<string | null>(null);
 
+  // FIX: pathname diambil di useEffect agar server & client render sama (mencegah hydration error)
+  const [pathname, setPathname] = useState("");
+  useEffect(() => {
+    setPathname(window.location.pathname);
+  }, []);
+
   const isMobile = useIsMobile();
 
   // ── Deteksi role otomatis dari sessionStorage ───────────────────────────────
@@ -462,9 +468,13 @@ export default function Header({ title, subtitle, role }: HeaderProps) {
     setDetectedRole(r);
   }, []);
 
-  const activeRole     = role ?? detectedRole;
+  const isAdminPage  = pathname.startsWith("/admin");
+  const isDokterPage = pathname.startsWith("/dokter");
+
+  const activeRole     = role ?? (isAdminPage ? "admin" : isDokterPage ? "dokter" : detectedRole);
   const showCancelBell = activeRole === "admin" || activeRole === "dokter";
-  const showNotifBell  = activeRole === "owner" || activeRole === "admin" || !activeRole;
+  // FIX: hapus "activeRole === 'admin'" agar bell notif tidak muncul di halaman admin
+  const showNotifBell  = activeRole === "owner" || !activeRole;
 
   const toggleSidebar = () => {
     setSidebarCollapsed((v) => {

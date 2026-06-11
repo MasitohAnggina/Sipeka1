@@ -43,7 +43,8 @@ class AdminPembayaranController extends Controller
             'no_referensi'  => 'nullable|string|max:100',
         ]);
 
-        $pembayaran = Pembayaran::findOrFail($id);
+        // ✅ Load relasi resep sekalian
+        $pembayaran = Pembayaran::with(['resep.booking'])->findOrFail($id);
 
         if ($pembayaran->status !== 'pending_cash') {
             return response()->json([
@@ -60,21 +61,19 @@ class AdminPembayaranController extends Controller
             'no_referensi'      => $request->no_referensi,
         ]);
 
-        // ── Buat RiwayatLayanan otomatis setelah lunas ────────────────────
         $resep = $pembayaran->resep;
         if ($resep) {
             RiwayatLayanan::updateOrCreate(
                 ['id_booking' => $resep->id_booking],
                 [
                     'tanggal'     => now()->toDateString(),
-                    'grand_total' => $resep->grand_total ?? 0,
+                    'grand_total' => $resep->grand_total ?? $pembayaran->jumlah ?? 0, // ✅ fix
+                    'id_resep'    => $resep->id_resep, // ✅ tambah
                     'catatan'     => null,
                 ]
             );
-            // Update status booking jadi selesai
             $resep->booking?->update(['status' => 'selesai']);
         }
-        // ─────────────────────────────────────────────────────────────────
 
         $pembayaran->load(['resep.hewan', 'resep.details', 'user', 'dikonfirmasiOleh']);
 
