@@ -32,6 +32,8 @@ interface Booking {
   jenis_hewan:     string;
   ras_hewan:       string;
   foto_hewan:      string | null;
+  foto_before:     string | null;
+  foto_after:      string | null;
   tanggal_jadwal:  string;
   jam_mulai:       string;
   jam_selesai:     string;
@@ -46,7 +48,6 @@ const API            = "http://127.0.0.1:8000/api";
 const STORAGE_URL    = "http://127.0.0.1:8000/storage/";
 const ITEMS_PER_PAGE = 7;
 
-// Dokter hanya bisa ubah status ke "selesai" (dari dikonfirmasi)
 const DOKTER_STATUSES: BookingStatus[] = ["selesai"];
 const ALL_STATUSES:    BookingStatus[] = ["menunggu", "dikonfirmasi", "berlangsung", "selesai", "dibatalkan"];
 
@@ -150,7 +151,6 @@ function StatusDropdown({ value, onChange }: {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Kalau bukan dikonfirmasi → tidak bisa diubah dokter, tampilkan badge biasa
   if (value !== "dikonfirmasi") {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -160,7 +160,6 @@ function StatusDropdown({ value, onChange }: {
     );
   }
 
-  // Hanya bisa ubah ke "selesai"
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
       <button
@@ -173,14 +172,12 @@ function StatusDropdown({ value, onChange }: {
 
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 100, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 160 }}>
-          {/* Tampilkan status saat ini (dikonfirmasi) sebagai pilihan aktif */}
           <button
             onClick={() => setOpen(false)}
             style={{ display: "flex", alignItems: "center", width: "100%", padding: "9px 14px", background: "#f5f5f5", border: "none", cursor: "default", fontSize: 13, color: statusStyle["dikonfirmasi"].color, fontFamily: "inherit", textAlign: "left" }}
           >
             {STATUS_LABEL["dikonfirmasi"]}
           </button>
-          {/* Hanya opsi selesai yang bisa dipilih */}
           <button
             onClick={() => { onChange("selesai"); setOpen(false); }}
             style={{ display: "flex", alignItems: "center", width: "100%", padding: "9px 14px", background: "transparent", border: "none", cursor: "pointer", fontSize: 13, color: statusStyle["selesai"].color, fontFamily: "inherit", textAlign: "left" }}
@@ -202,118 +199,205 @@ function DetailModal({ booking, onClose, onStatusChange, onRekamMedis, saving }:
   onRekamMedis:   (booking: Booking) => void;
   saving:         boolean;
 }) {
-  const [localStatus, setLocalStatus] = useState<BookingStatus>(booking.status);
+  const [localStatus,  setLocalStatus]  = useState<BookingStatus>(booking.status);
+  // ── TAMBAHAN: state untuk lightbox preview foto kondisi ──
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   const isDirty = localStatus !== booking.status;
 
+  // ── PERBAIKAN: return dibungkus Fragment <> agar lightbox bisa jadi sibling modal ──
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", maxHeight: "90vh", overflowY: "auto" }}>
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", maxHeight: "90vh", overflowY: "auto" }}>
 
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div>
-            <h2 style={{ fontSize: 18, margin: 0, fontWeight: "normal" }}>Detail Booking</h2>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>Informasi lengkap reservasi layanan</p>
-          </div>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#999", display: "flex", alignItems: "center" }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* No Booking & Antrian */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f0faf2", border: "1.5px solid #c8e6c9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
-              <span style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 2 }}>No. Booking</span>
-              <span style={{ fontSize: 14, color: G, fontWeight: 600 }}>{booking.no_booking}</span>
+              <h2 style={{ fontSize: 18, margin: 0, fontWeight: "normal" }}>Detail Booking</h2>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>Informasi lengkap reservasi layanan</p>
             </div>
-            <div style={{ textAlign: "center", background: G, borderRadius: 10, padding: "8px 20px" }}>
-              <span style={{ fontSize: 10, color: "#c8e6c9", display: "block" }}>No. Antrian</span>
-              <span style={{ fontSize: 26, color: "#fff", fontWeight: 800, lineHeight: 1.1 }}>
-                {String(booking.no_antrian ?? 0).padStart(3, "0")}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Hewan Info */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
-          <FotoHewan foto={booking.foto_hewan} nama={booking.nama_hewan} jenis={booking.jenis_hewan} size={52} />
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>{booking.nama_hewan}</div>
-            <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>{booking.ras_hewan} · {booking.jenis_hewan}</div>
-          </div>
-        </div>
-
-        {/* Detail Rows */}
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {[
-            { label: "Pemilik",         value: booking.nama_pemilik },
-            { label: "No. HP",          value: booking.no_hp },
-            { label: "Tanggal Booking", value: booking.tanggal_booking },
-            { label: "Tanggal Dibuat",  value: booking.tanggal_dibuat },
-            { label: "Jam",             value: booking.jam },
-            { label: "Dokter",          value: booking.nama_dokter },
-            { label: "Jadwal",          value: `${booking.tanggal_jadwal} (${booking.jam_mulai} - ${booking.jam_selesai})` },
-            { label: "Catatan",         value: booking.catatan || "-" },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-              <span style={{ fontSize: 13, color: "#888" }}>{label}</span>
-              <span style={{ fontSize: 13, color: "#333", maxWidth: 280, textAlign: "right" }}>{value}</span>
-            </div>
-          ))}
-
-          {/* Layanan */}
-          <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-            <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>Layanan</span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {booking.layanans?.length > 0
-                ? booking.layanans.map(l => (
-                  <div key={l.id_layanan} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                    <span style={{ color: "#333" }}>{l.nama_layanan}</span>
-                    <span style={{ color: G, fontWeight: 600 }}>Rp {Number(l.harga_saat_booking).toLocaleString("id-ID")}</span>
-                  </div>
-                ))
-                : <span style={{ fontSize: 13, color: "#aaa" }}>-</span>}
-            </div>
-          </div>
-
-          {/* Status Row */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
-            <span style={{ fontSize: 13, color: "#888" }}>Status</span>
-            <StatusDropdown value={localStatus} onChange={setLocalStatus} />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20, flexWrap: "wrap" }}>
-          {/* Tombol Rekam Medis — hanya muncul kalau status dikonfirmasi */}
-          {booking.status === "dikonfirmasi" && (
-            <button
-              onClick={() => { onClose(); onRekamMedis(booking); }}
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 18px", borderRadius: 8, border: "1.5px solid #1565c0", background: "#e3f2fd", color: "#1565c0", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#1565c0"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#e3f2fd"; (e.currentTarget as HTMLButtonElement).style.color = "#1565c0"; }}
-            >
-              <ClipboardList size={14} /> Catat Rekam Medis
+            <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#999", display: "flex", alignItems: "center" }}>
+              <X size={18} />
             </button>
-          )}
-          <button onClick={onClose}
-            style={{ padding: "10px 20px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-            Batal
-          </button>
-          {booking.status === "dikonfirmasi" && (
-            <button
-              disabled={!isDirty || saving}
-              onClick={() => onStatusChange(booking.id, localStatus)}
-              style={{ padding: "10px 24px", borderRadius: 8, border: "none", background: isDirty && !saving ? G : "#ccc", color: "#fff", fontSize: 13, cursor: isDirty && !saving ? "pointer" : "not-allowed", fontFamily: "inherit" }}
-            >
-              {saving ? "Menyimpan..." : "Simpan"}
+          </div>
+
+          {/* No Booking & Antrian */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f0faf2", border: "1.5px solid #c8e6c9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 2 }}>No. Booking</span>
+                <span style={{ fontSize: 14, color: G, fontWeight: 600 }}>{booking.no_booking}</span>
+              </div>
+              <div style={{ textAlign: "center", background: G, borderRadius: 10, padding: "8px 20px" }}>
+                <span style={{ fontSize: 10, color: "#c8e6c9", display: "block" }}>No. Antrian</span>
+                <span style={{ fontSize: 26, color: "#fff", fontWeight: 800, lineHeight: 1.1 }}>
+                  {String(booking.no_antrian ?? 0).padStart(3, "0")}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Hewan Info */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+            <FotoHewan foto={booking.foto_hewan} nama={booking.nama_hewan} jenis={booking.jenis_hewan} size={52} />
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600 }}>{booking.nama_hewan}</div>
+              <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>{booking.ras_hewan} · {booking.jenis_hewan}</div>
+            </div>
+          </div>
+
+          {/* Detail Rows */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {[
+              { label: "Pemilik",         value: booking.nama_pemilik },
+              { label: "No. HP",          value: booking.no_hp },
+              { label: "Tanggal Booking", value: booking.tanggal_booking },
+              { label: "Tanggal Dibuat",  value: booking.tanggal_dibuat },
+              { label: "Jam",             value: booking.jam },
+              { label: "Dokter",          value: booking.nama_dokter },
+              { label: "Jadwal",          value: `${booking.tanggal_jadwal} (${booking.jam_mulai} - ${booking.jam_selesai})` },
+              { label: "Catatan",         value: booking.catatan || "-" },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+                <span style={{ fontSize: 13, color: "#888" }}>{label}</span>
+                <span style={{ fontSize: 13, color: "#333", maxWidth: 280, textAlign: "right" }}>{value}</span>
+              </div>
+            ))}
+
+            {/* Layanan */}
+            <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+              <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>Layanan</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {booking.layanans?.length > 0
+                  ? booking.layanans.map(l => (
+                    <div key={l.id_layanan} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                      <span style={{ color: "#333" }}>{l.nama_layanan}</span>
+                      <span style={{ color: G, fontWeight: 600 }}>Rp {Number(l.harga_saat_booking).toLocaleString("id-ID")}</span>
+                    </div>
+                  ))
+                  : <span style={{ fontSize: 13, color: "#aaa" }}>-</span>}
+              </div>
+            </div>
+
+            {/* ── PERBAIKAN: Foto Kondisi dengan onClick lightbox & cursor zoom-in ── */}
+            {(booking.foto_before || booking.foto_after) && (
+              <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+                <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>
+                  Foto Kondisi
+                </span>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {booking.foto_before && (
+                    <div style={{ position: "relative" }}>
+                      <img
+                        src={normalizeFotoUrl(booking.foto_before) ?? ""}
+                        alt="Sebelum sakit"
+                        onClick={() => setPreviewImage(normalizeFotoUrl(booking.foto_before))}
+                        style={{
+                          width: 110, height: 90, objectFit: "cover",
+                          borderRadius: 8, border: "1.5px solid #e0e0e0", display: "block",
+                          cursor: "zoom-in",
+                        }}
+                      />
+                      <span style={{
+                        position: "absolute", top: 4, left: 4, background: "#43a047",
+                        color: "#fff", fontSize: 10, fontWeight: 700,
+                        padding: "2px 7px", borderRadius: 20,
+                      }}>
+                        SEHAT
+                      </span>
+                    </div>
+                  )}
+                  {booking.foto_after && (
+                    <div style={{ position: "relative" }}>
+                      <img
+                        src={normalizeFotoUrl(booking.foto_after) ?? ""}
+                        alt="Saat sakit"
+                        onClick={() => setPreviewImage(normalizeFotoUrl(booking.foto_after))}
+                        style={{
+                          width: 110, height: 90, objectFit: "cover",
+                          borderRadius: 8, border: "1.5px solid #e0e0e0", display: "block",
+                          cursor: "zoom-in",
+                        }}
+                      />
+                      <span style={{
+                        position: "absolute", top: 4, left: 4, background: "#ef5350",
+                        color: "#fff", fontSize: 10, fontWeight: 700,
+                        padding: "2px 7px", borderRadius: 20,
+                      }}>
+                        SAKIT
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Status Row */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
+              <span style={{ fontSize: 13, color: "#888" }}>Status</span>
+              <StatusDropdown value={localStatus} onChange={setLocalStatus} />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20, flexWrap: "wrap" }}>
+            {booking.status === "dikonfirmasi" && (
+              <button
+                onClick={() => { onClose(); onRekamMedis(booking); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 18px", borderRadius: 8, border: "1.5px solid #1565c0", background: "#e3f2fd", color: "#1565c0", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#1565c0"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#e3f2fd"; (e.currentTarget as HTMLButtonElement).style.color = "#1565c0"; }}
+              >
+                <ClipboardList size={14} /> Catat Rekam Medis
+              </button>
+            )}
+            <button onClick={onClose}
+              style={{ padding: "10px 20px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              Batal
             </button>
-          )}
+            {booking.status === "dikonfirmasi" && (
+              <button
+                disabled={!isDirty || saving}
+                onClick={() => onStatusChange(booking.id, localStatus)}
+                style={{ padding: "10px 24px", borderRadius: 8, border: "none", background: isDirty && !saving ? G : "#ccc", color: "#fff", fontSize: 13, cursor: isDirty && !saving ? "pointer" : "not-allowed", fontFamily: "inherit" }}
+              >
+                {saving ? "Menyimpan..." : "Simpan"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* ── TAMBAHAN: Lightbox preview foto kondisi (sibling di luar div modal) ── */}
+      {previewImage && (
+        <div
+          onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1100, cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={previewImage}
+            alt="Preview"
+            style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
+            style={{
+              position: "absolute", top: 24, right: 24,
+              background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%",
+              width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "#fff",
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -411,7 +495,6 @@ export default function DataBookingPage() {
     router.push(`/dokter/catat_rekam_medis?${params.toString()}`);
   };
 
-  // ── Filter (client-side) ─────────────────────────────────────────────────────
   const filtered = bookings.filter(b =>
     (filterPemilik === "" || b.nama_pemilik.toLowerCase().includes(filterPemilik.toLowerCase())) &&
     (filterTanggal === "" || b.tanggal_booking.includes(filterTanggal)) &&
@@ -498,7 +581,6 @@ export default function DataBookingPage() {
             </div>
           </div>
 
-          {/* Info bar */}
           <div style={{ marginBottom: 12, fontSize: 13, color: "#888" }}>
             {loading ? "Memuat data..." : `Menampilkan ${filtered.length} booking${isFilterChanged ? " (difilter)" : ""}`}
           </div>
@@ -531,21 +613,16 @@ export default function DataBookingPage() {
                         onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
-                        {/* No. Antrian */}
                         <td style={{ padding: "10px 16px" }}>
                           <div style={{ width: 40, height: 40, borderRadius: 8, background: G, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>
                             {String(b.no_antrian ?? 0).padStart(3, "0")}
                           </div>
                         </td>
-
-                        {/* No. Booking */}
                         <td style={{ padding: "10px 16px" }}>
                           <span style={{ fontSize: 12, color: G, background: "#f0faf2", padding: "3px 8px", borderRadius: 6, border: "1px solid #c8e6c9", whiteSpace: "nowrap" }}>
                             {b.no_booking}
                           </span>
                         </td>
-
-                        {/* Hewan */}
                         <td style={{ padding: "10px 16px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                             <div style={{ width: 38, height: 38, borderRadius: 10, overflow: "hidden", flexShrink: 0 }}>
@@ -557,33 +634,19 @@ export default function DataBookingPage() {
                             </div>
                           </div>
                         </td>
-
-                        {/* Pemilik */}
                         <td style={{ padding: "10px 16px", fontSize: 13 }}>{b.nama_pemilik}</td>
-
-                        {/* Tanggal */}
                         <td style={{ padding: "10px 16px" }}>
                           <div style={{ fontSize: 13 }}>{b.tanggal_booking}</div>
                           <div style={{ fontSize: 12, color: "#aaa", marginTop: 1 }}>Dibuat: {b.tanggal_dibuat}</div>
                         </td>
-
-                        {/* Jam */}
                         <td style={{ padding: "10px 16px", fontSize: 13 }}>{b.jam}</td>
-
-                        {/* Layanan */}
                         <td style={{ padding: "10px 16px", fontSize: 13, maxWidth: 150 }}>
                           {b.layanans?.length > 0 ? b.layanans.map(l => l.nama_layanan).join(", ") : "-"}
                         </td>
-
-                        {/* Dokter */}
                         <td style={{ padding: "10px 16px", fontSize: 13, color: "#555" }}>{b.nama_dokter}</td>
-
-                        {/* Status */}
                         <td style={{ padding: "10px 16px" }}>
                           <StatusBadge value={b.status} />
                         </td>
-
-                        {/* Aksi */}
                         <td style={{ padding: "10px 16px" }}>
                           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                             <button
@@ -594,8 +657,6 @@ export default function DataBookingPage() {
                             >
                               <Eye size={12} /> Detail
                             </button>
-
-                            {/* Tombol Rekam Medis — hanya muncul kalau dikonfirmasi */}
                             {b.status === "dikonfirmasi" && (
                               <button
                                 onClick={() => handleRekamMedis(b)}
@@ -615,7 +676,6 @@ export default function DataBookingPage() {
               </div>
             )}
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "16px", borderTop: "1.5px solid #e0e0e0" }}>
                 <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}

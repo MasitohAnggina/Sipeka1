@@ -95,6 +95,8 @@ class BookingDokterController extends Controller
             'jenis_hewan'     => $b->hewan?->jenis      ?? $b->hewan?->type  ?? '-',
             'ras_hewan'       => $b->hewan?->ras        ?? $b->hewan?->breed ?? '-',
             'foto_hewan'      => $b->hewan?->foto       ?? null,
+            'foto_before'     => $b->foto_before ?? null, 
+            'foto_after'      => $b->foto_after  ?? null,
 
             'tanggal_jadwal'  => $b->jadwal?->tanggal?->format('Y-m-d') ?? '-',
             'jam_mulai'       => $b->jadwal?->jam_mulai   ? substr($b->jadwal->jam_mulai,   0, 5) : '-',

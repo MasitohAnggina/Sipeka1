@@ -153,6 +153,8 @@ class BookingAdminController extends Controller
             'jenis_hewan'      => $b->hewan?->jenis      ?? '-',
             'ras_hewan'        => $b->hewan?->ras        ?? '-',
             'foto_hewan'       => $b->hewan?->foto       ?? null,
+            'foto_before'      => $b->foto_before ?? null,
+            'foto_after'       => $b->foto_after  ?? null,
             'tanggal_jadwal'   => $b->jadwal?->tanggal?->format('Y-m-d') ?? '-',
             'jam_mulai'        => $b->jadwal?->jam_mulai   ? substr($b->jadwal->jam_mulai,   0, 5) : '-',
             'jam_selesai'      => $b->jadwal?->jam_selesai ? substr($b->jadwal->jam_selesai, 0, 5) : '-',

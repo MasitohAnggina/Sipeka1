@@ -1,20 +1,37 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
   Syringe, Stethoscope, Hotel, Scissors,
-  Activity, Microscope, MapPin, Phone, Mail, MessageCircle, PawPrint,
+  Activity, Microscope, MapPin, Phone, Mail, MessageCircle, PawPrint, Menu, X,
 } from "lucide-react";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const drawerRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Tutup menu saat klik link
+  const closeMenu = () => setMenuOpen(false);
+
+  // Tutup menu saat klik di luar drawer
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
 
   return (
     <>
@@ -94,10 +111,64 @@ export default function Home() {
         }
         .btn-login:hover { background: var(--green); color: #fff !important; border-color: var(--green); }
 
+        /* ─── HAMBURGER ─── */
+        .hamburger {
+          display: none;
+          align-items: center; justify-content: center;
+          width: 38px; height: 38px;
+          background: transparent;
+          border: 1.5px solid currentColor;
+          border-radius: 8px;
+          cursor: pointer;
+          margin-left: auto;
+          transition: background 0.2s;
+          flex-shrink: 0;
+        }
+        .hamburger:hover { background: rgba(255,255,255,0.15); }
+
+        /* ─── MOBILE DRAWER ─── */
+        .nav-drawer {
+          display: none;
+          position: fixed;
+          top: 64px; left: 0; right: 0;
+          background: var(--white);
+          border-bottom: 1px solid var(--border);
+          flex-direction: column;
+          padding: 1rem 1.5rem 1.5rem;
+          gap: 0;
+          list-style: none;
+          z-index: 199;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+        .nav-drawer.open { display: flex; }
+        .nav-drawer li { border-bottom: 1px solid var(--border); }
+        .nav-drawer li:last-child { border-bottom: none; }
+        .nav-drawer a {
+          display: block;
+          padding: 0.85rem 0;
+          font-size: 0.9rem; font-weight: 500;
+          color: var(--text); text-decoration: none;
+          transition: color 0.2s;
+        }
+        .nav-drawer a:hover { color: var(--green); }
+        .nav-drawer .drawer-actions {
+          display: flex; gap: 0.6rem; padding-top: 1rem;
+        }
+        .nav-drawer .drawer-actions a {
+          flex: 1; text-align: center;
+          padding: 0.6rem 1rem;
+          border-radius: 8px;
+          font-size: 0.85rem; font-weight: 600;
+        }
+        .nav-drawer .drawer-actions .btn-register { background: var(--green); color: #fff; }
+        .nav-drawer .drawer-actions .btn-login {
+          border: 1.5px solid var(--border); color: var(--text);
+        }
+
         /* ─── HERO ─── */
         .hero {
           position: relative;
-          height: 100vh; min-height: 580px; max-height: 860px;
+          height: 100vh; min-height: 520px; max-height: 860px;
           display: flex; align-items: center;
           overflow: hidden;
         }
@@ -161,7 +232,7 @@ export default function Home() {
           font-size: 5rem; position: relative;
         }
         .about-text .label {
-          font-size: 2rem; font-weight: 600; letter-spacing: 0.18em;
+          font-size: 1rem; font-weight: 600; letter-spacing: 0.18em;
           text-transform: uppercase; color: var(--green);
           margin-bottom: 0.75rem; margin-top: 1.5rem; display: block;
         }
@@ -175,7 +246,11 @@ export default function Home() {
 
         /* ─── SERVICES ─── */
         .services-section { background: var(--white); }
-        .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+        .services-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1.5rem;
+        }
         .service-card {
           background: var(--white); border: 1px solid var(--border);
           border-radius: 14px; padding: 1.8rem 1.5rem;
@@ -256,20 +331,55 @@ export default function Home() {
         }
         .footer-bottom p { font-size: 0.72rem; color: rgba(255,255,255,0.4); }
 
-        /* ─── RESPONSIVE ─── */
+        /* ─── RESPONSIVE: TABLET (≤900px) ─── */
         @media (max-width: 900px) {
           .about-grid { grid-template-columns: 1fr; gap: 2rem; }
           .services-grid { grid-template-columns: 1fr 1fr; }
           .footer-inner { grid-template-columns: 1fr 1fr; gap: 2rem; }
           .contact-cards { grid-template-columns: 1fr; }
         }
+
+        /* ─── RESPONSIVE: MOBILE (≤600px) ─── */
         @media (max-width: 600px) {
-          .services-grid { grid-template-columns: 1fr 1fr; }
-          .footer-inner { grid-template-columns: 1fr; gap: 1rem; }
-          .hero-content { padding: 0 1.5rem; }
+          /* Navbar */
+          .navbar { padding: 0 1.25rem; }
           .nav-links { display: none; }
-          .section { padding: 3.5rem 1.5rem; }
+          .nav-actions { display: none; }
+          .hamburger { display: flex; }
+
+          /* Hero */
+          .hero { height: auto; min-height: 480px; max-height: none; padding: 80px 0 3rem; }
+          .hero-content { padding: 0 1.5rem; max-width: 100%; }
+          .hero-overlay {
+            background: linear-gradient(to bottom,
+              rgba(20,40,10,0.55) 0%,
+              rgba(20,40,10,0.45) 100%);
+          }
+
+          /* About */
+          .about-section { padding: 3rem 1.25rem; }
+          .about-text .label { font-size: 0.75rem; }
+          .about-image { aspect-ratio: 16/10; }
+
+          /* Services */
+          .section { padding: 3rem 1.25rem; }
+          .services-grid { grid-template-columns: 1fr 1fr; gap: 1rem; }
+          .service-card { padding: 1.2rem 1rem; }
+
+          /* Contact */
           .contact-cards { grid-template-columns: 1fr; }
+
+          /* Footer */
+          .footer-inner { grid-template-columns: 1fr; gap: 1.5rem; }
+          footer { padding: 2rem 1.25rem 1rem; }
+        }
+
+        /* ─── RESPONSIVE: SMALL MOBILE (≤400px) ─── */
+        @media (max-width: 400px) {
+          .services-grid { grid-template-columns: 1fr; }
+          .hero-content h1 { font-size: 1.5rem; }
+          .btn-book { padding: 0.65rem 1.5rem; font-size: 0.82rem; }
+          .navbar { padding: 0 1rem; }
         }
       `}</style>
 
@@ -286,10 +396,11 @@ export default function Home() {
             width={0}
             height={0}
             sizes="180px"
-            style={{ width: "180px", height: "auto", borderRadius: "0%" }}
+            style={{ width: "150px", height: "auto", borderRadius: "0%" }}
           />
         </a>
 
+        {/* Desktop nav links */}
         <ul className="nav-links">
           {[
             { label: "Beranda", href: "home"    },
@@ -305,10 +416,9 @@ export default function Home() {
           ))}
         </ul>
 
+        {/* Desktop actions */}
         <div className="nav-actions">
-          <Link href="/auth/regis" className="btn-register">
-            Daftar
-          </Link>
+          <Link href="/auth/regis" className="btn-register">Daftar</Link>
           <Link
             href="/auth/login_dokter"
             className="btn-login"
@@ -317,7 +427,35 @@ export default function Home() {
             Masuk
           </Link>
         </div>
+
+        {/* Hamburger button (mobile only) */}
+        <button
+          className="hamburger"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Buka menu"
+          style={{ color: scrolled ? "#1e2a1a" : "#fff", borderColor: scrolled ? "#1e2a1a" : "#fff" }}
+        >
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
       </nav>
+
+      {/* ─── MOBILE DRAWER ─── */}
+      <ul ref={drawerRef} className={`nav-drawer ${menuOpen ? "open" : ""}`}>
+        {[
+          { label: "Beranda", href: "home"    },
+          { label: "Tentang", href: "about"   },
+          { label: "Layanan", href: "service" },
+          { label: "Kontak",  href: "contact" },
+        ].map((l) => (
+          <li key={l.href}>
+            <a href={`#${l.href}`} onClick={closeMenu}>{l.label}</a>
+          </li>
+        ))}
+        <li className="drawer-actions">
+          <Link href="/auth/regis" className="btn-register" onClick={closeMenu}>Daftar</Link>
+          <Link href="/auth/login_dokter" className="btn-login" onClick={closeMenu}>Masuk</Link>
+        </li>
+      </ul>
 
       {/* ─── HERO ─── */}
       <section className="hero" id="home">
@@ -369,12 +507,12 @@ export default function Home() {
           </div>
           <div className="services-grid">
             {[
-              { icon: <Syringe   size={22} color="var(--green)" />, title: "Vaksinasi",                desc: "Layanan vaksinasi untuk anjing dan kucing dengan berbagai jenis vaksin sesuai kebutuhan dan usia hewan." },
+              { icon: <Syringe    size={22} color="var(--green)" />, title: "Vaksinasi",                desc: "Layanan vaksinasi untuk anjing dan kucing dengan berbagai jenis vaksin sesuai kebutuhan dan usia hewan." },
               { icon: <Stethoscope size={22} color="var(--green)" />, title: "Konsultasi & Pemeriksaan", desc: "Pemeriksaan kesehatan dan konsultasi dengan dokter hewan untuk berbagai jenis hewan peliharaan." },
-              { icon: <Hotel     size={22} color="var(--green)" />, title: "Hotel Hewan",              desc: "Penitipan hewan yang nyaman dan aman saat Anda bepergian, dengan pemantauan harian oleh staf berpengalaman." },
-              { icon: <Scissors  size={22} color="var(--green)" />, title: "Grooming",                 desc: "Layanan grooming untuk anjing dan kucing, termasuk basic, treatment kutu/jamur, dan special treatment." },
-              { icon: <Activity  size={22} color="var(--green)" />, title: "Bedah (Mayor & Minor)",    desc: "Layanan tindakan bedah mayor dan minor yang ditangani oleh tenaga profesional." },
-              { icon: <Microscope size={22} color="var(--green)" />, title: "Laboratorium",            desc: "Pemeriksaan laboratorium untuk membantu diagnosis penyakit secara akurat." },
+              { icon: <Hotel      size={22} color="var(--green)" />, title: "Hotel Hewan",              desc: "Penitipan hewan yang nyaman dan aman saat Anda bepergian, dengan pemantauan harian oleh staf berpengalaman." },
+              { icon: <Scissors   size={22} color="var(--green)" />, title: "Grooming",                 desc: "Layanan grooming untuk anjing dan kucing, termasuk basic, treatment kutu/jamur, dan special treatment." },
+              { icon: <Activity   size={22} color="var(--green)" />, title: "Bedah (Mayor & Minor)",    desc: "Layanan tindakan bedah mayor dan minor yang ditangani oleh tenaga profesional." },
+              { icon: <Microscope size={22} color="var(--green)" />, title: "Laboratorium",             desc: "Pemeriksaan laboratorium untuk membantu diagnosis penyakit secara akurat." },
             ].map((s) => (
               <div className="service-card" key={s.title}>
                 <div className="service-card-icon">{s.icon}</div>
@@ -398,10 +536,10 @@ export default function Home() {
             <h3 style={{ textAlign: "center", marginBottom: "1.5rem" }}>Informasi Kontak</h3>
             <div className="contact-cards">
               {[
-                { icon: <MapPin size={18} color="var(--green)" />,         label: "Alamat",   val: "Jl. Kesehatan Hewan No. 12, Batam, Kepri 29461" },
-                { icon: <Phone size={18} color="var(--green)" />,          label: "Telepon",  val: "+62 778 123 4567" },
-                { icon: <Mail size={18} color="var(--green)" />,           label: "Email",    val: "contact@sipeka.id" },
-                { icon: <MessageCircle size={18} color="var(--green)" />,  label: "WhatsApp", val: "+62 812 3456 7890" },
+                { icon: <MapPin        size={18} color="var(--green)" />, label: "Alamat",   val: "Jl. Kesehatan Hewan No. 12, Batam, Kepri 29461" },
+                { icon: <Phone         size={18} color="var(--green)" />, label: "Telepon",  val: "+62 778 123 4567" },
+                { icon: <Mail          size={18} color="var(--green)" />, label: "Email",    val: "contact@sipeka.id" },
+                { icon: <MessageCircle size={18} color="var(--green)" />, label: "WhatsApp", val: "+62 812 3456 7890" },
               ].map((c) => (
                 <div className="contact-card" key={c.label}>
                   <div className="contact-icon">{c.icon}</div>

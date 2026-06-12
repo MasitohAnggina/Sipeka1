@@ -38,6 +38,8 @@ interface Booking {
   jenis_hewan:      string;
   ras_hewan:        string;
   foto_hewan:       string | null;
+  foto_before:      string | null;
+  foto_after:       string | null;
   tanggal_jadwal:   string;
   jam_mulai:        string;
   jam_selesai:      string;
@@ -221,6 +223,7 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
   saving:         boolean;
 }) {
   const [localStatus,  setLocalStatus]  = useState<BookingStatus>(booking.status);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [notifSending, setNotifSending] = useState<"" | "wa" | "email">("");
   const [waMsg,        setWaMsg]        = useState("");
   const [waError,      setWaError]      = useState(false);
@@ -262,145 +265,229 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
     }
   };
 
+  // ── PERBAIKAN: return dibungkus Fragment <> agar lightbox bisa jadi sibling modal
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", maxHeight: "90vh", overflowY: "auto" }}>
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", maxHeight: "90vh", overflowY: "auto" }}>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div>
-            <h2 style={{ fontSize: 18, margin: 0, fontWeight: "normal" }}>Detail Booking</h2>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>Informasi lengkap reservasi layanan</p>
-          </div>
-          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#999", display: "flex", alignItems: "center" }}>
-            <X size={18} />
-          </button>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f0faf2", border: "1.5px solid #c8e6c9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
-              <span style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 2 }}>No. Booking</span>
-              <span style={{ fontSize: 14, color: G, fontWeight: 600 }}>{booking.no_booking}</span>
+              <h2 style={{ fontSize: 18, margin: 0, fontWeight: "normal" }}>Detail Booking</h2>
+              <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>Informasi lengkap reservasi layanan</p>
             </div>
-            <div style={{ textAlign: "center", background: G, borderRadius: 10, padding: "8px 20px" }}>
-              <span style={{ fontSize: 10, color: "#c8e6c9", display: "block" }}>No. Antrian</span>
-              <span style={{ fontSize: 26, color: "#fff", fontWeight: 800, lineHeight: 1.1 }}>
-                {String(booking.no_antrian ?? 0).padStart(3, "0")}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
-          <FotoHewan foto={booking.foto_hewan} nama={booking.nama_hewan} jenis={booking.jenis_hewan} size={52} />
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 600 }}>{booking.nama_hewan}</div>
-            <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>{booking.ras_hewan} · {booking.jenis_hewan}</div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {[
-            { label: "Pemilik",         value: booking.nama_pemilik },
-            { label: "No. HP",          value: booking.no_hp },
-            { label: "Tanggal Booking", value: booking.tanggal_booking },
-            { label: "Tanggal Dibuat",  value: booking.tanggal_dibuat },
-            { label: "Jam",             value: booking.jam },
-            { label: "Dokter",          value: booking.nama_dokter },
-            { label: "Jadwal",          value: `${booking.tanggal_jadwal} (${booking.jam_mulai} - ${booking.jam_selesai})` },
-            { label: "Catatan",         value: booking.catatan || "-" },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-              <span style={{ fontSize: 13, color: "#888" }}>{label}</span>
-              <span style={{ fontSize: 13, color: "#333", maxWidth: 280, textAlign: "right" }}>{value}</span>
-            </div>
-          ))}
-
-          <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-            <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>Layanan</span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {booking.layanans?.length > 0
-                ? booking.layanans.map(l => (
-                  <div key={l.id_layanan} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                    <span style={{ color: "#333" }}>{l.nama_layanan}</span>
-                    <span style={{ color: G, fontWeight: 600 }}>Rp {Number(l.harga_saat_booking).toLocaleString("id-ID")}</span>
-                  </div>
-                ))
-                : <span style={{ fontSize: 13, color: "#aaa" }}>-</span>}
-            </div>
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: bisaKirimNotif ? "1px solid #f0f0f0" : "none" }}>
-            <span style={{ fontSize: 13, color: "#888" }}>Status</span>
-            <StatusDropdown
-              value={localStatus}
-              onChange={setLocalStatus}
-              disabled={!booking.can_edit_status}
-            />
-          </div>
-
-          {bisaKirimNotif && (
-            <div style={{ paddingTop: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
-                <Bell size={13} color="#2e7d32" />
-                <span style={{ fontSize: 13, color: "#2e7d32", fontWeight: 600 }}>Notifikasi Penjemputan</span>
-                <span style={{ fontSize: 11, color: "#aaa", marginLeft: 4 }}>· Pet Hotel</span>
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                {waMsg && (
-                  <div style={{ background: waError ? "#fff3e0" : "#f0faf2", border: `1px solid ${waError ? "#ffe0b2" : "#c8e6c9"}`, borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12, color: waError ? "#e65100" : "#2e7d32" }}>
-                    {waMsg}
-                  </div>
-                )}
-                <button
-                  disabled={notifSending === "wa"}
-                  onClick={() => handleKirimNotif("wa")}
-                  style={{ width: "100%", padding: "11px", borderRadius: 8, border: "1.5px solid #25d366", background: notifSending === "wa" ? "#f5f5f5" : "#e8fdf0", color: notifSending === "wa" ? "#aaa" : "#128c3e", fontSize: 13, cursor: notifSending === "wa" ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-                >
-                  📱 {notifSending === "wa" ? "Mengirim WhatsApp..." : "Kirim via WhatsApp"}
-                </button>
-              </div>
-
-              <div>
-                {emailMsg && (
-                  <div style={{ background: emailError ? "#fff3e0" : "#f0faf2", border: `1px solid ${emailError ? "#ffe0b2" : "#c8e6c9"}`, borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12, color: emailError ? "#e65100" : "#2e7d32" }}>
-                    {emailMsg}
-                  </div>
-                )}
-                <button
-                  disabled={notifSending === "email"}
-                  onClick={() => handleKirimNotif("email")}
-                  style={{ width: "100%", padding: "11px", borderRadius: 8, border: "1.5px solid #1565c0", background: notifSending === "email" ? "#f5f5f5" : "#e3f2fd", color: notifSending === "email" ? "#aaa" : "#1565c0", fontSize: 13, cursor: notifSending === "email" ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-                >
-                  📧 {notifSending === "email" ? "Mengirim Email..." : "Kirim via Email"}
-                </button>
-              </div>
-
-              <p style={{ fontSize: 11, color: "#aaa", textAlign: "center", margin: "8px 0 0" }}>
-                Notifikasi dikirim ke pemilik hewan
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
-          <button onClick={onClose}
-            style={{ padding: "10px 20px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-            Batal
-          </button>
-          {booking.can_edit_status && (
-            <button
-              disabled={!isDirty || saving}
-              onClick={() => onStatusChange(booking.id, localStatus)}
-              style={{ padding: "10px 24px", borderRadius: 8, border: "none", background: isDirty && !saving ? G : "#ccc", color: "#fff", fontSize: 13, cursor: isDirty && !saving ? "pointer" : "not-allowed", fontFamily: "inherit" }}
-            >
-              {saving ? "Menyimpan..." : "Simpan"}
+            <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "#999", display: "flex", alignItems: "center" }}>
+              <X size={18} />
             </button>
-          )}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ padding: "12px 16px", borderRadius: 10, background: "#f0faf2", border: "1.5px solid #c8e6c9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <span style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 2 }}>No. Booking</span>
+                <span style={{ fontSize: 14, color: G, fontWeight: 600 }}>{booking.no_booking}</span>
+              </div>
+              <div style={{ textAlign: "center", background: G, borderRadius: 10, padding: "8px 20px" }}>
+                <span style={{ fontSize: 10, color: "#c8e6c9", display: "block" }}>No. Antrian</span>
+                <span style={{ fontSize: 26, color: "#fff", fontWeight: 800, lineHeight: 1.1 }}>
+                  {String(booking.no_antrian ?? 0).padStart(3, "0")}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+            <FotoHewan foto={booking.foto_hewan} nama={booking.nama_hewan} jenis={booking.jenis_hewan} size={52} />
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600 }}>{booking.nama_hewan}</div>
+              <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>{booking.ras_hewan} · {booking.jenis_hewan}</div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {[
+              { label: "Pemilik",         value: booking.nama_pemilik },
+              { label: "No. HP",          value: booking.no_hp },
+              { label: "Tanggal Booking", value: booking.tanggal_booking },
+              { label: "Tanggal Dibuat",  value: booking.tanggal_dibuat },
+              { label: "Jam",             value: booking.jam },
+              { label: "Dokter",          value: booking.nama_dokter },
+              { label: "Jadwal",          value: `${booking.tanggal_jadwal} (${booking.jam_mulai} - ${booking.jam_selesai})` },
+              { label: "Catatan",         value: booking.catatan || "-" },
+            ].map(({ label, value }) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+                <span style={{ fontSize: 13, color: "#888" }}>{label}</span>
+                <span style={{ fontSize: 13, color: "#333", maxWidth: 280, textAlign: "right" }}>{value}</span>
+              </div>
+            ))}
+
+            <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+              <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>Layanan</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {booking.layanans?.length > 0
+                  ? booking.layanans.map(l => (
+                    <div key={l.id_layanan} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                      <span style={{ color: "#333" }}>{l.nama_layanan}</span>
+                      <span style={{ color: G, fontWeight: 600 }}>Rp {Number(l.harga_saat_booking).toLocaleString("id-ID")}</span>
+                    </div>
+                  ))
+                  : <span style={{ fontSize: 13, color: "#aaa" }}>-</span>}
+              </div>
+            </div>
+
+            {(booking.foto_before || booking.foto_after) && (
+              <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+                <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>
+                  Foto Kondisi
+                </span>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {booking.foto_before && (
+                    <div style={{ position: "relative" }}>
+                      <img
+                        src={normalizeFotoUrl(booking.foto_before) ?? ""}
+                        alt="Sebelum sakit"
+                        onClick={() => setPreviewImage(normalizeFotoUrl(booking.foto_before))}
+                        style={{
+                          width: 110, height: 90, objectFit: "cover",
+                          borderRadius: 8, border: "1.5px solid #e0e0e0", display: "block",
+                          cursor: "zoom-in",
+                        }}
+                      />
+                      <span style={{
+                        position: "absolute", top: 4, left: 4, background: "#43a047",
+                        color: "#fff", fontSize: 10, fontWeight: 700,
+                        padding: "2px 7px", borderRadius: 20,
+                      }}>
+                        SEHAT
+                      </span>
+                    </div>
+                  )}
+                  {booking.foto_after && (
+                    <div style={{ position: "relative" }}>
+                      <img
+                        src={normalizeFotoUrl(booking.foto_after) ?? ""}
+                        alt="Saat sakit"
+                        onClick={() => setPreviewImage(normalizeFotoUrl(booking.foto_after))}
+                        style={{
+                          width: 110, height: 90, objectFit: "cover",
+                          borderRadius: 8, border: "1.5px solid #e0e0e0", display: "block",
+                          cursor: "zoom-in",
+                        }}
+                      />
+                      <span style={{
+                        position: "absolute", top: 4, left: 4, background: "#ef5350",
+                        color: "#fff", fontSize: 10, fontWeight: 700,
+                        padding: "2px 7px", borderRadius: 20,
+                      }}>
+                        SAKIT
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: bisaKirimNotif ? "1px solid #f0f0f0" : "none" }}>
+              <span style={{ fontSize: 13, color: "#888" }}>Status</span>
+              <StatusDropdown
+                value={localStatus}
+                onChange={setLocalStatus}
+                disabled={!booking.can_edit_status}
+              />
+            </div>
+
+            {bisaKirimNotif && (
+              <div style={{ paddingTop: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
+                  <Bell size={13} color="#2e7d32" />
+                  <span style={{ fontSize: 13, color: "#2e7d32", fontWeight: 600 }}>Notifikasi Penjemputan</span>
+                  <span style={{ fontSize: 11, color: "#aaa", marginLeft: 4 }}>· Pet Hotel</span>
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  {waMsg && (
+                    <div style={{ background: waError ? "#fff3e0" : "#f0faf2", border: `1px solid ${waError ? "#ffe0b2" : "#c8e6c9"}`, borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12, color: waError ? "#e65100" : "#2e7d32" }}>
+                      {waMsg}
+                    </div>
+                  )}
+                  <button
+                    disabled={notifSending === "wa"}
+                    onClick={() => handleKirimNotif("wa")}
+                    style={{ width: "100%", padding: "11px", borderRadius: 8, border: "1.5px solid #25d366", background: notifSending === "wa" ? "#f5f5f5" : "#e8fdf0", color: notifSending === "wa" ? "#aaa" : "#128c3e", fontSize: 13, cursor: notifSending === "wa" ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                  >
+                    📱 {notifSending === "wa" ? "Mengirim WhatsApp..." : "Kirim via WhatsApp"}
+                  </button>
+                </div>
+
+                <div>
+                  {emailMsg && (
+                    <div style={{ background: emailError ? "#fff3e0" : "#f0faf2", border: `1px solid ${emailError ? "#ffe0b2" : "#c8e6c9"}`, borderRadius: 7, padding: "8px 12px", marginBottom: 8, fontSize: 12, color: emailError ? "#e65100" : "#2e7d32" }}>
+                      {emailMsg}
+                    </div>
+                  )}
+                  <button
+                    disabled={notifSending === "email"}
+                    onClick={() => handleKirimNotif("email")}
+                    style={{ width: "100%", padding: "11px", borderRadius: 8, border: "1.5px solid #1565c0", background: notifSending === "email" ? "#f5f5f5" : "#e3f2fd", color: notifSending === "email" ? "#aaa" : "#1565c0", fontSize: 13, cursor: notifSending === "email" ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                  >
+                    📧 {notifSending === "email" ? "Mengirim Email..." : "Kirim via Email"}
+                  </button>
+                </div>
+
+                <p style={{ fontSize: 11, color: "#aaa", textAlign: "center", margin: "8px 0 0" }}>
+                  Notifikasi dikirim ke pemilik hewan
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 20 }}>
+            <button onClick={onClose}
+              style={{ padding: "10px 20px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+              Batal
+            </button>
+            {booking.can_edit_status && (
+              <button
+                disabled={!isDirty || saving}
+                onClick={() => onStatusChange(booking.id, localStatus)}
+                style={{ padding: "10px 24px", borderRadius: 8, border: "none", background: isDirty && !saving ? G : "#ccc", color: "#fff", fontSize: 13, cursor: isDirty && !saving ? "pointer" : "not-allowed", fontFamily: "inherit" }}
+              >
+                {saving ? "Menyimpan..." : "Simpan"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* ── PERBAIKAN: Lightbox preview foto kondisi (sibling di luar div modal) ── */}
+      {previewImage && (
+        <div
+          onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1100, cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={previewImage}
+            alt="Preview"
+            style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
+            style={{
+              position: "absolute", top: 24, right: 24,
+              background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%",
+              width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "#fff",
+            }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
