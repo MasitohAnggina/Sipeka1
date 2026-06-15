@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -209,8 +208,117 @@ function PetCard({ pet, onDetail, onBooking }: { pet: Pet; onDetail(): void; onB
   );
 }
 
-function Skeleton({ w = "100%", h = 16, radius = 6 }: { w?: string | number; h?: number; radius?: number }) {
-  return <div style={{ width: w, height: h, borderRadius: radius, background: "linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />;
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function SkeletonDashboard() {
+  return (
+    <>
+      <style>{`
+        @keyframes sk-dash {
+          0%   { background-position: -600px 0; }
+          100% { background-position:  600px 0; }
+        }
+        .sk-d {
+          background: linear-gradient(90deg, #e8e8e8 25%, #f2f2f2 50%, #e8e8e8 75%);
+          background-size: 1200px 100%;
+          animation: sk-dash 1.5s ease-in-out infinite;
+          border-radius: 6px;
+        }
+      `}</style>
+
+      {/* Greeting */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="sk-d" style={{ height: 22, width: 200, marginBottom: 8 }} />
+        <div className="sk-d" style={{ height: 13, width: 260 }} />
+      </div>
+
+      {/* Stat cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{ background: "#fff", border: "1px solid #f0f0f0", borderRadius: 12, padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div className="sk-d" style={{ width: 48, height: 48, borderRadius: "50%", flexShrink: 0 }} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="sk-d" style={{ height: 12, width: "55%" }} />
+              <div className="sk-d" style={{ height: 26, width: "35%" }} />
+              <div className="sk-d" style={{ height: 11, width: "70%" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Hewan section header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div className="sk-d" style={{ height: 16, width: 100 }} />
+        <div className="sk-d" style={{ height: 32, width: 110, borderRadius: 8 }} />
+      </div>
+
+      {/* Pet cards */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{ width: 220, borderRadius: 12, overflow: "hidden", border: "1.5px solid #e0e0e0", background: "#fff" }}>
+            <div className="sk-d" style={{ height: 80, borderRadius: 0 }} />
+            <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className="sk-d" style={{ height: 11, width: "80%" }} />
+              <div className="sk-d" style={{ height: 11, width: "60%" }} />
+              <div className="sk-d" style={{ height: 11, width: "70%" }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 4 }}>
+                <div className="sk-d" style={{ height: 30, borderRadius: 8 }} />
+                <div className="sk-d" style={{ height: 30, borderRadius: 8 }} />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom two-column grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Booking panel */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
+          <div className="sk-d" style={{ height: 16, width: 140, marginBottom: 14 }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div className="sk-d" style={{ height: 12, width: 120 }} />
+            <div className="sk-d" style={{ height: 20, width: 60, borderRadius: 20 }} />
+          </div>
+          {[0, 1].map(i => (
+            <div key={i} style={{ borderRadius: 12, border: "1.5px solid #e0e0e0", padding: "12px 14px", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div className="sk-d" style={{ height: 14, width: "45%" }} />
+                <div className="sk-d" style={{ height: 20, width: 80, borderRadius: 20 }} />
+              </div>
+              <div className="sk-d" style={{ height: 11, width: "60%", marginBottom: 10 }} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {[0, 1, 2, 3].map(j => (
+                  <div key={j} style={{ background: "#f9f9f9", borderRadius: 8, padding: "6px 10px" }}>
+                    <div className="sk-d" style={{ height: 9, width: "60%", marginBottom: 4 }} />
+                    <div className="sk-d" style={{ height: 12, width: "80%" }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="sk-d" style={{ height: 36, borderRadius: 8 }} />
+        </div>
+
+        {/* Riwayat panel */}
+        <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <div className="sk-d" style={{ height: 16, width: 130 }} />
+            <div className="sk-d" style={{ height: 28, width: 80, borderRadius: 8 }} />
+          </div>
+          {[0, 1, 2, 3, 4].map((i, _, arr) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 0", borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+              <div className="sk-d" style={{ width: 36, height: 44, borderRadius: 8, flexShrink: 0 }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="sk-d" style={{ height: 13, width: "75%" }} />
+                <div className="sk-d" style={{ height: 10, width: "50%" }} />
+                <div className="sk-d" style={{ height: 18, width: 55, borderRadius: 20 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
 }
 
 const STEPS = [
@@ -267,7 +375,6 @@ function BookingCard({
   const cfg         = STATUS_CFG[statusLower] ?? STATUS_CFG["menunggu"];
   const isSelesai   = statusLower === "selesai";
   const isBatal     = statusLower === "dibatalkan";
-  // Tombol batalkan muncul hanya saat menunggu atau dikonfirmasi
   const bisaBatal   = statusLower === "menunggu" || statusLower === "dikonfirmasi";
   const sudahAkhir  = isSelesai || isBatal;
 
@@ -439,9 +546,9 @@ function BookingInfoPanel({ bookings, onBuat, onBatal }: {
 // ── MAIN DASHBOARD ────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
-  const [data,        setData]        = useState<DashboardData | null>(null);
-  const [loading,     setLoading]     = useState(true);
-  const [error,       setError]       = useState<string | null>(null);
+  const [data,         setData]         = useState<DashboardData | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
   const [batalConfirm, setBatalConfirm] = useState<BatalConfirmData | null>(null);
   const [batalLoading, setBatalLoading] = useState(false);
 
@@ -449,8 +556,6 @@ export default function DashboardPage() {
   const prevStatusRef = useRef<string | null>(null);
   const prevBookingId = useRef<number | null>(null);
 
-  // ── FIX: token dibaca di dalam useEffect/callback, bukan di luar komponen
-  // Ini memastikan selalu membaca sessionStorage setelah hydration selesai
   const getToken = useCallback(() => {
     return sessionStorage.getItem("token") ?? "";
   }, []);
@@ -505,12 +610,11 @@ export default function DashboardPage() {
     setBatalConfirm({ id_booking, no_booking, hewan_nama });
   }, []);
 
-  // ── FIX UTAMA: token dibaca langsung dari sessionStorage saat handler dipanggil
   const handleDoConfirmBatal = useCallback(async () => {
     if (!batalConfirm) return;
     setBatalLoading(true);
     try {
-      const token = getToken(); // ← baca saat klik, bukan saat render
+      const token = getToken();
       if (!token) {
         toast.error("Sesi habis", "Silakan login ulang.");
         router.push("/auth/login");
@@ -526,10 +630,7 @@ export default function DashboardPage() {
       const json = await res.json();
       if (json.success) {
         setBatalConfirm(null);
-        toast.info(
-          "Permintaan terkirim",
-          "Admin klinik akan segera mengkonfirmasi pembatalan booking Anda."
-        );
+        toast.info("Permintaan terkirim", "Admin klinik akan segera mengkonfirmasi pembatalan booking Anda.");
         fetchDashboard(false);
       } else {
         toast.error("Gagal membatalkan", json.message ?? "Terjadi kesalahan, coba lagi.");
@@ -565,27 +666,7 @@ export default function DashboardPage() {
     [data]
   );
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-        <Sidebar activePage="dashboard" />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
-          <Header title="Dashboard" subtitle="Selamat datang di SIPEKA" role="owner" />
-          <div style={{ padding: "20px 28px 32px", display: "flex", flexDirection: "column", gap: 16 }}>
-            <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
-              {[1,2,3].map(i => <Skeleton key={i} h={80} radius={10} />)}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <Skeleton h={300} radius={12} /><Skeleton h={300} radius={12} />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !data) {
+  if (error || (!loading && !data)) {
     return (
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
         <Sidebar activePage="dashboard" />
@@ -602,111 +683,121 @@ export default function DashboardPage() {
     );
   }
 
-  const { user, hewan, total_kunjungan } = data;
-
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
       <Sidebar activePage="dashboard" />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", background: "#f9f9f9" }}>
         <Header title="Dashboard" subtitle="Selamat datang di SIPEKA" role="owner" />
         <style>{`
-          @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-          @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.3} }
-          @keyframes spin    { to{transform:rotate(360deg)} }
+          @keyframes sk-dash  { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
+          .sk-d { background:linear-gradient(90deg,#e8e8e8 25%,#f2f2f2 50%,#e8e8e8 75%); background-size:1200px 100%; animation:sk-dash 1.5s ease-in-out infinite; border-radius:6px; }
+          @keyframes pulse    { 0%,100%{opacity:1} 50%{opacity:.3} }
+          @keyframes spin     { to{transform:rotate(360deg)} }
         `}</style>
+
         <div style={{ padding: "20px 28px 32px" }}>
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>Halo, {user.nama}!</div>
-            <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>{todayStr()}</div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
-            <IconStatCard
-              label="Hewan Saya" value={hewan.length}
-              sub={hewan.length > 0 ? hewan.map(p => p.name).join(", ") : "Belum ada hewan"}
-              icon={<PawPrint size={22} />} variant="amber"
-            />
-            <IconStatCard
-              label="Booking Terjadwal" value={visibleBookings.length}
-              sub={visibleBookings.length > 0 ? visibleBookings.map(b => b.hewan_nama).join(", ") : "Belum ada booking"}
-              subColor={visibleBookings.length > 0 ? "#1565c0" : "#aaa"}
-              icon={<Calendar size={22} />} variant="blue"
-            />
-            <IconStatCard
-              label="Total Kunjungan" value={total_kunjungan}
-              sub="Riwayat layanan selesai"
-              icon={<Activity size={22} />} variant="green"
-            />
-          </div>
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: 0 }}>Hewan Saya</h2>
-              <Btn onClick={() => router.push("/owner_pet/data_hewan")} variant="outline" style={{ fontSize: 12, padding: "5px 14px" }}>Kelola Hewan</Btn>
-            </div>
-            {hewan.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px 0", color: "#aaa" }}>
-                <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
-                  <PawPrint size={40} color="#ccc" />
+          {loading ? (
+            <SkeletonDashboard />
+          ) : (
+            <>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>Halo, {data!.user.nama}!</div>
+                <div style={{ fontSize: 13, color: "#888", marginTop: 2 }}>{todayStr()}</div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
+                <IconStatCard
+                  label="Hewan Saya" value={data!.hewan.length}
+                  sub={data!.hewan.length > 0 ? data!.hewan.map(p => p.name).join(", ") : "Belum ada hewan"}
+                  icon={<PawPrint size={22} />} variant="amber"
+                />
+                <IconStatCard
+                  label="Booking Terjadwal" value={visibleBookings.length}
+                  sub={visibleBookings.length > 0 ? visibleBookings.map(b => b.hewan_nama).join(", ") : "Belum ada booking"}
+                  subColor={visibleBookings.length > 0 ? "#1565c0" : "#aaa"}
+                  icon={<Calendar size={22} />} variant="blue"
+                />
+                <IconStatCard
+                  label="Total Kunjungan" value={data!.total_kunjungan}
+                  sub="Riwayat layanan selesai"
+                  icon={<Activity size={22} />} variant="green"
+                />
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: 0 }}>Hewan Saya</h2>
+                  <Btn onClick={() => router.push("/owner_pet/data_hewan")} variant="outline" style={{ fontSize: 12, padding: "5px 14px" }}>Kelola Hewan</Btn>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Belum ada hewan</div>
-                <div style={{ fontSize: 13 }}>Tambahkan hewan di menu Data Hewan</div>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-                {hewan.map(pet => (
-                  <div key={pet.id_hewan} style={{ width: 220 }}>
-                    <PetCard
-                      pet={pet}
-                      onDetail={() => router.push(`/owner_pet/data_hewan?id=${pet.id_hewan}`)}
-                      onBooking={() => handleBooking(pet.id_hewan)}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: "0 0 14px" }}>Informasi Booking</h2>
-              <BookingInfoPanel
-                bookings={visibleBookings}
-                onBuat={() => handleBooking()}
-                onBatal={handleBatal}
-              />
-            </div>
-            <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: 0 }}>Riwayat Terakhir</h2>
-                <Btn onClick={() => router.push("/owner_pet/riwayat_layanan")} variant="outline" style={{ fontSize: 12, padding: "4px 12px" }}>
-                  Lihat Semua
-                </Btn>
-              </div>
-              {displayRiwayat.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "30px 0", color: "#aaa", fontSize: 13 }}>
-                  Belum ada riwayat layanan
-                </div>
-              ) : (
-                <div style={{ maxHeight: 480, overflowY: "auto", paddingRight: 2 }}>
-                  {displayRiwayat.map((item, i) => (
-                    <div key={item.id_riwayat} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 0", borderBottom: i < displayRiwayat.length - 1 ? "1px solid #f0f0f0" : "none" }}>
-                      <div style={{ minWidth: 36, textAlign: "center", background: "#f5f5f5", borderRadius: 8, padding: "4px 6px", flexShrink: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a" }}>{item.tanggal}</div>
-                        <div style={{ fontSize: 10, color: "#888" }}>{item.bulan?.slice(0, 3)}</div>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", marginBottom: 2 }}>
-                          {item.layanan_utama} — {item.hewan_nama}
-                        </div>
-                        <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{item.layanan_detail}</div>
-                        <Badge variant="green">Selesai</Badge>
-                      </div>
+                {data!.hewan.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px 0", color: "#aaa" }}>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+                      <PawPrint size={40} color="#ccc" />
                     </div>
-                  ))}
+                    <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Belum ada hewan</div>
+                    <div style={{ fontSize: 13 }}>Tambahkan hewan di menu Data Hewan</div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+                    {data!.hewan.map(pet => (
+                      <div key={pet.id_hewan} style={{ width: 220 }}>
+                        <PetCard
+                          pet={pet}
+                          onDetail={() => router.push(`/owner_pet/data_hewan?id=${pet.id_hewan}`)}
+                          onBooking={() => handleBooking(pet.id_hewan)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: "0 0 14px" }}>Informasi Booking</h2>
+                  <BookingInfoPanel
+                    bookings={visibleBookings}
+                    onBuat={() => handleBooking()}
+                    onBatal={handleBatal}
+                  />
                 </div>
-              )}
-            </div>
-          </div>
+                <div style={{ background: "#fff", borderRadius: 12, padding: "16px 18px", border: "1px solid #f0f0f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                    <h2 style={{ fontSize: 15, fontWeight: 700, color: G, margin: 0 }}>Riwayat Terakhir</h2>
+                    <Btn onClick={() => router.push("/owner_pet/riwayat_layanan")} variant="outline" style={{ fontSize: 12, padding: "4px 12px" }}>
+                      Lihat Semua
+                    </Btn>
+                  </div>
+                  {displayRiwayat.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "30px 0", color: "#aaa", fontSize: 13 }}>
+                      Belum ada riwayat layanan
+                    </div>
+                  ) : (
+                    <div style={{ maxHeight: 480, overflowY: "auto", paddingRight: 2 }}>
+                      {displayRiwayat.map((item, i) => (
+                        <div key={item.id_riwayat} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 0", borderBottom: i < displayRiwayat.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                          <div style={{ minWidth: 36, textAlign: "center", background: "#f5f5f5", borderRadius: 8, padding: "4px 6px", flexShrink: 0 }}>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a" }}>{item.tanggal}</div>
+                            <div style={{ fontSize: 10, color: "#888" }}>{item.bulan?.slice(0, 3)}</div>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "#1a1a1a", marginBottom: 2 }}>
+                              {item.layanan_utama} — {item.hewan_nama}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#888", marginBottom: 4 }}>{item.layanan_detail}</div>
+                            <Badge variant="green">Selesai</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
+
       {batalConfirm && (
         <BatalConfirmModal
           data={batalConfirm}

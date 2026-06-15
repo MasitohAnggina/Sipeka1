@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, ChangeEvent } from "react";
@@ -94,6 +93,73 @@ const inputStyle: React.CSSProperties = {
   background: "#fff",
   transition: "border-color .15s",
 };
+
+// ── Skeleton Profile ──────────────────────────────────────────────────────────
+
+function SkeletonProfile() {
+  return (
+    <>
+      <style>{`
+        @keyframes sk-pay {
+          0%   { background-position: -600px 0; }
+          100% { background-position:  600px 0; }
+        }
+        .sk-pay {
+          background: linear-gradient(90deg, #e8e8e8 25%, #f2f2f2 50%, #e8e8e8 75%);
+          background-size: 1200px 100%;
+          animation: sk-pay 1.5s ease-in-out infinite;
+          border-radius: 6px;
+        }
+      `}</style>
+
+      {/* Avatar card skeleton */}
+      <div style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 20 }}>
+        <div className="sk-pay" style={{ width: 80, height: 80, borderRadius: "50%", flexShrink: 0 }} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="sk-pay" style={{ height: 17, width: "30%" }} />
+          <div className="sk-pay" style={{ height: 12, width: "45%" }} />
+        </div>
+      </div>
+
+      {/* Informasi Akun skeleton */}
+      <div style={cardStyle}>
+        <div className="sk-pay" style={{ height: 14, width: "20%", marginBottom: 20 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="sk-pay" style={{ height: 11, width: "35%" }} />
+              <div className="sk-pay" style={{ height: 36, borderRadius: 8 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Alamat skeleton */}
+      <div style={cardStyle}>
+        <div className="sk-pay" style={{ height: 14, width: "15%", marginBottom: 20 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="sk-pay" style={{ height: 11, width: "40%" }} />
+              <div className="sk-pay" style={{ height: 36, borderRadius: 8 }} />
+            </div>
+          ))}
+          {/* Alamat lengkap textarea */}
+          <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 6 }}>
+            <div className="sk-pay" style={{ height: 11, width: "25%" }} />
+            <div className="sk-pay" style={{ height: 72, borderRadius: 8 }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Tombol aksi skeleton */}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingBottom: 24 }}>
+        <div className="sk-pay" style={{ width: 100, height: 40, borderRadius: 9 }} />
+        <div className="sk-pay" style={{ width: 150, height: 40, borderRadius: 9 }} />
+      </div>
+    </>
+  );
+}
 
 // ── Eye Icon ──────────────────────────────────────────────────────────────────
 
@@ -323,14 +389,6 @@ export default function ProfilePage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", fontFamily: "'Poppins', sans-serif", background: "#f9f9f9" }}>
-        <p style={{ color: "#888" }}>Memuat profil...</p>
-      </div>
-    );
-  }
-
   const avatarSrc = profile?.foto_profile ?? `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(formData.nama || "user")}`;
   const isBusy = uploadingFoto || deletingFoto;
 
@@ -343,115 +401,122 @@ export default function ProfilePage() {
 
         <main style={{ flex: 1, padding: "22px 28px" }}>
 
-          {/* ── Avatar Card ─────────────────────────────────────────────────── */}
-          <div style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 20 }}>
+          {loading ? (
+            /* ── Skeleton: tampil saat loading ── */
+            <SkeletonProfile />
+          ) : (
+            <>
+              {/* ── Avatar Card ─────────────────────────────────────────────── */}
+              <div style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 20 }}>
 
-            <div style={{ position: "relative", flexShrink: 0, width: 80, height: 80 }}>
-              <div style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", border: `2.5px solid ${G}`, background: "#e8f5e9", opacity: isBusy ? 0.5 : 1, transition: "opacity .2s", boxSizing: "border-box" }}>
-                <Image src={avatarSrc} alt="Avatar" width={80} height={80} unoptimized style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              </div>
+                <div style={{ position: "relative", flexShrink: 0, width: 80, height: 80 }}>
+                  <div style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", border: `2.5px solid ${G}`, background: "#e8f5e9", opacity: isBusy ? 0.5 : 1, transition: "opacity .2s", boxSizing: "border-box" }}>
+                    <Image src={avatarSrc} alt="Avatar" width={80} height={80} unoptimized style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  </div>
 
-              {isBusy && (
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                  <div style={{ width: 22, height: 22, border: `3px solid ${G}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+                  {isBusy && (
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                      <div style={{ width: 22, height: 22, border: `3px solid ${G}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+                    </div>
+                  )}
+
+                  <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/jpg,image/webp" style={{ display: "none" }} onChange={handleFotoChange} />
+
+                  {/* Tombol kamera */}
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={isBusy}
+                    title="Ganti foto profil"
+                    style={{ position: "absolute", bottom: 0, right: profile?.foto_profile ? 22 : -2, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: "50%", width: 26, height: 26, cursor: isBusy ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,.1)", padding: 0 }}
+                  >
+                    <Camera size={13} color="#555" />
+                  </button>
+
+                  {/* Tombol hapus foto */}
+                  {profile?.foto_profile && (
+                    <button
+                      onClick={handleFotoDelete}
+                      disabled={isBusy}
+                      title="Hapus foto profil"
+                      style={{ position: "absolute", bottom: 0, right: -4, background: "#fff", border: "1.5px solid #ffcdd2", borderRadius: "50%", width: 26, height: 26, cursor: isBusy ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,.1)", padding: 0 }}
+                    >
+                      <Trash2 size={12} color="#e53935" />
+                    </button>
+                  )}
                 </div>
-              )}
 
-              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/jpg,image/webp" style={{ display: "none" }} onChange={handleFotoChange} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a1a" }}>{formData.nama || "-"}</div>
+                  <div style={{ fontSize: 12, color: "#aaa", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                    Pemilik Hewan
+                    {formData.kota && (
+                      <>
+                        <span>·</span>
+                        <MapPin size={12} color="#aaa" />
+                        {formData.kota}{formData.provinsi ? `, ${formData.provinsi}` : ""}
+                      </>
+                    )}
+                  </div>
+                  {uploadingFoto && <div style={{ marginTop: 6, fontSize: 11, color: "#888" }}>Mengupload foto...</div>}
+                  {deletingFoto  && <div style={{ marginTop: 6, fontSize: 11, color: "#e53935" }}>Menghapus foto...</div>}
+                </div>
+              </div>
 
-              {/* Tombol kamera */}
-              <button
-                onClick={() => fileRef.current?.click()}
-                disabled={isBusy}
-                title="Ganti foto profil"
-                style={{ position: "absolute", bottom: 0, right: profile?.foto_profile ? 22 : -2, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: "50%", width: 26, height: 26, cursor: isBusy ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,.1)", padding: 0 }}
-              >
-                <Camera size={13} color="#555" />
-              </button>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-              {/* Tombol hapus foto */}
-              {profile?.foto_profile && (
+              {/* ── Informasi Akun ───────────────────────────────────────────── */}
+              <div style={cardStyle}>
+                <h2 style={sectionTitleStyle}><User size={15} color={G} /> Informasi Akun</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <InputField label="Nama Lengkap"    name="nama"       value={formData.nama}       onChange={handleChange} />
+                  <InputField label="Email"           name="email"      type="email" value={formData.email} onChange={handleChange} />
+                  <InputField label="No. Telepon"     name="no_hp"      value={formData.no_hp}      onChange={handleChange} />
+                  <InputField label="Kata Sandi Baru" name="kata_sandi" type="password" value={formData.kata_sandi} onChange={handleChange} placeholder="Kosongkan jika tidak ingin ubah" />
+                </div>
+              </div>
+
+              {/* ── Alamat ──────────────────────────────────────────────────── */}
+              <div style={cardStyle}>
+                <h2 style={sectionTitleStyle}><MapPin size={15} color={G} /> Alamat</h2>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <InputField label="Provinsi"        name="provinsi"  value={formData.provinsi}  onChange={handleChange} />
+                  <InputField label="Kota/Kabupaten"  name="kota"      value={formData.kota}      onChange={handleChange} />
+                  <InputField label="Kecamatan"       name="kecamatan" value={formData.kecamatan} onChange={handleChange} />
+                  <InputField label="Kode Pos"        name="kode_pos"  value={formData.kode_pos}  onChange={handleChange} />
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={labelStyle}>Alamat Lengkap</label>
+                    <textarea name="alamat_lengkap" value={formData.alamat_lengkap} onChange={handleChange} rows={3}
+                      style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = G)}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Tombol Aksi ─────────────────────────────────────────────── */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingBottom: 24 }}>
                 <button
-                  onClick={handleFotoDelete}
-                  disabled={isBusy}
-                  title="Hapus foto profil"
-                  style={{ position: "absolute", bottom: 0, right: -4, background: "#fff", border: "1.5px solid #ffcdd2", borderRadius: "50%", width: 26, height: 26, cursor: isBusy ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,.1)", padding: 0 }}
+                  onClick={() => window.location.reload()}
+                  style={{ padding: "10px 22px", borderRadius: 9, border: `1.5px solid ${G}`, background: "#fff", color: G, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#e8f5e9")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                 >
-                  <Trash2 size={12} color="#e53935" />
+                  Batalkan
                 </button>
-              )}
-            </div>
 
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a1a" }}>{formData.nama || "-"}</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
-                Pemilik Hewan
-                {formData.kota && (
-                  <>
-                    <span>·</span>
-                    <MapPin size={12} color="#aaa" />
-                    {formData.kota}{formData.provinsi ? `, ${formData.provinsi}` : ""}
-                  </>
-                )}
+                <button
+                  onClick={handleSubmit}
+                  disabled={saving}
+                  style={{ padding: "10px 26px", borderRadius: 9, border: "none", background: saving ? "#a5d6a7" : G, color: "#fff", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 7, transition: "background .2s" }}
+                  onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = "#1b5e20"; }}
+                  onMouseLeave={(e) => { if (!saving) e.currentTarget.style.background = G; }}
+                >
+                  {saving ? <>Menyimpan...</> : <><Save size={14} /> Simpan Perubahan</>}
+                </button>
               </div>
-              {uploadingFoto && <div style={{ marginTop: 6, fontSize: 11, color: "#888" }}>Mengupload foto...</div>}
-              {deletingFoto  && <div style={{ marginTop: 6, fontSize: 11, color: "#e53935" }}>Menghapus foto...</div>}
-            </div>
-          </div>
-
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
-          {/* ── Informasi Akun ───────────────────────────────────────────────── */}
-          <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}><User size={15} color={G} /> Informasi Akun</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <InputField label="Nama Lengkap"    name="nama"       value={formData.nama}       onChange={handleChange} />
-              <InputField label="Email"           name="email"      type="email" value={formData.email} onChange={handleChange} />
-              <InputField label="No. Telepon"     name="no_hp"      value={formData.no_hp}      onChange={handleChange} />
-              <InputField label="Kata Sandi Baru" name="kata_sandi" type="password" value={formData.kata_sandi} onChange={handleChange} placeholder="Kosongkan jika tidak ingin ubah" />
-            </div>
-          </div>
-
-          {/* ── Alamat ──────────────────────────────────────────────────────── */}
-          <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}><MapPin size={15} color={G} /> Alamat</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <InputField label="Provinsi"        name="provinsi"  value={formData.provinsi}  onChange={handleChange} />
-              <InputField label="Kota/Kabupaten"  name="kota"      value={formData.kota}      onChange={handleChange} />
-              <InputField label="Kecamatan"       name="kecamatan" value={formData.kecamatan} onChange={handleChange} />
-              <InputField label="Kode Pos"        name="kode_pos"  value={formData.kode_pos}  onChange={handleChange} />
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label style={labelStyle}>Alamat Lengkap</label>
-                <textarea name="alamat_lengkap" value={formData.alamat_lengkap} onChange={handleChange} rows={3}
-                  style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = G)}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = "#e0e0e0")}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Tombol Aksi ─────────────────────────────────────────────────── */}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, paddingBottom: 24 }}>
-            <button
-              onClick={() => window.location.reload()}
-              style={{ padding: "10px 22px", borderRadius: 9, border: `1.5px solid ${G}`, background: "#fff", color: G, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#e8f5e9")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
-            >
-              Batalkan
-            </button>
-
-            <button
-              onClick={handleSubmit}
-              disabled={saving}
-              style={{ padding: "10px 26px", borderRadius: 9, border: "none", background: saving ? "#a5d6a7" : G, color: "#fff", fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 7, transition: "background .2s" }}
-              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = "#1b5e20"; }}
-              onMouseLeave={(e) => { if (!saving) e.currentTarget.style.background = G; }}
-            >
-              {saving ? <>Menyimpan...</> : <><Save size={14} /> Simpan Perubahan</>}
-            </button>
-          </div>
+            </>
+          )}
 
         </main>
       </div>

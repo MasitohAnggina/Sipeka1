@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Sidebar from "@/components/Sidebar_owner_pet";
 import Header from "@/components/Header";
 import { useRouter } from "next/navigation";
-import { Camera, X, PawPrint, Clock, AlertCircle } from "lucide-react";
+import { Camera, X, PawPrint, AlertCircle } from "lucide-react";
 import { ToastContainer, useToast } from "@/components/Toast";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -74,6 +74,52 @@ function usePressedState() {
     onTouchEnd:  () => setPressed(false),
   };
   return { pressed, pressProps };
+}
+
+// ── Skeleton Card ─────────────────────────────────────────────────────────────
+
+function SkeletonCard() {
+  return (
+    <div
+      style={{
+        borderRadius: 14,
+        overflow: "hidden",
+        border: "1.5px solid #e0e0e0",
+        background: "#fff",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Foto area */}
+      <div className="sk-pay" style={{ width: "100%", height: 140, flexShrink: 0 }} />
+
+      {/* Nama & Jenis area */}
+      <div style={{ background: "#e8f5e9", padding: "10px 14px", display: "flex", flexDirection: "column", gap: 6, alignItems: "center" }}>
+        <div className="sk-pay" style={{ height: 14, borderRadius: 6, width: "55%" }} />
+        <div className="sk-pay" style={{ height: 10, borderRadius: 6, width: "75%" }} />
+      </div>
+
+      {/* Usia & Berat area */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, background: "#f0f0f0" }}>
+        {[0, 1].map((i) => (
+          <div key={i} style={{ background: "#fafafa", padding: "10px", display: "flex", flexDirection: "column", gap: 5, alignItems: "center" }}>
+            <div className="sk-pay" style={{ height: 9, borderRadius: 4, width: "50%" }} />
+            <div className="sk-pay" style={{ height: 13, borderRadius: 4, width: "60%" }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Button area */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, padding: "10px 10px 6px" }}>
+        <div className="sk-pay" style={{ height: 32, borderRadius: 8 }} />
+        <div className="sk-pay" style={{ height: 32, borderRadius: 8 }} />
+      </div>
+      <div style={{ padding: "0 10px 10px" }}>
+        <div className="sk-pay" style={{ height: 28, borderRadius: 8 }} />
+      </div>
+    </div>
+  );
 }
 
 // ── Form Modal ────────────────────────────────────────────────────────────────
@@ -460,7 +506,6 @@ function PetCard({
             style={{ objectFit: "contain" }}
           />
         ) : (
-          // ✅ Ganti emoji dengan icon lucide
           <PawPrint size={52} color="#fff" />
         )}
       </div>
@@ -616,36 +661,48 @@ export default function HewanPage() {
   const [editPet,  setEditPet]  = useState<Pet | null>(null);
 
   const { toasts, toast, removeToast } = useToast();
-  const token = getAuthToken();
 
   const tambahPress = usePressedState();
 
-  const fetchPets = async (signal?: AbortSignal) => {
+  const toastRef  = useRef(toast);
+  const routerRef = useRef(router);
+  useEffect(() => { toastRef.current  = toast;  }, [toast]);
+  useEffect(() => { routerRef.current = router; }, [router]);
+
+  const fetchPets = useCallback(async () => {
+    const token = sessionStorage.getItem("token") ?? "";
+    if (!token) { routerRef.current.push("/auth/login"); return; }
     setLoading(true);
     try {
       const r = await fetch(HEWAN_URL, {
         headers: { Authorization: `Bearer ${token}` },
-        signal,
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const res = await r.json();
-      if (res.success) setPets(res.data);
+      if (res.success) {
+        const mapped = res.data.map((p: Pet) => ({
+          ...p,
+          name:   p.nama_hewan,
+          type:   p.jenis,
+          breed:  p.ras ?? "-",
+          age:    p.umur  != null ? `${p.umur} Tahun` : "-",
+          weight: p.berat != null ? `${p.berat} Kg`   : "-",
+        }));
+        setPets(mapped);
+      }
     } catch (err) {
-      if (!(err instanceof DOMException && err.name === "AbortError")) {
-        toast.error("Gagal memuat data", "Tidak dapat mengambil data hewan dari server.");
+      const msg = err instanceof Error ? err.message : "";
+      if (!msg.includes("AbortError")) {
+        toastRef.current.error("Gagal memuat data", "Tidak dapat mengambil data hewan dari server.");
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (!token) { router.push("/auth/login"); return; }
-    const controller = new AbortController();
-    fetchPets(controller.signal);
-    return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, router]);
+    fetchPets();
+  }, [fetchPets]);
 
   const openAdd   = () => { setEditPet(null); setShowForm(true); };
   const openEdit  = (pet: Pet) => { setEditPet(pet); setShowForm(true); };
@@ -654,6 +711,7 @@ export default function HewanPage() {
   const handleSave = async (form: FormData) => {
     setSaving(true);
     try {
+      const token  = getAuthToken();
       const isEdit = !!editPet;
       const body: Record<string, string> = {
         nama_hewan: form.nama_hewan,
@@ -697,7 +755,8 @@ export default function HewanPage() {
 
   const handleDelete = async (pet: Pet) => {
     try {
-      const r    = await fetch(`${HEWAN_URL}/${pet.id_hewan}`, {
+      const token = getAuthToken();
+      const r     = await fetch(`${HEWAN_URL}/${pet.id_hewan}`, {
         method:  "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -720,90 +779,127 @@ export default function HewanPage() {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
-      <Sidebar activePage="hewan" />
+    <>
+      <style>{`
+        @keyframes sk-pay {
+          0%   { background-position: -600px 0; }
+          100% { background-position:  600px 0; }
+        }
+        .sk-pay {
+          background: linear-gradient(90deg, #e8e8e8 25%, #f2f2f2 50%, #e8e8e8 75%);
+          background-size: 1200px 100%;
+          animation: sk-pay 1.5s ease-in-out infinite;
+          border-radius: 6px;
+        }
+      `}</style>
 
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "auto",
-          background: "#f9f9f9",
-        }}
-      >
-        <Header title="Data Hewan" subtitle="Kelola data hewan peliharaan Anda" />
+      <div style={{ display: "flex", height: "100vh", overflow: "hidden", fontFamily: "'Poppins', sans-serif" }}>
+        <Sidebar activePage="hewan" />
 
-        <div style={{ padding: "24px 28px" }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "auto",
+            background: "#f9f9f9",
+          }}
+        >
+          <Header title="Data Hewan" subtitle="Kelola data hewan peliharaan Anda" />
 
-          {/* ── Tombol Tambah Hewan ── */}
-          <button
-            onClick={openAdd}
-            {...tambahPress.pressProps}
-            style={{
-              padding: "10px 20px",
-              borderRadius: 8,
-              border: `2px solid ${G}`,
-              background: tambahPress.pressed ? G : "#fff",
-              color: tambahPress.pressed ? "#fff" : G,
-              fontWeight: 700,
-              fontSize: 14,
-              cursor: "pointer",
-              marginBottom: 24,
-              fontFamily: "inherit",
-              transition: "background 0.15s, color 0.15s",
-            }}
-          >
-            + Tambah Hewan
-          </button>
+          <div style={{ padding: "24px 28px", flex: 1, display: "flex", flexDirection: "column" }}>
 
-          {loading ? (
-            <div style={{ textAlign: "center", padding: "60px 0", color: "#888" }}>
-              {/* ✅ Ganti emoji ⏳ dengan icon lucide */}
-              <Clock size={32} color="#aaa" style={{ marginBottom: 8 }} />
-              <div style={{ fontSize: 14 }}>Memuat data hewan...</div>
-            </div>
-          ) : pets.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 0", color: "#999" }}>
-              {/* ✅ Ganti emoji 🐾 dengan icon lucide */}
-              <PawPrint size={48} color="#c8e6c9" style={{ marginBottom: 12 }} />
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Belum ada hewan</div>
-              <div style={{ fontSize: 13, marginTop: 4 }}>
-                Klik + Tambah Hewan untuk menambahkan hewan peliharaan
-              </div>
-            </div>
-          ) : (
-            <div
+            {/* ── Tombol Tambah Hewan ── */}
+            <button
+              onClick={openAdd}
+              {...tambahPress.pressProps}
               style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(5, 1fr)",
-                gap: 16,
+                padding: "10px 20px",
+                borderRadius: 8,
+                border: `2px solid ${G}`,
+                background: tambahPress.pressed ? G : "#fff",
+                color: tambahPress.pressed ? "#fff" : G,
+                fontWeight: 700,
+                fontSize: 14,
+                cursor: "pointer",
+                marginBottom: 24,
+                fontFamily: "inherit",
+                alignSelf: "flex-start",
+                transition: "background 0.15s, color 0.15s",
               }}
             >
-              {pets.map((pet) => (
-                <PetCard
-                  key={pet.id_hewan}
-                  pet={pet}
-                  onEdit={() => openEdit(pet)}
-                  onBooking={() => handleBooking(pet.id_hewan)}
-                  onDelete={() => handleDelete(pet)}
-                />
-              ))}
-            </div>
-          )}
+              + Tambah Hewan
+            </button>
+
+            {loading ? (
+              /* ── Skeleton: 5 kartu abu-abu beranimasi ── */
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(5, 1fr)",
+                  gap: 16,
+                }}
+              >
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <SkeletonCard key={i} />
+                ))}
+              </div>
+
+            ) : pets.length === 0 ? (
+              /* ── Empty state ── */
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  minHeight: 0,
+                }}
+              >
+                <PawPrint size={56} color="#c8e6c9" />
+                <div style={{ fontSize: 16, fontWeight: 600, color: "#999", marginTop: 4 }}>
+                  Belum ada hewan
+                </div>
+                <div style={{ fontSize: 13, color: "#bbb" }}>
+                  Klik + Tambah Hewan untuk menambahkan hewan peliharaan
+                </div>
+              </div>
+
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(5, 1fr)",
+                  gap: 16,
+                }}
+              >
+                {pets.map((pet) => (
+                  <PetCard
+                    key={pet.id_hewan}
+                    pet={pet}
+                    onEdit={() => openEdit(pet)}
+                    onBooking={() => handleBooking(pet.id_hewan)}
+                    onDelete={() => handleDelete(pet)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+
+        {showForm && (
+          <PetForm
+            initial={editPet}
+            onSave={handleSave}
+            onCancel={closeForm}
+            saving={saving}
+          />
+        )}
+
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
       </div>
-
-      {showForm && (
-        <PetForm
-          initial={editPet}
-          onSave={handleSave}
-          onCancel={closeForm}
-          saving={saving}
-        />
-      )}
-
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
-    </div>
+    </>
   );
 }

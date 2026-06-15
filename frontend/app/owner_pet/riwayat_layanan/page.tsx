@@ -124,17 +124,117 @@ interface StatsData {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/**
- * Parse tanggal + jam menjadi timestamp (ms).
- * Menangani format jam "HH:mm" maupun "HH:mm:ss".
- */
 function parseDateTime(tanggal: string | null | undefined, jam: string | null | undefined): number {
   const tgl     = tanggal?.trim() || "1970-01-01";
-  // Ambil hanya HH:mm (5 karakter pertama) agar aman untuk semua format jam
   const jamNorm = (jam?.trim() ?? "00:00").substring(0, 5);
   const dt      = new Date(`${tgl}T${jamNorm}:00`);
-  // Kalau hasil parsing NaN (format tidak valid), fallback ke 0
   return isNaN(dt.getTime()) ? 0 : dt.getTime();
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+
+function SkeletonRiwayat() {
+  return (
+    <>
+      <style>{`
+        @keyframes sk-riwayat {
+          0%   { background-position: -600px 0; }
+          100% { background-position:  600px 0; }
+        }
+        .sk-r {
+          background: linear-gradient(90deg, #e8e8e8 25%, #f2f2f2 50%, #e8e8e8 75%);
+          background-size: 1200px 100%;
+          animation: sk-riwayat 1.5s ease-in-out infinite;
+          border-radius: 6px;
+        }
+      `}</style>
+
+      {/* Stat cards skeleton */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
+        {[0, 1, 2, 3, 4].map(i => (
+          <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 12, border: "1.5px solid transparent" }}>
+            <div className="sk-r" style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0 }} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="sk-r" style={{ height: 10, width: "70%" }} />
+              <div className="sk-r" style={{ height: 22, width: "40%" }} />
+              <div className="sk-r" style={{ height: 9, width: "30%" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter bar skeleton */}
+      <div style={{ background: "#fff", borderRadius: 12, padding: "12px 18px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div className="sk-r" style={{ height: 14, width: 50 }} />
+        <div className="sk-r" style={{ height: 34, width: 160, borderRadius: 8 }} />
+        <div className="sk-r" style={{ height: 34, width: 140, borderRadius: 8 }} />
+        <div className="sk-r" style={{ height: 32, width: 80, borderRadius: 8, marginLeft: "auto" }} />
+      </div>
+
+      {/* Tabel skeleton */}
+      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+        {/* Info bar */}
+        <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0" }}>
+          <div className="sk-r" style={{ height: 13, width: 200 }} />
+        </div>
+
+        {/* Header kolom */}
+        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0", gap: 8 }}>
+          {[80, 60, 60, 60, 50, 40].map((w, i) => (
+            <div key={i} className="sk-r" style={{ height: 13, width: w }} />
+          ))}
+        </div>
+
+        {/* Row skeleton x3 */}
+        {[0, 1, 2].map((i, _, arr) => (
+          <div
+            key={i}
+            style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center", gap: 8 }}
+          >
+            {/* Tanggal */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <div className="sk-r" style={{ height: 24, width: 40 }} />
+              <div className="sk-r" style={{ height: 13, width: 60 }} />
+              <div className="sk-r" style={{ height: 11, width: 45 }} />
+            </div>
+            {/* Hewan */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="sk-r" style={{ width: 44, height: 44, borderRadius: 8, flexShrink: 0 }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1 }}>
+                <div className="sk-r" style={{ height: 14, width: "80%" }} />
+                <div className="sk-r" style={{ height: 11, width: "55%" }} />
+                <div className="sk-r" style={{ height: 11, width: "65%" }} />
+              </div>
+            </div>
+            {/* Layanan */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <div className="sk-r" style={{ height: 14, width: "75%" }} />
+              <div className="sk-r" style={{ height: 11, width: "50%" }} />
+              <div className="sk-r" style={{ height: 13, width: "60%" }} />
+            </div>
+            {/* Dokter */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <div className="sk-r" style={{ height: 13, width: "70%" }} />
+              <div className="sk-r" style={{ height: 11, width: "55%" }} />
+            </div>
+            {/* Status badge */}
+            <div className="sk-r" style={{ height: 24, width: 70, borderRadius: 20 }} />
+            {/* Tombol detail */}
+            <div className="sk-r" style={{ height: 32, width: 70, borderRadius: 8 }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination skeleton */}
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 16 }}>
+        <div className="sk-r" style={{ height: 32, width: 100, borderRadius: 8 }} />
+        {[0, 1, 2].map(i => (
+          <div key={i} className="sk-r" style={{ width: 32, height: 32, borderRadius: 8 }} />
+        ))}
+        <div className="sk-r" style={{ height: 32, width: 100, borderRadius: 8 }} />
+      </div>
+    </>
+  );
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -154,21 +254,6 @@ function StatusBadge({ status }: { status: string }) {
     <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: bg, color }}>
       {status?.charAt(0).toUpperCase() + status?.slice(1).replace(/_/g, " ")}
     </span>
-  );
-}
-
-function LoadingRows() {
-  return (
-    <>
-      <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
-      {[1, 2, 3].map(i => (
-        <div key={i} style={{ padding: "16px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", gap: 20, alignItems: "center" }}>
-          {[120, 200, 200, 150, 80, 80].map((w, j) => (
-            <div key={j} style={{ width: w, height: 40, borderRadius: 6, background: "linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />
-          ))}
-        </div>
-      ))}
-    </>
   );
 }
 
@@ -336,10 +421,27 @@ function DetailModal({
 
           {loadingDetail ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {[180, 120, 160].map((h, i) => (
-                <div key={i} style={{ height: h, borderRadius: 12, background: "linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />
-              ))}
-              <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+              <style>{`
+                @keyframes sk-riwayat {
+                  0%   { background-position: -600px 0; }
+                  100% { background-position:  600px 0; }
+                }
+                .sk-r {
+                  background: linear-gradient(90deg, #e8e8e8 25%, #f2f2f2 50%, #e8e8e8 75%);
+                  background-size: 1200px 100%;
+                  animation: sk-riwayat 1.5s ease-in-out infinite;
+                  border-radius: 6px;
+                }
+              `}</style>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                {[0, 1].map(col => (
+                  <div key={col} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {[180, 140, 120].map((h, i) => (
+                      <div key={i} className="sk-r" style={{ height: h, borderRadius: 12 }} />
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -549,12 +651,10 @@ function RiwayatLayananContent() {
         ]);
         if (!cancelled) {
           if (rRes.success) {
-            // ── Urutkan dari terbaru ke terlama berdasarkan tanggal + jam ──
-            // parseDateTime menangani jam format "HH:mm" maupun "HH:mm:ss"
             const sorted = [...rRes.data].sort((a: RiwayatItem, b: RiwayatItem) => {
-  const dateDiff = parseDateTime(b.tanggal, b.jam) - parseDateTime(a.tanggal, a.jam);
-  return dateDiff !== 0 ? dateDiff : b.id_riwayat - a.id_riwayat;
-});
+              const dateDiff = parseDateTime(b.tanggal, b.jam) - parseDateTime(a.tanggal, a.jam);
+              return dateDiff !== 0 ? dateDiff : b.id_riwayat - a.id_riwayat;
+            });
             setRiwayat(sorted);
           }
           if (sRes.success) setStats(sRes.data);
@@ -625,171 +725,175 @@ function RiwayatLayananContent() {
         />
       )}
 
-      {/* Stat Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
-        {statCards.map(s => {
-          const isActive = filterKat === s.key;
-          return (
-            <div
-              key={s.key}
-              onClick={() => { setFilterKat(s.key); setCurrentPage(1); }}
-              style={{
-                background: isActive ? "#f0faf2" : "#fff",
-                borderRadius: 12, padding: "14px 18px",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
-                display: "flex", alignItems: "center", gap: 12,
-                border: isActive ? `1.5px solid ${G}` : "1.5px solid transparent",
-                cursor: "pointer", transition: "all .15s",
-              }}
-            >
-              <span>{s.icon}</span>
-              <div>
-                <p style={{ margin: 0, fontSize: 12, color: "#888" }}>{s.label}</p>
-                <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>
-                  {s.value} <span style={{ fontSize: 12, fontWeight: 400, color: "#888" }}>Kali</span>
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Filter Bar */}
-      <div style={{ background: "#fff", borderRadius: 12, padding: "12px 18px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#444", marginRight: 4, display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <Search size={14} color="#444" /> Filter:
-        </span>
-        {[
-          { label: "Jenis Layanan", value: filterKat,   options: filterLayananOptions, onChange: (v: string) => { setFilterKat(v);   setCurrentPage(1); } },
-          { label: "Jenis Hewan",   value: filterHewan, options: jenisHewanList,       onChange: (v: string) => { setFilterHewan(v); setCurrentPage(1); } },
-        ].map(f => (
-          <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 6, background: "#f9f9f9", borderRadius: 8, padding: "2px 4px 2px 10px", border: "1px solid #e0e0e0" }}>
-            <span style={{ fontSize: 12, color: "#666", fontWeight: 600, whiteSpace: "nowrap" }}>{f.label}</span>
-            <select value={f.value} onChange={e => f.onChange(e.target.value)} style={{ padding: "6px 10px", border: "none", background: "transparent", fontSize: 13, color: "#333", cursor: "pointer", outline: "none", fontWeight: 500 }}>
-              {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-            </select>
-          </div>
-        ))}
-        <button
-          onClick={() => { setFilterKat("Semua"); setFilterHewan("Semua Hewan"); setCurrentPage(1); }}
-          style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#fce4ec", color: "#c62828", fontSize: 13, fontWeight: 700, cursor: "pointer", marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}
-        >
-          <RotateCcw size={13} color="#c62828" /> Reset
-        </button>
-      </div>
-
-      {/* Tabel */}
-      <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", overflow: "hidden" }}>
-        {!loading && !error && filtered.length > 0 && (
-          <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 13, color: "#888" }}>
-              Menampilkan <strong style={{ color: "#333" }}>{(currentPage - 1) * ITEMS_PAGE + 1}–{Math.min(currentPage * ITEMS_PAGE, filtered.length)}</strong> dari <strong style={{ color: "#333" }}>{filtered.length}</strong> data
-            </span>
-          </div>
-        )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0" }}>
-          {["Tanggal", "Hewan", "Layanan", "Dokter / Petugas", "Status", "Aksi"].map(h => (
-            <span key={h} style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>{h}</span>
-          ))}
-        </div>
-
-        {loading ? (
-          <LoadingRows />
-        ) : error ? (
-          <div style={{ padding: 40, textAlign: "center", color: "#e53935", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <AlertCircle size={18} color="#e53935" /> {error}
-          </div>
-        ) : paginated.length === 0 ? (
-          <div style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>
-            {riwayat.length === 0 ? "Belum ada riwayat layanan." : "Tidak ada data untuk filter ini."}
-          </div>
-        ) : (
-          paginated.map((item, i) => {
-            const rowTotal = getGrandTotal(item);
-            return (
-              <div
-                key={item.id_riwayat}
-                style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < paginated.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center" }}
-              >
-                <div>
-                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>{item.tanggal_dd}</p>
-                  <p style={{ margin: 0, fontSize: 13, color: "#555" }}>{item.bulan}</p>
-                  <p style={{ margin: 0, fontSize: 11, color: "#aaa" }}>{item.hari}</p>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <HewanAvatar foto={item.hewan?.foto ?? null} jenis={item.hewan?.jenis} nama={item.hewan?.nama ?? "hewan"} />
+      {loading ? (
+        <SkeletonRiwayat />
+      ) : (
+        <>
+          {/* Stat Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
+            {statCards.map(s => {
+              const isActive = filterKat === s.key;
+              return (
+                <div
+                  key={s.key}
+                  onClick={() => { setFilterKat(s.key); setCurrentPage(1); }}
+                  style={{
+                    background: isActive ? "#f0faf2" : "#fff",
+                    borderRadius: 12, padding: "14px 18px",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
+                    display: "flex", alignItems: "center", gap: 12,
+                    border: isActive ? `1.5px solid ${G}` : "1.5px solid transparent",
+                    cursor: "pointer", transition: "all .15s",
+                  }}
+                >
+                  <span>{s.icon}</span>
                   <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#1a1a1a" }}>{item.hewan?.nama ?? "-"}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: "#888" }}>{item.hewan?.jenis}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: "#888" }}>{item.hewan?.umur} · {item.hewan?.berat}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: "#888" }}>{s.label}</p>
+                    <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>
+                      {s.value} <span style={{ fontSize: 12, fontWeight: 400, color: "#888" }}>Kali</span>
+                    </p>
                   </div>
                 </div>
-                <div>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{item.layanan_utama}</p>
-                  {item.layanans.length > 1 && (
-                    <p style={{ margin: "2px 0 0", fontSize: 11, color: G }}>+{item.layanans.length - 1} layanan lainnya</p>
-                  )}
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: G }}>{toRp(rowTotal)}</p>
-                </div>
-                <div>
-                  {item.nama_dokter && item.nama_dokter !== "-" ? (
-                    <>
-                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1a1a1a", display: "flex", alignItems: "center", gap: 5 }}>
-                        <Stethoscope size={13} color="#555" /> {item.nama_dokter}
-                      </p>
-                      {item.spesialisasi_dokter && item.spesialisasi_dokter !== "-" && (
-                        <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>{item.spesialisasi_dokter}</p>
-                      )}
-                    </>
-                  ) : (
-                    <p style={{ margin: 0, fontSize: 12, color: "#bbb", fontStyle: "italic" }}>–</p>
-                  )}
-                </div>
-                <StatusBadge status={item.status_booking} />
-                <div>
-                  <button
-                    onClick={() => handleOpenDetail(item)}
-                    style={{ padding: "6px 14px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all .15s", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.color = "#fff"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = G; }}
-                  >
-                    <ClipboardList size={13} /> Detail
-                  </button>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+              );
+            })}
+          </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 16 }}>
-          <button
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer", color: currentPage === 1 ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            <ChevronLeft size={14} /> Sebelumnya
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+          {/* Filter Bar */}
+          <div style={{ background: "#fff", borderRadius: 12, padding: "12px 18px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#444", marginRight: 4, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <Search size={14} color="#444" /> Filter:
+            </span>
+            {[
+              { label: "Jenis Layanan", value: filterKat,   options: filterLayananOptions, onChange: (v: string) => { setFilterKat(v);   setCurrentPage(1); } },
+              { label: "Jenis Hewan",   value: filterHewan, options: jenisHewanList,       onChange: (v: string) => { setFilterHewan(v); setCurrentPage(1); } },
+            ].map(f => (
+              <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 6, background: "#f9f9f9", borderRadius: 8, padding: "2px 4px 2px 10px", border: "1px solid #e0e0e0" }}>
+                <span style={{ fontSize: 12, color: "#666", fontWeight: 600, whiteSpace: "nowrap" }}>{f.label}</span>
+                <select value={f.value} onChange={e => f.onChange(e.target.value)} style={{ padding: "6px 10px", border: "none", background: "transparent", fontSize: 13, color: "#333", cursor: "pointer", outline: "none", fontWeight: 500 }}>
+                  {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+              </div>
+            ))}
             <button
-              key={page}
-              onClick={() => setCurrentPage(page)}
-              style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #d1d5db", background: currentPage === page ? G : "#fff", color: currentPage === page ? "#fff" : "#333", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              onClick={() => { setFilterKat("Semua"); setFilterHewan("Semua Hewan"); setCurrentPage(1); }}
+              style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#fce4ec", color: "#c62828", fontSize: 13, fontWeight: 700, cursor: "pointer", marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}
             >
-              {page}
+              <RotateCcw size={13} color="#c62828" /> Reset
             </button>
-          ))}
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer", color: currentPage === totalPages ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
-          >
-            Berikutnya <ChevronRight size={14} />
-          </button>
-        </div>
+          </div>
+
+          {/* Tabel */}
+          <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+            {!error && filtered.length > 0 && (
+              <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: "#888" }}>
+                  Menampilkan <strong style={{ color: "#333" }}>{(currentPage - 1) * ITEMS_PAGE + 1}–{Math.min(currentPage * ITEMS_PAGE, filtered.length)}</strong> dari <strong style={{ color: "#333" }}>{filtered.length}</strong> data
+                </span>
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0" }}>
+              {["Tanggal", "Hewan", "Layanan", "Dokter / Petugas", "Status", "Aksi"].map(h => (
+                <span key={h} style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>{h}</span>
+              ))}
+            </div>
+
+            {error ? (
+              <div style={{ padding: 40, textAlign: "center", color: "#e53935", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <AlertCircle size={18} color="#e53935" /> {error}
+              </div>
+            ) : paginated.length === 0 ? (
+              <div style={{ padding: 40, textAlign: "center", color: "#aaa", fontSize: 14 }}>
+                {riwayat.length === 0 ? "Belum ada riwayat layanan." : "Tidak ada data untuk filter ini."}
+              </div>
+            ) : (
+              paginated.map((item, i) => {
+                const rowTotal = getGrandTotal(item);
+                return (
+                  <div
+                    key={item.id_riwayat}
+                    style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < paginated.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center" }}
+                  >
+                    <div>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>{item.tanggal_dd}</p>
+                      <p style={{ margin: 0, fontSize: 13, color: "#555" }}>{item.bulan}</p>
+                      <p style={{ margin: 0, fontSize: 11, color: "#aaa" }}>{item.hari}</p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <HewanAvatar foto={item.hewan?.foto ?? null} jenis={item.hewan?.jenis} nama={item.hewan?.nama ?? "hewan"} />
+                      <div>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#1a1a1a" }}>{item.hewan?.nama ?? "-"}</p>
+                        <p style={{ margin: 0, fontSize: 12, color: "#888" }}>{item.hewan?.jenis}</p>
+                        <p style={{ margin: 0, fontSize: 12, color: "#888" }}>{item.hewan?.umur} · {item.hewan?.berat}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{item.layanan_utama}</p>
+                      {item.layanans.length > 1 && (
+                        <p style={{ margin: "2px 0 0", fontSize: 11, color: G }}>+{item.layanans.length - 1} layanan lainnya</p>
+                      )}
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: G }}>{toRp(rowTotal)}</p>
+                    </div>
+                    <div>
+                      {item.nama_dokter && item.nama_dokter !== "-" ? (
+                        <>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#1a1a1a", display: "flex", alignItems: "center", gap: 5 }}>
+                            <Stethoscope size={13} color="#555" /> {item.nama_dokter}
+                          </p>
+                          {item.spesialisasi_dokter && item.spesialisasi_dokter !== "-" && (
+                            <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>{item.spesialisasi_dokter}</p>
+                          )}
+                        </>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: 12, color: "#bbb", fontStyle: "italic" }}>–</p>
+                      )}
+                    </div>
+                    <StatusBadge status={item.status_booking} />
+                    <div>
+                      <button
+                        onClick={() => handleOpenDetail(item)}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all .15s", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}
+                        onMouseEnter={e => { e.currentTarget.style.background = G; e.currentTarget.style.color = "#fff"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.color = G; }}
+                      >
+                        <ClipboardList size={13} /> Detail
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 16 }}>
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer", color: currentPage === 1 ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                <ChevronLeft size={14} /> Sebelumnya
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #d1d5db", background: currentPage === page ? G : "#fff", color: currentPage === page ? "#fff" : "#333", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer", color: currentPage === totalPages ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
+              >
+                Berikutnya <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+        </>
       )}
     </>
   );
