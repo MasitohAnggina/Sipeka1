@@ -1,41 +1,31 @@
 <?php
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
-
 class RiwayatLayanan extends Model
 {
     protected $table      = 'riwayat_layanan';
     protected $primaryKey = 'id_riwayat';
-
     protected $fillable = [
         'id_booking',
+        'id_resep',
         'catatan',
         'grand_total',
         'tanggal',
     ];
-
     protected $casts = [
         'tanggal'     => 'date',
         'grand_total' => 'decimal:2',
     ];
-
-    // ── Relasi ke Booking ─────────────────────────────────────────────────────
     public function booking()
     {
         return $this->belongsTo(Booking::class, 'id_booking', 'id_booking');
     }
-
-    // ── Relasi ke RekamMedis ──────────────────────────────────────────────────
     public function rekamMedis()
     {
         return $this->hasOne(RekamMedis::class, 'id_riwayat', 'id_riwayat');
     }
-
-    // ── Relasi ke Resep (via id_booking) ──────────────────────────────────────
     public function resep()
     {
-        return $this->hasOne(Resep::class, 'id_booking', 'id_booking');
+        return $this->belongsTo(Resep::class, 'id_resep', 'id_resep');
     }
 }
