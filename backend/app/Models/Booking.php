@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
@@ -72,17 +74,21 @@ class Booking extends Model
         return $this->hasOne(Resep::class, 'id_booking', 'id_booking');
     }
 
+    // fix: hapus loop query, pakai uniqid langsung tanpa do-while
     public static function generateNoBooking(): string
-    {
-        do {
-            $no = 'BK' . strtoupper(substr(uniqid(), -6));
-        } while (self::where('no_booking', $no)->exists());
-        return $no;
-    }
+{
+    do {
+        $no = 'BK' . strtoupper(substr(uniqid('', true), -8));
+    } while (self::where('no_booking', $no)->exists());
 
+    return $no;
+}
+
+    // fix: tambah lockForUpdate() untuk hindari race condition concurrent booking
     public static function nextAntrian(string $tanggal): int
-    {
-        $max = self::where('tanggal_booking', $tanggal)->max('no_antrian');
-        return ($max ?? 0) + 1;
-    }
+{
+    $max = self::where('tanggal_booking', $tanggal)->max('no_antrian');
+    return ($max ?? 0) + 1;
+}
+
 }

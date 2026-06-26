@@ -143,15 +143,38 @@ const fmtDate = (d: string) =>
         .replace(/\//g, "-")
     : "–";
 
-function fileToBase64(file: File): Promise<string> {
+// Ganti fungsi fileToBase64 yang lama dengan ini
+async function fileToBase64Compressed(
+  file: File,
+  maxWidth = 800,
+  quality = 0.7
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+
+      // Resize proporsional, max 800px lebar
+      let { width, height } = img;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+
+    img.onerror = reject;
+    img.src = url;
   });
 }
-
 const cardStyle = (active: boolean): React.CSSProperties => ({
   borderRadius: 10,
   padding: "13px 15px",
@@ -973,7 +996,7 @@ function Step3FotoKondisi({
 
   const handleFile = async (file: File | null, label: "before" | "after") => {
     if (!file || !file.type.startsWith("image/")) return;
-    const dataUrl = await fileToBase64(file);
+    const dataUrl = await fileToBase64Compressed(file);
     setCondPhotos((prev) => ({
       ...prev,
       [tab]: [
@@ -2006,22 +2029,34 @@ export default function BookingPage() {
       setFetchError(null);
 
       try {
-        // Fetch hewan
-        const hewanRes = await fetch(`${API_URL}/api/owner_pet/data_hewan`, {
-          headers: { Authorization: `Bearer ${token ?? ""}` },
-        });
+        // fix: semua fetch jalan parallel sekaligus
+        const [hewanRes, layananRes, jadwalRes] = await Promise.all([
+          fetch(`${API_URL}/api/owner_pet/data_hewan`, {
+            headers: { Authorization: `Bearer ${token ?? ""}` },
+          }),
+          fetch(`${API_URL}/api/layanan/publik`),
+          fetch(`${API_URL}/api/booking/jadwal-tersedia`, {
+            headers: { Authorization: `Bearer ${token ?? ""}` },
+          }),
+        ]);
 
+        // cek auth error lebih awal
+        if (hewanRes.status === 401) {
+          setFetchError("Sesi login habis. Silakan login ulang.");
+          return;
+        }
         if (!hewanRes.ok) {
-          const msg =
-            hewanRes.status === 401
-              ? "Sesi login habis. Silakan login ulang."
-              : `Gagal memuat data hewan (${hewanRes.status})`;
-          setFetchError(msg);
-          setLoadingData(false);
+          setFetchError(`Gagal memuat data hewan (${hewanRes.status})`);
           return;
         }
 
-        const hewanData = await hewanRes.json();
+        // fix: parse semua response parallel
+        const [hewanData, layananData, jadwalData] = await Promise.all([
+          hewanRes.json(),
+          layananRes.json(),
+          jadwalRes.json(),
+        ]);
+
         if (hewanData.success && Array.isArray(hewanData.data)) {
           setPets(
             hewanData.data.map((h: any) => ({
@@ -2042,10 +2077,6 @@ export default function BookingPage() {
           );
         }
 
-        // Fetch layanan publik
-        const layananRes = await fetch(`${API_URL}/api/layanan/publik`);
-        const layananData = await layananRes.json();
-
         if (layananData.success && Array.isArray(layananData.data)) {
           setServices(
             layananData.data.map((l: any) => ({
@@ -2059,15 +2090,6 @@ export default function BookingPage() {
             })),
           );
         }
-
-        // Fetch jadwal
-        const jadwalRes = await fetch(
-          `${API_URL}/api/booking/jadwal-tersedia`,
-          {
-            headers: { Authorization: `Bearer ${token ?? ""}` },
-          },
-        );
-        const jadwalData = await jadwalRes.json();
 
         if (jadwalData.success && Array.isArray(jadwalData.data)) {
           setJadwalList(

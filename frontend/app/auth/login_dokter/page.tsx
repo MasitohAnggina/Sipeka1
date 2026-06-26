@@ -32,10 +32,13 @@ export default function LoginPage() {
         return;
       }
 
-      // Simpan token ke Cookie + sessionStorage
+      // Simpan token
       saveToken(data.token);
-      sessionStorage.setItem("user", JSON.stringify(data.user));
 
+      // Simpan role untuk middleware
+      document.cookie = `role=${data.user.role}; path=/; max-age=28800; SameSite=Lax`;
+
+      sessionStorage.setItem("user", JSON.stringify(data.user));
       // Jika middleware redirect ke login dengan ?redirect=..., kembalikan ke sana
       const redirectTo = searchParams.get("redirect");
       if (redirectTo) {
@@ -154,7 +157,12 @@ export default function LoginPage() {
 
       <div className="wrapper">
         <div className="bg">
-          <Image src="/images/home1.png" alt="bg" fill style={{ objectFit: "cover" }} />
+          <Image
+            src="/images/home1.png"
+            alt="bg"
+            fill
+            style={{ objectFit: "cover" }}
+          />
         </div>
         <div className="overlay" />
 
@@ -165,13 +173,15 @@ export default function LoginPage() {
           <div className="input-group">
             <label className="label">Email</label>
             <input
-  type="email"
-  className="input"
-  placeholder="fulan@gmail.com"
-  value={email}
-  onChange={(e) => setEmail(e.target.value)}
-  onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
-/>
+              type="email"
+              className="input"
+              placeholder="fulan@gmail.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleLogin();
+              }}
+            />
           </div>
 
           <div className="input-group">
@@ -180,13 +190,15 @@ export default function LoginPage() {
               <a href="#">Forgot password?</a>
             </div>
             <input
-  type={showPassword ? "text" : "password"}
-  className="input"
-  placeholder="********"
-  value={password}
-  onChange={(e) => setPassword(e.target.value)}
-  onKeyDown={(e) => { if (e.key === "Enter") handleLogin(); }}
-/>
+              type={showPassword ? "text" : "password"}
+              className="input"
+              placeholder="********"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleLogin();
+              }}
+            />
           </div>
 
           {error && <p className="error">{error}</p>}

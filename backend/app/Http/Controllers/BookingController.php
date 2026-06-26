@@ -67,82 +67,111 @@ class BookingController extends Controller
     }
 
     public function store(Request $request): JsonResponse
-    {
-        $request->validate([
-            'tanggal_booking'       => 'required|date',
-            'jam'                   => 'required|string',
-            'id_jadwal'             => 'required|integer|exists:jadwal,id_jadwal',
-            'items'                 => 'required|array|min:1',
-            'items.*.id_hewan'      => 'required|integer|exists:hewan,id_hewan',
-            'items.*.id_layanans'   => 'required|array|min:1',
-            'items.*.id_layanans.*' => 'integer|exists:layanan,id_layanan',
-            'items.*.catatan'       => 'nullable|string',
-            'items.*.foto_before'   => 'nullable|string',
-            'items.*.foto_after'    => 'nullable|string',
-        ]);
+{
+    $request->validate([
+        'tanggal_booking'       => 'required|date',
+        'jam'                   => 'required|string',
+        'id_jadwal'             => 'required|integer|exists:jadwal,id_jadwal',
+        'items'                 => 'required|array|min:1',
+        'items.*.id_hewan'      => 'required|integer|exists:hewan,id_hewan',
+        'items.*.id_layanans'   => 'required|array|min:1',
+        'items.*.id_layanans.*' => 'integer|exists:layanan,id_layanan',
+        'items.*.catatan'       => 'nullable|string',
+        'items.*.foto_before'   => 'nullable|string',
+        'items.*.foto_after'    => 'nullable|string',
+    ]);
 
-        $userId   = $request->user()->id_user;
-        $tanggal  = $request->tanggal_booking;
-        $jam      = $request->jam;
-        $jadwalId = $request->id_jadwal;
-        $bookings = [];
+    $userId   = $request->user()->id_user;
+    $tanggal  = $request->tanggal_booking;
+    $jam      = $request->jam;
+    $jadwalId = $request->id_jadwal;
+    $bookings = [];
 
-        DB::beginTransaction();
-        try {
-            foreach ($request->items as $item) {
-                $fotoBefore = $this->saveBase64($item['foto_before'] ?? null, 'foto_kondisi');
-                $fotoAfter  = $this->saveBase64($item['foto_after']  ?? null, 'foto_kondisi');
+    $allLayananIds = collect($request->items)
+        ->flatMap(fn($item) => $item['id_layanans'])
+        ->unique()
+        ->values();
 
-                $booking = Booking::create([
-                    'no_booking'       => Booking::generateNoBooking(),
-                    'id_user'          => $userId,
-                    'id_hewan'         => $item['id_hewan'],
-                    'id_jadwal'        => $jadwalId,
-                    'tanggal_booking'  => $tanggal,
-                    'tanggal_dibuat'   => now()->toDateString(),
-                    'jam'              => $jam,
-                    'catatan'          => $item['catatan'] ?? null,
-                    'foto_before'      => $fotoBefore,
-                    'foto_after'       => $fotoAfter,
-                    'no_antrian'       => Booking::nextAntrian($tanggal),
-                    'status'           => 'menunggu',
-                    'cancel_confirmed' => false,
-                    'cancelled_at'     => null,
-                ]);
+    $layanans = Layanan::whereIn('id_layanan', $allLayananIds)
+        ->pluck('harga', 'id_layanan');
 
-                $pivotData = [];
-                foreach ($item['id_layanans'] as $idLayanan) {
-                    $layanan = Layanan::find($idLayanan);
-                    $pivotData[$idLayanan] = [
-                        'harga_saat_booking' => $layanan?->harga ?? 0,
-                    ];
-                }
-                $booking->layanans()->attach($pivotData);
+    // FIX: simpan foto SEBELUM transaksi DB dimulai
+    // supaya transaksi tidak tertahan menunggu disk I/O
+    $savedPhotos = [];
+    foreach ($request->items as $idx => $item) {
+        $savedPhotos[$idx] = [
+            'before' => $this->saveBase64($item['foto_before'] ?? null, 'foto_kondisi'),
+            'after'  => $this->saveBase64($item['foto_after']  ?? null, 'foto_kondisi'),
+        ];
+    }
 
-                $bookings[] = [
-                    'no_booking' => $booking->no_booking,
-                    'no_antrian' => $booking->no_antrian,
-                    'id_hewan'   => $booking->id_hewan,
-                    'id_booking' => $booking->id_booking,
+    DB::beginTransaction();
+    try {
+        // FIX: ambil max antrian sekali di dalam transaksi dengan lock,
+        // bukan per-booking — lebih cepat dan tetap aman
+        $baseAntrian = (int) Booking::where('tanggal_booking', $tanggal)
+            ->lockForUpdate()
+            ->max('no_antrian');
+
+        foreach ($request->items as $idx => $item) {
+            $baseAntrian++;
+
+            $booking = Booking::create([
+                'no_booking'      => Booking::generateNoBooking(),
+                'id_user'         => $userId,
+                'id_hewan'        => $item['id_hewan'],
+                'id_jadwal'       => $jadwalId,
+                'tanggal_booking' => $tanggal,
+                'tanggal_dibuat'  => now()->toDateString(),
+                'jam'             => $jam,
+                'catatan'         => $item['catatan'] ?? null,
+                'foto_before'     => $savedPhotos[$idx]['before'],
+                'foto_after'      => $savedPhotos[$idx]['after'],
+                'no_antrian'      => $baseAntrian,
+                'status'          => 'menunggu',
+                'cancel_confirmed'=> false,
+                'cancelled_at'    => null,
+            ]);
+
+            $pivotData = [];
+            foreach ($item['id_layanans'] as $idLayanan) {
+                $pivotData[$idLayanan] = [
+                    'harga_saat_booking' => $layanans[$idLayanan] ?? 0,
                 ];
             }
+            $booking->layanans()->attach($pivotData);
 
-            DB::commit();
-
-            return response()->json([
-                'success'  => true,
-                'message'  => 'Booking berhasil dibuat.',
-                'bookings' => $bookings,
-            ], 201);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal membuat booking: ' . $e->getMessage(),
-            ], 500);
+            $bookings[] = [
+                'no_booking' => $booking->no_booking,
+                'no_antrian' => $booking->no_antrian,
+                'id_hewan'   => $booking->id_hewan,
+                'id_booking' => $booking->id_booking,
+            ];
         }
+
+        DB::commit();
+
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Booking berhasil dibuat.',
+            'bookings' => $bookings,
+        ], 201);
+
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        // FIX: hapus foto yang sudah tersimpan kalau DB gagal
+        foreach ($savedPhotos as $photos) {
+            if ($photos['before']) Storage::disk('public')->delete($photos['before']);
+            if ($photos['after'])  Storage::disk('public')->delete($photos['after']);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal membuat booking: ' . $e->getMessage(),
+        ], 500);
     }
+}
 
     public function cancel(Request $request, int $id): JsonResponse
     {
