@@ -28,25 +28,25 @@ class DashboardDokterController extends Controller
         $bulanIni = Carbon::now()->startOfMonth();
         $tahunIni = Carbon::now()->startOfYear();
 
-        // Semua id_jadwal milik dokter ini
-        $jadwalIds = Jadwal::where('id_dokter', $dokter->id_dokter)
-            ->pluck('id_jadwal');
+        // ── Semua jadwal dokter ini (1 query, dipecah di memory) ──────────────
+        $semuaJadwal      = Jadwal::where('id_dokter', $dokter->id_dokter)->get();
+        $jadwalIds        = $semuaJadwal->pluck('id_jadwal');
+        $jadwalHariIniIds = $semuaJadwal->where('tanggal', $today->toDateString())->pluck('id_jadwal');
 
-        // id_jadwal hari ini milik dokter ini
-        $jadwalHariIniIds = Jadwal::where('id_dokter', $dokter->id_dokter)
-            ->whereDate('tanggal', $today)
-            ->pluck('id_jadwal');
+        // ── Booking hari ini ──────────────────────────────────────────────────
+        $bookingHariIni   = Booking::whereIn('id_jadwal', $jadwalHariIniIds)->get();
+        $jadwalTotal      = $bookingHariIni->count();
+        $jadwalSelesai    = $bookingHariIni->where('status', 'selesai')->count();
+        $jadwalMenunggu   = $bookingHariIni->whereIn('status', ['menunggu', 'dikonfirmasi'])->count();
+        $jadwalDibatalkan = $bookingHariIni->where('status', 'dibatalkan')->count();
 
-        // ── Booking bulan ini milik dokter ini ────────────────────────────────
+        // ── Booking bulan ini ─────────────────────────────────────────────────
         $bookingBulanIni   = Booking::whereIn('id_jadwal', $jadwalIds)
             ->where('created_at', '>=', $bulanIni)
             ->get();
-
         $totalBooking      = $bookingBulanIni->count();
         $bookingSelesai    = $bookingBulanIni->where('status', 'selesai')->count();
-        $bookingMenunggu   = $bookingBulanIni->whereIn('status', [
-                                'menunggu', 'dikonfirmasi', 'berlangsung', 'menunggu_pembatalan'
-                             ])->count();
+        $bookingMenunggu   = $bookingBulanIni->whereIn('status', ['menunggu', 'dikonfirmasi'])->count();
         $bookingDibatalkan = $bookingBulanIni->where('status', 'dibatalkan')->count();
 
         // ── Rekam medis bulan ini ─────────────────────────────────────────────
@@ -54,12 +54,12 @@ class DashboardDokterController extends Controller
             ->where('created_at', '>=', $bulanIni)
             ->count();
 
-        // ── Pasien terbaru ────────────────────────────────────────────────────
+        // ── Pasien terbaru (7 hari, semua status) ─────────────────────────────
         $pasienTerbaru = Booking::with(['hewan.user', 'riwayatLayanan.rekamMedis', 'layanans'])
             ->whereIn('id_jadwal', $jadwalIds)
-            ->whereNotIn('status', ['dibatalkan'])
+            ->where('created_at', '>=', Carbon::now()->subDays(7))
             ->orderByDesc('created_at')
-            ->limit(5)
+            ->limit(10)
             ->get()
             ->map(function (Booking $b) {
                 $hewan   = $b->hewan;
@@ -98,12 +98,12 @@ class DashboardDokterController extends Controller
                 'nama_dokter' => $dokter->user?->nama ?? 'Dokter',
                 'stat_cards'  => [
                     'jadwal_hari_ini' => [
-                        'total'      => $totalBooking,
-                        'selesai'    => $bookingSelesai,
-                        'menunggu'   => $bookingMenunggu,
-                        'dibatalkan' => $bookingDibatalkan,
+                        'total'      => $jadwalTotal,
+                        'selesai'    => $jadwalSelesai,
+                        'menunggu'   => $jadwalMenunggu,
+                        'dibatalkan' => $jadwalDibatalkan,
                     ],
-                    'booking_hari_ini' => [
+                    'booking_bulan_ini' => [
                         'total'      => $totalBooking,
                         'selesai'    => $bookingSelesai,
                         'menunggu'   => $bookingMenunggu,

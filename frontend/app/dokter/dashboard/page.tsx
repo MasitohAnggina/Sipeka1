@@ -2,43 +2,29 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Users, CalendarCheck, FolderOpen, CheckCircle, Clock, XCircle } from "lucide-react";
+import { CalendarDays, CalendarCheck, FolderOpen, CheckCircle, Clock, XCircle } from "lucide-react";
 import Sidebar from "@/components/Sidebar_dokter";
 import Header from "@/components/Header";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface StatJadwal {
-  total: number;
-  selesai: number;
-  menunggu: number;
-  dibatalkan: number;
-}
-
-interface StatBooking {
-  total: number;
-  selesai: number;
-  menunggu: number;
-  dibatalkan: number;
-}
-
 interface StatCards {
-  jadwal_hari_ini: StatJadwal;
-  booking_hari_ini: StatBooking;
-  rekam_medis_bulan_ini: number;
+  jadwal_hari_ini:        { total: number; selesai: number; menunggu: number; dibatalkan: number };
+  booking_bulan_ini:      { total: number; selesai: number; menunggu: number; dibatalkan: number };
+  rekam_medis_bulan_ini:  number;
 }
 
 interface PasienTerbaru {
-  id_booking: number;
-  nama_hewan: string;
-  jenis: string;
-  ras: string | null;
-  foto: string | null;
+  id_booking:   number;
+  nama_hewan:   string;
+  jenis:        string;
+  ras:          string | null;
+  foto:         string | null;
   nama_pemilik: string;
-  layanan: string;
-  status: "menunggu" | "dikonfirmasi" | "berlangsung" | "selesai" | "dibatalkan";
-  diagnosa: string | null;
-  waktu: string;
+  layanan:      string;
+  status:       "menunggu" | "dikonfirmasi" | "selesai" | "dibatalkan";
+  diagnosa:     string | null;
+  waktu:        string;
 }
 
 interface RingkasanKunjungan {
@@ -47,10 +33,10 @@ interface RingkasanKunjungan {
 }
 
 interface DashboardData {
-  nama_dokter: string;
-  stat_cards: StatCards;
-  pasien_terbaru: PasienTerbaru[];
-  ringkasan_kunjungan: RingkasanKunjungan;
+  nama_dokter:          string;
+  stat_cards:           StatCards;
+  pasien_terbaru:       PasienTerbaru[];
+  ringkasan_kunjungan:  RingkasanKunjungan;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -110,14 +96,13 @@ function getLayananStyle(layanan: string) {
   return layananStyle[layanan] ?? { bg: "#f5f5f5", color: "#555" };
 }
 
-function getStatusStyle(status: string): { color: string; dot: string; label: string } {
+function getStatusStyle(status: string): { bg: string; color: string; dot: string; label: string } {
   switch (status) {
-    case "selesai":      return { color: G,         dot: G,         label: "Selesai"      };
-    case "menunggu":     return { color: "#b45309", dot: "#f59e0b", label: "Menunggu"     };
-    case "dikonfirmasi": return { color: "#1565c0", dot: "#1e88e5", label: "Dikonfirmasi" };
-    case "berlangsung":  return { color: "#6a1b9a", dot: "#9c27b0", label: "Berlangsung"  };
-    case "dibatalkan":   return { color: "#c62828", dot: "#e53935", label: "Dibatalkan"   };
-    default:             return { color: "#888",    dot: "#bbb",    label: status         };
+    case "selesai":      return { bg: "#e8f5e9", color: G,         dot: G,         label: "Selesai"      };
+    case "menunggu":     return { bg: "#fff8e1", color: "#b45309", dot: "#f59e0b", label: "Menunggu"     };
+    case "dikonfirmasi": return { bg: "#e3f2fd", color: "#1565c0", dot: "#1e88e5", label: "Dikonfirmasi" };
+    case "dibatalkan":   return { bg: "#fce4ec", color: "#c62828", dot: "#e53935", label: "Dibatalkan"   };
+    default:             return { bg: "#f5f5f5", color: "#888",    dot: "#bbb",    label: status         };
   }
 }
 
@@ -142,23 +127,16 @@ function Skeleton({ w, h, r = 6 }: { w: number | string; h: number; r?: number }
 // ── Stat Card ──────────────────────────────────────────────────────────────────
 
 function StatCard({
-  icon,
-  label,
-  value,
-  sub,
-  iconBg,
-  iconColor,
-  accent,
-  loading,
+  icon, label, value, sub, iconBg, iconColor, accent, loading,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub: string;
-  iconBg: string;
-  iconColor: string;
-  accent: string;
-  loading: boolean;
+  icon:       React.ReactNode;
+  label:      string;
+  value:      string;
+  sub:        string;
+  iconBg:     string;
+  iconColor:  string;
+  accent:     string;
+  loading:    boolean;
 }) {
   const [hov, setHov] = useState(false);
   return (
@@ -166,21 +144,14 @@ function StatCard({
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        background: "#fff",
-        borderRadius: 14,
-        border: "1.5px solid #e0e0e0",
+        background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
         overflow: "hidden",
         boxShadow: hov ? "0 8px 24px rgba(0,0,0,0.10)" : "0 2px 8px rgba(0,0,0,0.06)",
         transform: hov ? "translateY(-3px)" : "none",
         transition: "all .2s ease",
-        padding: "20px",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 16,
-        cursor: "default",
+        padding: "20px", display: "flex", alignItems: "flex-start", gap: 16, cursor: "default",
       }}
     >
-      {/* Icon box */}
       <div style={{
         width: 50, height: 50, borderRadius: 12, background: iconBg,
         display: "flex", alignItems: "center", justifyContent: "center",
@@ -188,11 +159,8 @@ function StatCard({
       }}>
         {icon}
       </div>
-
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 12, color: "#888", fontWeight: 500, marginBottom: 6 }}>
-          {label}
-        </div>
+        <div style={{ fontSize: 12, color: "#888", fontWeight: 500, marginBottom: 6 }}>{label}</div>
         {loading ? (
           <>
             <Skeleton w={56} h={28} r={8} />
@@ -200,9 +168,7 @@ function StatCard({
           </>
         ) : (
           <>
-            <div style={{ fontSize: 28, fontWeight: 700, color: accent, lineHeight: 1 }}>
-              {value}
-            </div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: accent, lineHeight: 1 }}>{value}</div>
             <div style={{ fontSize: 12, color: "#aaa", marginTop: 5 }}>{sub}</div>
           </>
         )}
@@ -231,32 +197,30 @@ export default function DashboardPage() {
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
 
-  const fetchDashboard = useCallback(
-    async (isPolling = false) => {
-      const token = getAuthToken();
-      if (!token) { router.push("/auth/login"); return; }
+  const fetchDashboard = useCallback(async (isPolling = false) => {
+    const token = getAuthToken();
+    if (!token) { router.push("/auth/login"); return; }
 
-      if (!isPolling) { setLoading(true); setError(null); }
+    if (!isPolling) { setLoading(true); setError(null); }
 
-      const res = await apiFetch<DashboardData>(API);
-      if (!mountedRef.current) return;
+    const res = await apiFetch<DashboardData>(API);
+    if (!mountedRef.current) return;
 
-      if (res.status === 401) {
-        sessionStorage.removeItem("token");
-        router.push("/auth/login");
-        return;
-      }
+    if (res.status === 401) {
+      sessionStorage.removeItem("token");
+      router.push("/auth/login");
+      return;
+    }
 
-      if (res.success && res.data) {
-        setData(res.data);
-      } else if (!isPolling) {
-        setError(res.message ?? "Gagal memuat data dashboard.");
-      }
+    if (res.success && res.data) {
+      setData(res.data);
+      setError(null); // ← clear error saat berhasil
+    } else if (!isPolling) {
+      setError(res.message ?? "Gagal memuat data dashboard.");
+    }
 
-      if (!isPolling && mountedRef.current) setLoading(false);
-    },
-    [router]
-  );
+    if (!isPolling && mountedRef.current) setLoading(false);
+  }, [router]);
 
   // ── Mount ────────────────────────────────────────────────────────────────────
 
@@ -269,20 +233,20 @@ export default function DashboardPage() {
 
   // ── Derived values ───────────────────────────────────────────────────────────
 
-  const booking = data?.stat_cards.booking_hari_ini;
+  const jadwal  = data?.stat_cards.jadwal_hari_ini;
+  const booking = data?.stat_cards.booking_bulan_ini;
   const rmCount = data?.stat_cards.rekam_medis_bulan_ini ?? 0;
 
   const subtitleText = loading || !data
     ? `Selamat datang · ${today}`
     : `Selamat datang, ${data.nama_dokter} · ${today}`;
 
-  // Stat cards — "Jadwal Hari Ini" → "Total Pasien / Hewan", pakai lucide icons
   const statCards = [
     {
-      icon:      <Users size={22} />,
-      label:     "Total Pasien / Hewan Bulan Ini",
-      value:     loading ? "—" : String(booking?.total ?? 0),
-      sub:       loading ? "" : `${booking?.selesai ?? 0} selesai · ${booking?.menunggu ?? 0} menunggu`,
+      icon:      <CalendarDays size={22} />,
+      label:     "Jadwal Hari Ini",
+      value:     loading ? "—" : String(jadwal?.total ?? 0),
+      sub:       loading ? "" : `${jadwal?.selesai ?? 0} selesai · ${jadwal?.menunggu ?? 0} menunggu`,
       iconBg:    "#e8f5e9",
       iconColor: G,
       accent:    G,
@@ -307,8 +271,6 @@ export default function DashboardPage() {
     },
   ];
 
-  // ── Shared styles ────────────────────────────────────────────────────────────
-
   const cardStyle: React.CSSProperties = {
     background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
     overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
@@ -319,9 +281,9 @@ export default function DashboardPage() {
     padding: "16px 20px", borderBottom: "1.5px solid #e0e0e0",
   };
 
-  // ── Error State ──────────────────────────────────────────────────────────────
+  // ── Error State (hanya saat belum ada data) ───────────────────────────────────
 
-  if (error) {
+  if (error && !data) {
     return (
       <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
         <Sidebar activePage="dashboard" />
@@ -363,6 +325,13 @@ export default function DashboardPage() {
         <div style={{ padding: "24px 28px" }}>
           <div style={{ maxWidth: 1100, margin: "0 auto" }}>
 
+            {/* ── Banner warning saat polling gagal ── */}
+            {error && data && (
+              <div style={{ background: "#fff8e1", border: "1.5px solid #ffe082", borderRadius: 10, padding: "10px 16px", color: "#795548", fontSize: 12, fontWeight: 500, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                ⚠️ Gagal memperbarui data terbaru. Menampilkan data sebelumnya.
+              </div>
+            )}
+
             {/* ── Stat Cards ── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
               {statCards.map((s, i) => (
@@ -378,7 +347,7 @@ export default function DashboardPage() {
               {/* ── Pasien Terbaru ── */}
               <div style={cardStyle}>
                 <div style={cardHeaderStyle}>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Pasien Terbaru</span>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Pasien Terbaru (7 Hari)</span>
                   <span style={{ fontSize: 12, color: "#aaa" }}>
                     {!loading && `${data?.pasien_terbaru.length ?? 0} ditampilkan`}
                   </span>
@@ -398,7 +367,7 @@ export default function DashboardPage() {
                   ) : (data?.pasien_terbaru ?? []).length === 0 ? (
                     <div style={{ padding: "36px 0", textAlign: "center", color: "#bbb", fontSize: 14 }}>
                       <div style={{ fontSize: 30, marginBottom: 8 }}>📭</div>
-                      Belum ada pasien hari ini.
+                      Belum ada pasien dalam 7 hari terakhir.
                     </div>
                   ) : (
                     (data?.pasien_terbaru ?? []).map((p, i) => {
@@ -415,7 +384,6 @@ export default function DashboardPage() {
                             animation: `fadeUp .3s ease both`, animationDelay: `${i * 50}ms`,
                           }}
                         >
-                          {/* Avatar */}
                           <div style={{
                             width: 46, height: 46, borderRadius: 12,
                             background: p.foto ? "transparent" : "#f0faf0",
@@ -428,8 +396,6 @@ export default function DashboardPage() {
                               : hewanEmoji(p.jenis)
                             }
                           </div>
-
-                          {/* Info */}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 700, fontSize: 14, color: "#1a1a1a" }}>{p.nama_pemilik}</div>
                             <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
@@ -441,8 +407,6 @@ export default function DashboardPage() {
                               <span style={{ fontSize: 11, color: status.color, fontWeight: 600 }}>{status.label}</span>
                             </div>
                           </div>
-
-                          {/* Badge layanan */}
                           <span style={{
                             padding: "4px 12px", borderRadius: 999, fontSize: 11, fontWeight: 700,
                             background: badge.bg, color: badge.color, whiteSpace: "nowrap", flexShrink: 0,
@@ -515,22 +479,22 @@ export default function DashboardPage() {
                       <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Booking Bulan Ini</span>
                     </div>
                     <div style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-                     {[
-  { label: "Selesai",    value: booking.selesai,    color: G,         Icon: CheckCircle },
-  { label: "Menunggu",   value: booking.menunggu,   color: "#f59e0b", Icon: Clock       },
-  { label: "Dibatalkan", value: booking.dibatalkan, color: "#e53935", Icon: XCircle     },
-].map(({ label, value, color, Icon }) => (
-  <div key={label} style={{
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    padding: "10px 14px", borderRadius: 10, background: "#f9f9f9",
-  }}>
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Icon size={15} color={color} />
-      <span style={{ fontSize: 13, fontWeight: 600, color }}>{label}</span>
-    </div>
-    <span style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>{value}</span>
-  </div>
-))}
+                      {[
+                        { label: "Selesai",    value: booking.selesai,    color: G,         Icon: CheckCircle },
+                        { label: "Menunggu",   value: booking.menunggu,   color: "#f59e0b", Icon: Clock       },
+                        { label: "Dibatalkan", value: booking.dibatalkan, color: "#e53935", Icon: XCircle     },
+                      ].map(({ label, value, color, Icon }) => (
+                        <div key={label} style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between",
+                          padding: "10px 14px", borderRadius: 10, background: "#f9f9f9",
+                        }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <Icon size={15} color={color} />
+                            <span style={{ fontSize: 13, fontWeight: 600, color }}>{label}</span>
+                          </div>
+                          <span style={{ fontSize: 18, fontWeight: 700, color: "#1a1a1a" }}>{value}</span>
+                        </div>
+                      ))}
                       <div style={{ textAlign: "center", paddingTop: 4, fontSize: 12, color: "#bbb" }}>
                         Total: <strong style={{ color: "#555" }}>{booking.total}</strong> booking
                       </div>

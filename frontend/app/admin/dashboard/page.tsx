@@ -29,7 +29,7 @@ interface PasienTerbaru {
   nama_pemilik: string;
   nama_dokter: string;
   layanan: string;
-  status: "menunggu" | "dikonfirmasi" | "berlangsung" | "selesai" | "dibatalkan" | "menunggu_pembatalan";
+  status: "menunggu" | "dikonfirmasi" | "selesai" | "dibatalkan";
   diagnosa: string | null;
   waktu: string;
 }
@@ -108,13 +108,11 @@ function hewanEmoji(jenis: string) {
 
 function getStatusStyle(status: string): { bg: string; color: string; dot: string; label: string } {
   switch (status) {
-    case "selesai":             return { bg: "#e8f5e9", color: G,         dot: G,         label: "Selesai"                   };
-    case "menunggu":            return { bg: "#fff8e1", color: "#b45309", dot: "#f59e0b", label: "Menunggu"                  };
-    case "dikonfirmasi":        return { bg: "#e3f2fd", color: "#1565c0", dot: "#1e88e5", label: "Dikonfirmasi"              };
-    case "berlangsung":         return { bg: "#f3e8ff", color: "#6a1b9a", dot: "#9c27b0", label: "Berlangsung"               };
-    case "dibatalkan":          return { bg: "#fce4ec", color: "#c62828", dot: "#e53935", label: "Dibatalkan"                };
-    case "menunggu_pembatalan": return { bg: "#fff3e0", color: "#e65100", dot: "#ffb74d", label: "Menunggu Konfirmasi Batal" };
-    default:                    return { bg: "#f5f5f5", color: "#888",    dot: "#bbb",    label: status                     };
+    case "selesai":      return { bg: "#e8f5e9", color: G,         dot: G,         label: "Selesai"      };
+    case "menunggu":     return { bg: "#fff8e1", color: "#b45309", dot: "#f59e0b", label: "Menunggu"     };
+    case "dikonfirmasi": return { bg: "#e3f2fd", color: "#1565c0", dot: "#1e88e5", label: "Dikonfirmasi" };
+    case "dibatalkan":   return { bg: "#fce4ec", color: "#c62828", dot: "#e53935", label: "Dibatalkan"   };
+    default:             return { bg: "#f5f5f5", color: "#888",    dot: "#bbb",    label: status         };
   }
 }
 
