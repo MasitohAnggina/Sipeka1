@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, CalendarCheck, Users, Banknote, CheckCircle, Clock, XCircle } from "lucide-react";
+import { CalendarDays, CalendarCheck, PawPrint, Banknote, CheckCircle, Clock, XCircle } from "lucide-react";
 import Sidebar from "@/components/Sidebar_admin";
 import Header from "@/components/Header";
 
@@ -108,13 +108,13 @@ function hewanEmoji(jenis: string) {
 
 function getStatusStyle(status: string): { bg: string; color: string; dot: string; label: string } {
   switch (status) {
-    case "selesai":             return { bg: "#e8f5e9", color: G,         dot: G,         label: "Selesai"                  };
-    case "menunggu":            return { bg: "#fff8e1", color: "#b45309", dot: "#f59e0b", label: "Menunggu"                 };
-    case "dikonfirmasi":        return { bg: "#e3f2fd", color: "#1565c0", dot: "#1e88e5", label: "Dikonfirmasi"             };
-    case "berlangsung":         return { bg: "#f3e8ff", color: "#6a1b9a", dot: "#9c27b0", label: "Berlangsung"              };
-    case "dibatalkan":          return { bg: "#fce4ec", color: "#c62828", dot: "#e53935", label: "Dibatalkan"               };
+    case "selesai":             return { bg: "#e8f5e9", color: G,         dot: G,         label: "Selesai"                   };
+    case "menunggu":            return { bg: "#fff8e1", color: "#b45309", dot: "#f59e0b", label: "Menunggu"                  };
+    case "dikonfirmasi":        return { bg: "#e3f2fd", color: "#1565c0", dot: "#1e88e5", label: "Dikonfirmasi"              };
+    case "berlangsung":         return { bg: "#f3e8ff", color: "#6a1b9a", dot: "#9c27b0", label: "Berlangsung"               };
+    case "dibatalkan":          return { bg: "#fce4ec", color: "#c62828", dot: "#e53935", label: "Dibatalkan"                };
     case "menunggu_pembatalan": return { bg: "#fff3e0", color: "#e65100", dot: "#ffb74d", label: "Menunggu Konfirmasi Batal" };
-    default:                    return { bg: "#f5f5f5", color: "#888",    dot: "#bbb",    label: status                    };
+    default:                    return { bg: "#f5f5f5", color: "#888",    dot: "#bbb",    label: status                     };
   }
 }
 
@@ -270,10 +270,11 @@ export default function DashboardAdminPage() {
       accent:    "#6a1b9a",
     },
     {
-      icon:      <Users size={18} />,
-      label:     "Total Pasien / Hewan Bulan Ini",
-      value:     loading ? "—" : String(booking?.total ?? 0),
-      sub:       loading ? null : `${booking?.selesai ?? 0} selesai · ${booking?.menunggu ?? 0} menunggu`,
+      // ✅ Diganti: Total Hewan Terdaftar (bukan duplikat booking lagi)
+      icon:      <PawPrint size={18} />,
+      label:     "Total Hewan Terdaftar",
+      value:     loading ? "—" : String(data?.stat_cards.total_hewan ?? 0),
+      sub:       loading ? null : "semua hewan terdaftar",
       iconBg:    "#e3f2fd",
       iconColor: "#1565c0",
       accent:    "#1565c0",
@@ -364,7 +365,8 @@ export default function DashboardAdminPage() {
               {/* ── Pasien Terbaru ── */}
               <div style={cardStyle}>
                 <div style={cardHeaderStyle}>
-                  <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Pasien Terbaru</span>
+                  {/* ✅ Label diupdate jadi 7 hari terakhir */}
+                  <span style={{ fontWeight: 700, fontSize: 15, color: "#1a1a1a" }}>Pasien Terbaru (7 Hari)</span>
                   <span style={{ fontSize: 12, color: "#aaa" }}>
                     {!loading && `${data?.pasien_terbaru.length ?? 0} ditampilkan`}
                   </span>
@@ -384,7 +386,8 @@ export default function DashboardAdminPage() {
                   ) : (data?.pasien_terbaru ?? []).length === 0 ? (
                     <div style={{ padding: "36px 0", textAlign: "center", color: "#bbb", fontSize: 14 }}>
                       <div style={{ fontSize: 30, marginBottom: 8 }}>📭</div>
-                      Belum ada pasien hari ini.
+                      {/* ✅ Label kosong diupdate */}
+                      Belum ada pasien dalam 7 hari terakhir.
                     </div>
                   ) : (
                     (data?.pasien_terbaru ?? []).map((p, i) => {

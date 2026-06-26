@@ -17,27 +17,24 @@ class DashboardAdminController extends Controller
         $bulanIni = Carbon::now()->startOfMonth();
 
         // ── 1. Jadwal hari ini ────────────────────────────────────────────────
-        $jadwalHariIniIds = Jadwal::whereDate('tanggal', $today)
-            ->pluck('id_jadwal');
-
+        $jadwalHariIniIds = Jadwal::whereDate('tanggal', $today)->pluck('id_jadwal');
         $totalJadwal      = $jadwalHariIniIds->count();
 
-        // ── 2. Booking hari ini ───────────────────────────────────────────────
-        // ── 2. Booking bulan ini (ganti dari hari ini) ────────────────────────────
-$bookingBulanIni    = Booking::where('created_at', '>=', $bulanIni)->get();
+        // ── 2. Booking bulan ini ──────────────────────────────────────────────
+        $bookingBulanIni   = Booking::where('created_at', '>=', $bulanIni)->get();
+        $totalBooking      = $bookingBulanIni->count();
+        $bookingSelesai    = $bookingBulanIni->where('status', 'selesai')->count();
+        $bookingMenunggu   = $bookingBulanIni->whereIn('status', ['menunggu', 'dikonfirmasi', 'berlangsung'])->count();
+        $bookingDibatalkan = $bookingBulanIni->where('status', 'dibatalkan')->count();
 
-$totalBooking       = $bookingBulanIni->count();
-$bookingSelesai     = $bookingBulanIni->where('status', 'selesai')->count();
-$bookingMenunggu    = $bookingBulanIni->whereIn('status', ['menunggu', 'dikonfirmasi', 'berlangsung'])->count();
-$bookingDibatalkan  = $bookingBulanIni->where('status', 'dibatalkan')->count();
+        // ── 3. Total hewan terdaftar ──────────────────────────────────────────
+        $totalHewan = Hewan::count();
 
-        // ── 3. Total hewan/pasien ─────────────────────────────────────────────
-        $totalHewan       = Hewan::count();
-
-        // ── 4. Pasien terbaru (5 booking terbaru) ─────────────────────────────
+        // ── 4. Pasien terbaru (7 hari terakhir, max 10) ───────────────────────
         $pasienTerbaru = Booking::with(['hewan.user', 'riwayatLayanan.rekamMedis', 'layanans', 'jadwal.dokter'])
+            ->where('created_at', '>=', Carbon::now()->subDays(7))
             ->orderByDesc('created_at')
-            ->limit(5)
+            ->limit(10)
             ->get()
             ->map(function (Booking $b) {
                 $hewan   = $b->hewan;
@@ -76,7 +73,7 @@ $bookingDibatalkan  = $bookingBulanIni->where('status', 'dibatalkan')->count();
                 'nama_admin' => $request->user()->nama ?? 'Admin',
                 'stat_cards' => [
                     'jadwal_hari_ini' => [
-                        'total'      => $totalJadwal,
+                        'total' => $totalJadwal,
                     ],
                     'booking_hari_ini' => [
                         'total'      => $totalBooking,
@@ -86,8 +83,8 @@ $bookingDibatalkan  = $bookingBulanIni->where('status', 'dibatalkan')->count();
                     ],
                     'total_hewan'          => $totalHewan,
                     'pendapatan_bulan_ini' => \App\Models\Pembayaran::where('status', 'lunas')
-    ->where('created_at', '>=', $bulanIni)
-    ->sum('jumlah'),
+                        ->where('created_at', '>=', $bulanIni)
+                        ->sum('jumlah'),
                 ],
                 'pasien_terbaru'      => $pasienTerbaru,
                 'ringkasan_kunjungan' => [
