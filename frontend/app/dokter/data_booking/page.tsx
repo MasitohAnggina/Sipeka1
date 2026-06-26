@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Eye, ChevronDown, X, RotateCcw, ClipboardList } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Eye, X, RotateCcw, ClipboardList } from "lucide-react";
 import Sidebar from "@/components/Sidebar_dokter";
 import Header from "@/components/Header";
 import { useRouter } from "next/navigation";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type BookingStatus = "menunggu" | "dikonfirmasi" | "berlangsung" | "selesai" | "dibatalkan";
+type BookingStatus = "menunggu" | "dikonfirmasi" | "selesai" | "dibatalkan";
 
 interface LayananItem {
   id_layanan:         number;
@@ -41,6 +41,12 @@ interface Booking {
   layanans:        LayananItem[];
 }
 
+interface Counts {
+  total:        number;
+  menunggu:     number;
+  dikonfirmasi: number;
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const G              = "#2e7d32";
@@ -48,13 +54,11 @@ const API            = "http://127.0.0.1:8000/api";
 const STORAGE_URL    = "http://127.0.0.1:8000/storage/";
 const ITEMS_PER_PAGE = 7;
 
-const DOKTER_STATUSES: BookingStatus[] = ["selesai"];
-const ALL_STATUSES:    BookingStatus[] = ["menunggu", "dikonfirmasi", "berlangsung", "selesai", "dibatalkan"];
+const ALL_STATUSES: BookingStatus[] = ["menunggu", "dikonfirmasi", "selesai", "dibatalkan"];
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
   menunggu:     "Menunggu",
   dikonfirmasi: "Dikonfirmasi",
-  berlangsung:  "Berlangsung",
   selesai:      "Selesai",
   dibatalkan:   "Dibatalkan",
 };
@@ -62,7 +66,6 @@ const STATUS_LABEL: Record<BookingStatus, string> = {
 const statusStyle: Record<BookingStatus, { bg: string; color: string; border: string }> = {
   menunggu:     { bg: "#fff8e1", color: "#e65100", border: "#e6510030" },
   dikonfirmasi: { bg: "#e3f2fd", color: "#1565c0", border: "#1565c030" },
-  berlangsung:  { bg: "#f3e5f5", color: "#6a1b9a", border: "#6a1b9a30" },
   selesai:      { bg: "#e8f5e9", color: "#2e7d32", border: "#2e7d3230" },
   dibatalkan:   { bg: "#ffebee", color: "#c62828", border: "#c6282830" },
 };
@@ -93,7 +96,7 @@ function normalizeFotoUrl(foto: string | null): string | null {
 
 function normalizeStatus(raw: string): BookingStatus {
   const lower = raw?.toLowerCase();
-  const valid: BookingStatus[] = ["menunggu", "dikonfirmasi", "berlangsung", "selesai", "dibatalkan"];
+  const valid: BookingStatus[] = ["menunggu", "dikonfirmasi", "selesai", "dibatalkan"];
   return valid.includes(lower as BookingStatus) ? (lower as BookingStatus) : "menunggu";
 }
 
@@ -133,7 +136,7 @@ function StatusBadge({ value }: { value: BookingStatus }) {
   );
 }
 
-// ── Status Dropdown (dokter: hanya bisa pilih "selesai" dari "dikonfirmasi") ──
+// ── Status Dropdown ───────────────────────────────────────────────────────────
 
 function StatusDropdown({ value, onChange }: {
   value:    BookingStatus;
@@ -167,13 +170,13 @@ function StatusDropdown({ value, onChange }: {
         style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: st.bg, color: st.color, border: `1.5px solid ${st.border}`, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
       >
         {STATUS_LABEL[value]}
-        <ChevronDown size={11} style={{ opacity: 0.7 }} />
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
 
       {open && (
         <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 100, background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", overflow: "hidden", minWidth: 160 }}>
           <button
-            onClick={() => setOpen(false)}
+            disabled
             style={{ display: "flex", alignItems: "center", width: "100%", padding: "9px 14px", background: "#f5f5f5", border: "none", cursor: "default", fontSize: 13, color: statusStyle["dikonfirmasi"].color, fontFamily: "inherit", textAlign: "left" }}
           >
             {STATUS_LABEL["dikonfirmasi"]}
@@ -181,6 +184,8 @@ function StatusDropdown({ value, onChange }: {
           <button
             onClick={() => { onChange("selesai"); setOpen(false); }}
             style={{ display: "flex", alignItems: "center", width: "100%", padding: "9px 14px", background: "transparent", border: "none", cursor: "pointer", fontSize: 13, color: statusStyle["selesai"].color, fontFamily: "inherit", textAlign: "left" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
+            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
           >
             {STATUS_LABEL["selesai"]}
           </button>
@@ -200,17 +205,20 @@ function DetailModal({ booking, onClose, onStatusChange, onRekamMedis, saving }:
   saving:         boolean;
 }) {
   const [localStatus,  setLocalStatus]  = useState<BookingStatus>(booking.status);
-  // ── TAMBAHAN: state untuk lightbox preview foto kondisi ──
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const isDirty = localStatus !== booking.status;
 
-  // ── PERBAIKAN: return dibungkus Fragment <> agar lightbox bisa jadi sibling modal ──
   return (
     <>
-      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", maxHeight: "90vh", overflowY: "auto" }}>
-
+      <div
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ background: "#fff", borderRadius: 16, padding: "28px 32px", width: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", fontFamily: "inherit", maxHeight: "90vh", overflowY: "auto" }}
+        >
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
@@ -280,30 +288,20 @@ function DetailModal({ booking, onClose, onStatusChange, onRekamMedis, saving }:
               </div>
             </div>
 
-            {/* ── PERBAIKAN: Foto Kondisi dengan onClick lightbox & cursor zoom-in ── */}
+            {/* Foto Kondisi */}
             {(booking.foto_before || booking.foto_after) && (
               <div style={{ padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>
-                  Foto Kondisi
-                </span>
+                <span style={{ fontSize: 13, color: "#888", display: "block", marginBottom: 8 }}>Foto Kondisi</span>
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   {booking.foto_before && (
                     <div style={{ position: "relative" }}>
                       <img
                         src={normalizeFotoUrl(booking.foto_before) ?? ""}
-                        alt="Sebelum sakit"
+                        alt="Kondisi sehat"
                         onClick={() => setPreviewImage(normalizeFotoUrl(booking.foto_before))}
-                        style={{
-                          width: 110, height: 90, objectFit: "cover",
-                          borderRadius: 8, border: "1.5px solid #e0e0e0", display: "block",
-                          cursor: "zoom-in",
-                        }}
+                        style={{ width: 110, height: 90, objectFit: "cover", borderRadius: 8, border: "1.5px solid #e0e0e0", display: "block", cursor: "zoom-in" }}
                       />
-                      <span style={{
-                        position: "absolute", top: 4, left: 4, background: "#43a047",
-                        color: "#fff", fontSize: 10, fontWeight: 700,
-                        padding: "2px 7px", borderRadius: 20,
-                      }}>
+                      <span style={{ position: "absolute", top: 4, left: 4, background: "#43a047", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20 }}>
                         SEHAT
                       </span>
                     </div>
@@ -312,19 +310,11 @@ function DetailModal({ booking, onClose, onStatusChange, onRekamMedis, saving }:
                     <div style={{ position: "relative" }}>
                       <img
                         src={normalizeFotoUrl(booking.foto_after) ?? ""}
-                        alt="Saat sakit"
+                        alt="Kondisi sakit"
                         onClick={() => setPreviewImage(normalizeFotoUrl(booking.foto_after))}
-                        style={{
-                          width: 110, height: 90, objectFit: "cover",
-                          borderRadius: 8, border: "1.5px solid #e0e0e0", display: "block",
-                          cursor: "zoom-in",
-                        }}
+                        style={{ width: 110, height: 90, objectFit: "cover", borderRadius: 8, border: "1.5px solid #e0e0e0", display: "block", cursor: "zoom-in" }}
                       />
-                      <span style={{
-                        position: "absolute", top: 4, left: 4, background: "#ef5350",
-                        color: "#fff", fontSize: 10, fontWeight: 700,
-                        padding: "2px 7px", borderRadius: 20,
-                      }}>
+                      <span style={{ position: "absolute", top: 4, left: 4, background: "#ef5350", color: "#fff", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20 }}>
                         SAKIT
                       </span>
                     </div>
@@ -333,7 +323,7 @@ function DetailModal({ booking, onClose, onStatusChange, onRekamMedis, saving }:
               </div>
             )}
 
-            {/* Status Row */}
+            {/* Status */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
               <span style={{ fontSize: 13, color: "#888" }}>Status</span>
               <StatusDropdown value={localStatus} onChange={setLocalStatus} />
@@ -352,9 +342,11 @@ function DetailModal({ booking, onClose, onStatusChange, onRekamMedis, saving }:
                 <ClipboardList size={14} /> Catat Rekam Medis
               </button>
             )}
-            <button onClick={onClose}
-              style={{ padding: "10px 20px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-              Batal
+            <button
+              onClick={onClose}
+              style={{ padding: "10px 20px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#666", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Tutup
             </button>
             {booking.status === "dikonfirmasi" && (
               <button
@@ -369,29 +361,21 @@ function DetailModal({ booking, onClose, onStatusChange, onRekamMedis, saving }:
         </div>
       </div>
 
-      {/* ── TAMBAHAN: Lightbox preview foto kondisi (sibling di luar div modal) ── */}
+      {/* Lightbox */}
       {previewImage && (
         <div
-          onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 1100, cursor: "zoom-out",
-          }}
+          onClick={() => setPreviewImage(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1100, cursor: "zoom-out" }}
         >
           <img
             src={previewImage}
             alt="Preview"
             style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: 8, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+            onClick={e => e.stopPropagation()}
           />
           <button
-            onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
-            style={{
-              position: "absolute", top: 24, right: 24,
-              background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%",
-              width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "#fff",
-            }}
+            onClick={() => setPreviewImage(null)}
+            style={{ position: "absolute", top: 24, right: 24, background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}
           >
             <X size={20} />
           </button>
@@ -418,6 +402,43 @@ function SummaryCard({ icon, label, value, sub, iconBg }: {
   );
 }
 
+// ── Pagination ────────────────────────────────────────────────────────────────
+
+function Pagination({ currentPage, totalPages, onPageChange }: {
+  currentPage:  number;
+  totalPages:   number;
+  onPageChange: (p: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "16px", borderTop: "1.5px solid #e0e0e0" }}>
+      <button
+        disabled={currentPage === 1}
+        onClick={() => onPageChange(currentPage - 1)}
+        style={{ padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer", opacity: currentPage === 1 ? 0.4 : 1, fontFamily: "inherit" }}
+      >
+        ← Sebelumnya
+      </button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+        <button
+          key={p}
+          onClick={() => onPageChange(p)}
+          style={{ width: 36, height: 36, borderRadius: 8, border: p === currentPage ? "none" : "1.5px solid #e0e0e0", background: p === currentPage ? G : "#fff", color: p === currentPage ? "#fff" : "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          {p}
+        </button>
+      ))}
+      <button
+        disabled={currentPage === totalPages}
+        onClick={() => onPageChange(currentPage + 1)}
+        style={{ padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer", opacity: currentPage === totalPages ? 0.4 : 1, fontFamily: "inherit" }}
+      >
+        Berikutnya →
+      </button>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DataBookingPage() {
@@ -428,38 +449,65 @@ export default function DataBookingPage() {
   const [error,         setError]         = useState("");
   const [saving,        setSaving]        = useState(false);
 
+  // Filter
   const [filterPemilik, setFilterPemilik] = useState("");
   const [filterTanggal, setFilterTanggal] = useState("");
   const [filterLayanan, setFilterLayanan] = useState("");
   const [filterStatus,  setFilterStatus]  = useState("");
 
+  // Pagination (client-side)
   const [currentPage,   setCurrentPage]   = useState(1);
+
+  // Summary counts
+  const [counts,        setCounts]        = useState<Counts>({ total: 0, menunggu: 0, dikonfirmasi: 0 });
+
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
 
   const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const headers = { "Authorization": `Bearer ${token ?? ""}`, "Content-Type": "application/json" };
 
-  useEffect(() => {
-    fetch(`${API}/dokter/booking`, { headers })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && Array.isArray(data.data)) {
-          const sorted = [...data.data]
-            .map((b: any) => ({ ...b, status: normalizeStatus(b.status) }))
-            .sort((a: Booking, b: Booking) => {
-              const dateDiff = new Date(b.tanggal_booking).getTime() - new Date(a.tanggal_booking).getTime();
-              return dateDiff !== 0 ? dateDiff : b.id - a.id;
-            });
-          setBookings(sorted);
-        } else {
-          setError(data.message ?? "Gagal memuat data booking");
-        }
-        setLoading(false);
-      })
-      .catch(() => { setError("Gagal memuat data booking."); setLoading(false); });
+  // ── Fetch semua data sekaligus (client-side pagination) ──────────────────
+  const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res  = await fetch(`${API}/dokter/booking`, { headers });
+      const data = await res.json();
+      if (data.success) {
+        const normalized = (data.data as any[]).map(b => ({ ...b, status: normalizeStatus(b.status) }));
+        setBookings(normalized);
+        setCounts(data.counts);
+      } else {
+        setError(data.message ?? "Gagal memuat data booking");
+      }
+    } catch {
+      setError("Gagal memuat data booking.");
+    } finally {
+      setLoading(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
+  // Reset ke halaman 1 saat filter berubah
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterPemilik, filterTanggal, filterLayanan, filterStatus]);
+
+  // ── Client-side filter ───────────────────────────────────────────────────
+  const filtered = bookings.filter(b =>
+    (filterPemilik === "" || b.nama_pemilik.toLowerCase().includes(filterPemilik.toLowerCase())) &&
+    (filterTanggal === "" || b.tanggal_booking.includes(filterTanggal)) &&
+    (filterLayanan === "" || b.layanans.some(l => l.nama_layanan === filterLayanan)) &&
+    (filterStatus  === "" || b.status === filterStatus)
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const paginated  = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // ── Update status ────────────────────────────────────────────────────────
   const handleStatusChange = async (id: number, status: BookingStatus) => {
     setSaving(true);
     try {
@@ -470,7 +518,11 @@ export default function DataBookingPage() {
       const data = await res.json();
       if (data.success) {
         setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b));
-        setDetailBooking(prev => prev?.id === id ? { ...prev, status } : prev);
+        setCounts(prev => {
+          const old = detailBooking?.status;
+          if (!old || old === status) return prev;
+          return { ...prev, [old]: Math.max(0, (prev as any)[old] - 1), [status]: ((prev as any)[status] ?? 0) + 1 };
+        });
         setDetailBooking(null);
       } else {
         setError(data.message ?? "Gagal update status");
@@ -482,6 +534,7 @@ export default function DataBookingPage() {
     }
   };
 
+  // ── Rekam Medis ──────────────────────────────────────────────────────────
   const handleRekamMedis = (booking: Booking) => {
     const params = new URLSearchParams({
       id_booking:   String(booking.id),
@@ -495,18 +548,6 @@ export default function DataBookingPage() {
     router.push(`/dokter/catat_rekam_medis?${params.toString()}`);
   };
 
-  const filtered = bookings.filter(b =>
-    (filterPemilik === "" || b.nama_pemilik.toLowerCase().includes(filterPemilik.toLowerCase())) &&
-    (filterTanggal === "" || b.tanggal_booking.includes(filterTanggal)) &&
-    (filterLayanan === "" || b.layanans.some(l => l.nama_layanan === filterLayanan)) &&
-    (filterStatus  === "" || b.status === filterStatus)
-  );
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const paginated  = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-
-  useEffect(() => { setCurrentPage(1); }, [filterPemilik, filterTanggal, filterLayanan, filterStatus]);
-
   const isFilterChanged = filterPemilik !== "" || filterTanggal !== "" || filterLayanan !== "" || filterStatus !== "";
 
   const handleResetFilter = () => {
@@ -515,10 +556,6 @@ export default function DataBookingPage() {
     setFilterLayanan("");
     setFilterStatus("");
   };
-
-  const totalBooking = bookings.length;
-  const menunggu     = bookings.filter(b => b.status === "menunggu").length;
-  const dikonfirmasi = bookings.filter(b => b.status === "dikonfirmasi").length;
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -536,12 +573,15 @@ export default function DataBookingPage() {
 
           {/* Summary Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
-            <SummaryCard iconBg="#e8f5e9" label="Total Booking" value={totalBooking} sub="Reservasi layanan"
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>} />
-            <SummaryCard iconBg="#fff8e1" label="Menunggu Konfirmasi" value={menunggu} sub="Perlu ditindaklanjuti"
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
-            <SummaryCard iconBg="#e3f2fd" label="Dikonfirmasi" value={dikonfirmasi} sub="Siap ditangani"
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1565c0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>} />
+            <SummaryCard iconBg="#e8f5e9" label="Total Booking" value={counts.total} sub="Seluruh reservasi"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
+            />
+            <SummaryCard iconBg="#fff8e1" label="Menunggu Konfirmasi" value={counts.menunggu} sub="Perlu ditindaklanjuti"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+            />
+            <SummaryCard iconBg="#e3f2fd" label="Dikonfirmasi" value={counts.dikonfirmasi} sub="Siap ditangani"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1565c0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
+            />
           </div>
 
           {/* Filter */}
@@ -549,8 +589,10 @@ export default function DataBookingPage() {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <span style={{ fontSize: 13, color: "#888" }}>Filter</span>
               {isFilterChanged && (
-                <button onClick={handleResetFilter}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, border: "1.5px solid #e0e0e0", background: "#fff", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                <button
+                  onClick={handleResetFilter}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 7, border: "1.5px solid #e0e0e0", background: "#fff", color: "#888", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                >
                   <RotateCcw size={11} /> Reset filter
                 </button>
               )}
@@ -582,10 +624,12 @@ export default function DataBookingPage() {
           </div>
 
           <div style={{ marginBottom: 12, fontSize: 13, color: "#888" }}>
-            {loading ? "Memuat data..." : `Menampilkan ${filtered.length} booking${isFilterChanged ? " (difilter)" : ""}`}
+            {loading
+              ? "Memuat data..."
+              : `Menampilkan ${filtered.length} booking${isFilterChanged ? " (difilter)" : ""}`}
           </div>
 
-          {/* Table */}
+          {/* Tabel */}
           <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
             {loading ? (
               <div style={{ padding: 48, textAlign: "center", color: "#888" }}>Memuat data booking...</div>
@@ -608,7 +652,8 @@ export default function DataBookingPage() {
                         </td>
                       </tr>
                     ) : paginated.map(b => (
-                      <tr key={b.id}
+                      <tr
+                        key={b.id}
                         style={{ borderBottom: "1px solid #f0f0f0" }}
                         onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -676,24 +721,11 @@ export default function DataBookingPage() {
               </div>
             )}
 
-            {totalPages > 1 && (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "16px", borderTop: "1.5px solid #e0e0e0" }}>
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}
-                  style={{ padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer", opacity: currentPage === 1 ? 0.4 : 1, fontFamily: "inherit" }}>
-                  ← Sebelumnya
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <button key={p} onClick={() => setCurrentPage(p)}
-                    style={{ width: 36, height: 36, borderRadius: 8, border: p === currentPage ? "none" : "1.5px solid #e0e0e0", background: p === currentPage ? G : "#fff", color: p === currentPage ? "#fff" : "#555", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-                    {p}
-                  </button>
-                ))}
-                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}
-                  style={{ padding: "8px 16px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#555", fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer", opacity: currentPage === totalPages ? 0.4 : 1, fontFamily: "inherit" }}>
-                  Berikutnya →
-                </button>
-              </div>
-            )}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
           </div>
 
         </div>
