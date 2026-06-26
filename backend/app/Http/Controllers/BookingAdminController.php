@@ -59,10 +59,10 @@ class BookingAdminController extends Controller
             'status' => ['required', Rule::in(['menunggu', 'dikonfirmasi', 'dibatalkan'])],
         ]);
 
-        if (in_array(strtolower($booking->status), ['berlangsung', 'selesai'])) {
+        if (strtolower($booking->status) === 'selesai') {
             return response()->json([
                 'success' => false,
-                'message' => 'Booking yang sedang berlangsung atau sudah selesai tidak dapat diubah statusnya.',
+                'message' => 'Booking yang sudah selesai tidak dapat diubah statusnya.',
             ], 422);
         }
 
@@ -82,55 +82,12 @@ class BookingAdminController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'total'               => Booking::count(),
-                'menunggu'            => Booking::where('status', 'menunggu')->count(),
-                'dikonfirmasi'        => Booking::where('status', 'dikonfirmasi')->count(),
-                'berlangsung'         => Booking::where('status', 'berlangsung')->count(),
-                'selesai'             => Booking::where('status', 'selesai')->count(),
-                'dibatalkan'          => Booking::where('status', 'dibatalkan')->count(),
-                'menunggu_pembatalan' => Booking::where('status', 'menunggu_pembatalan')->count(),
+                'total'        => Booking::count(),
+                'menunggu'     => Booking::where('status', 'menunggu')->count(),
+                'dikonfirmasi' => Booking::where('status', 'dikonfirmasi')->count(),
+                'selesai'      => Booking::where('status', 'selesai')->count(),
+                'dibatalkan'   => Booking::where('status', 'dibatalkan')->count(),
             ],
-        ]);
-    }
-
-    public function cancelRequests(): JsonResponse
-    {
-        $bookings = Booking::with(['hewan', 'user', 'jadwal', 'layanans'])
-            ->where('status', 'menunggu_pembatalan')
-            ->where('cancel_confirmed', false)
-            ->whereNotNull('cancelled_at')
-            ->orderBy('cancelled_at', 'desc')
-            ->get()
-            ->map(fn($b) => $this->formatBooking($b));
-
-        return response()->json([
-            'success' => true,
-            'data'    => $bookings,
-        ]);
-    }
-
-    public function confirmCancel(int $idBooking): JsonResponse
-    {
-        $booking = Booking::where('id_booking', $idBooking)
-            ->where('status', 'menunggu_pembatalan')
-            ->firstOrFail();
-
-        if ($booking->cancel_confirmed) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Pembatalan ini sudah pernah dikonfirmasi.',
-            ], 422);
-        }
-
-        $booking->update([
-            'status'           => 'dibatalkan',
-            'cancel_confirmed' => true,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pembatalan berhasil dikonfirmasi.',
-            'data'    => $this->formatBooking($booking->fresh(['hewan', 'user', 'jadwal', 'layanans'])),
         ]);
     }
 
@@ -145,8 +102,6 @@ class BookingAdminController extends Controller
             'jam'              => $b->jam,
             'status'           => strtolower($b->status),
             'catatan'          => $b->catatan,
-            'cancel_confirmed' => $b->cancel_confirmed,
-            'cancelled_at'     => $b->cancelled_at?->toISOString(),
             'nama_pemilik'     => $b->user?->nama  ?? $b->user?->name  ?? '-',
             'no_hp'            => $b->user?->no_hp ?? '-',
             'nama_hewan'       => $b->hewan?->nama_hewan ?? '-',
@@ -165,7 +120,7 @@ class BookingAdminController extends Controller
                 'kategori'           => $l->kategori,
                 'harga_saat_booking' => $l->pivot->harga_saat_booking,
             ])->toArray(),
-            'can_edit_status'  => !in_array(strtolower($b->status), ['berlangsung', 'selesai']),
+            'can_edit_status'  => strtolower($b->status) !== 'selesai',
             'layanan_nama'     => $b->layanans->first()?->nama_layanan ?? '-',
         ];
     }

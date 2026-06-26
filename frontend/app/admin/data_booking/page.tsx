@@ -10,10 +10,8 @@ import Header from "@/components/Header";
 type BookingStatus =
   | "menunggu"
   | "dikonfirmasi"
-  | "berlangsung"
   | "selesai"
-  | "dibatalkan"
-  | "menunggu_pembatalan";
+  | "dibatalkan";
 
 interface LayananItem {
   id_layanan:         number;
@@ -48,13 +46,11 @@ interface Booking {
 }
 
 interface Summary {
-  total:               number;
-  menunggu:            number;
-  dikonfirmasi:        number;
-  berlangsung:         number;
-  selesai:             number;
-  dibatalkan:          number;
-  menunggu_pembatalan: number;
+  total:        number;
+  menunggu:     number;
+  dikonfirmasi: number;
+  selesai:      number;
+  dibatalkan:   number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -66,25 +62,21 @@ const ITEMS_PER_PAGE = 7;
 
 const ADMIN_STATUSES: BookingStatus[] = ["menunggu", "dikonfirmasi", "dibatalkan"];
 const ALL_STATUSES:   BookingStatus[] = [
-  "menunggu", "dikonfirmasi", "berlangsung", "selesai", "dibatalkan", "menunggu_pembatalan",
+  "menunggu", "dikonfirmasi", "selesai", "dibatalkan",
 ];
 
 const STATUS_LABEL: Record<BookingStatus, string> = {
-  menunggu:            "Menunggu",
-  dikonfirmasi:        "Dikonfirmasi",
-  berlangsung:         "Berlangsung",
-  selesai:             "Selesai",
-  dibatalkan:          "Dibatalkan",
-  menunggu_pembatalan: "Menunggu Konfirmasi Batal",
+  menunggu:     "Menunggu",
+  dikonfirmasi: "Dikonfirmasi",
+  selesai:      "Selesai",
+  dibatalkan:   "Dibatalkan",
 };
 
 const statusStyle: Record<BookingStatus, { bg: string; color: string; border: string }> = {
-  menunggu:            { bg: "#fff8e1", color: "#e65100", border: "#e6510030" },
-  dikonfirmasi:        { bg: "#e3f2fd", color: "#1565c0", border: "#1565c030" },
-  berlangsung:         { bg: "#f3e5f5", color: "#6a1b9a", border: "#6a1b9a30" },
-  selesai:             { bg: "#e8f5e9", color: "#2e7d32", border: "#2e7d3230" },
-  dibatalkan:          { bg: "#ffebee", color: "#c62828", border: "#c6282830" },
-  menunggu_pembatalan: { bg: "#fff3e0", color: "#e65100", border: "#ffb74d50" },
+  menunggu:     { bg: "#fff8e1", color: "#e65100", border: "#e6510030" },
+  dikonfirmasi: { bg: "#e3f2fd", color: "#1565c0", border: "#1565c030" },
+  selesai:      { bg: "#e8f5e9", color: "#2e7d32", border: "#2e7d3230" },
+  dibatalkan:   { bg: "#ffebee", color: "#c62828", border: "#c6282830" },
 };
 
 const speciesEmoji: Record<string, string> = {
@@ -179,7 +171,7 @@ function StatusDropdown({ value, onChange, disabled }: {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <StatusBadge value={value} />
-        <span style={{ fontSize: 11, color: "#aaa" }}>dikelola dokter</span>
+        <span style={{ fontSize: 11, color: "#aaa" }}>tidak dapat diubah</span>
       </div>
     );
   }
@@ -265,7 +257,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
     }
   };
 
-  // ── PERBAIKAN: return dibungkus Fragment <> agar lightbox bisa jadi sibling modal
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
@@ -459,7 +450,6 @@ function DetailModal({ booking, token, onClose, onStatusChange, saving }: {
         </div>
       </div>
 
-      {/* ── PERBAIKAN: Lightbox preview foto kondisi (sibling di luar div modal) ── */}
       {previewImage && (
         <div
           onClick={(e) => { e.stopPropagation(); setPreviewImage(null); }}
@@ -499,10 +489,10 @@ function SummaryCard({ icon, label, value, sub, iconBg }: {
   return (
     <div style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderRadius: 14, padding: "20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
       <div style={{ width: 48, height: 48, borderRadius: "50%", background: iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
-      <div>
-        <div style={{ fontSize: 12, color: "#888", marginBottom: 2 }}>{label}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 12, color: "#888", marginBottom: 2, whiteSpace: "nowrap" }}>{label}</div>
         <div style={{ fontSize: 24, color: "#1a1a1a", lineHeight: 1.1 }}>{value}</div>
-        <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>{sub}</div>
+        <div style={{ fontSize: 12, color: "#aaa", marginTop: 2, whiteSpace: "nowrap" }}>{sub}</div>
       </div>
     </div>
   );
@@ -620,18 +610,22 @@ export default function DataBookingPage() {
           )}
 
           {/* Summary Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
             <SummaryCard
               iconBg="#e8f5e9" label="Total Booking" value={summary?.total ?? 0} sub="Semua reservasi"
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
             />
             <SummaryCard
-              iconBg="#fff8e1" label="Menunggu Konfirmasi" value={summary?.menunggu ?? 0} sub="Perlu ditindaklanjuti"
+              iconBg="#e8f5e9" label="Selesai" value={summary?.selesai ?? 0} sub="Layanan tuntas"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2e7d32" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
+            />
+            <SummaryCard
+              iconBg="#fff8e1" label="Menunggu" value={summary?.menunggu ?? 0} sub="Perlu ditindaklanjuti"
               icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
             />
             <SummaryCard
-              iconBg="#fff3e0" label="Menunggu Konfirmasi Batal" value={summary?.menunggu_pembatalan ?? 0} sub="Perlu dikonfirmasi"
-              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e65100" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>}
+              iconBg="#ffebee" label="Dibatalkan" value={summary?.dibatalkan ?? 0} sub="Booking batal"
+              icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c62828" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>}
             />
           </div>
 
