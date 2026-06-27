@@ -9,11 +9,15 @@ import {
   Award, Search, Pill, FileText, Camera, Check, ClipboardList,
   Scissors, Syringe, BedDouble, RotateCcw, AlertCircle, PawPrint,
   Dog, Cat, Rabbit, Bird, ChevronLeft, ChevronRight, X, ShoppingBag,
+  CheckCircle, Banknote, Smartphone,
 } from "lucide-react";
 
 const API_URL    = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const G          = "#2e7d32";
 const ITEMS_PAGE = 10;
+
+// Grid columns — diperlebar agar Status & Pembayaran tidak berdempetan
+const GRID_COLS = "120px 1fr 1fr 1fr 120px 160px 100px";
 
 function getAuthToken(): string {
   return typeof window !== "undefined" ? (sessionStorage.getItem("token") ?? "") : "";
@@ -102,6 +106,7 @@ interface RiwayatItem {
   jam: string;
   grand_total: number;
   status_bayar: string;
+  metode_bayar?: string | null;
   catatan: string | null;
   no_booking: string;
   no_antrian: number;
@@ -166,6 +171,7 @@ function SkeletonRiwayat() {
         <div className="sk-r" style={{ height: 14, width: 50 }} />
         <div className="sk-r" style={{ height: 34, width: 160, borderRadius: 8 }} />
         <div className="sk-r" style={{ height: 34, width: 140, borderRadius: 8 }} />
+        <div className="sk-r" style={{ height: 34, width: 140, borderRadius: 8 }} />
         <div className="sk-r" style={{ height: 32, width: 80, borderRadius: 8, marginLeft: "auto" }} />
       </div>
 
@@ -173,13 +179,15 @@ function SkeletonRiwayat() {
         <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0" }}>
           <div className="sk-r" style={{ height: 13, width: 200 }} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0", gap: 8 }}>
-          {[80, 60, 60, 60, 50, 40].map((w, i) => (
+        {/* Header skeleton */}
+        <div style={{ display: "grid", gridTemplateColumns: GRID_COLS, padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0", gap: 12 }}>
+          {[80, 60, 60, 60, 60, 80, 40].map((w, i) => (
             <div key={i} className="sk-r" style={{ height: 13, width: w }} />
           ))}
         </div>
+        {/* Row skeletons */}
         {[0, 1, 2].map((i, _, arr) => (
-          <div key={i} style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center", gap: 8 }}>
+          <div key={i} style={{ display: "grid", gridTemplateColumns: GRID_COLS, padding: "14px 20px", borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <div className="sk-r" style={{ height: 24, width: 40 }} />
               <div className="sk-r" style={{ height: 13, width: 60 }} />
@@ -202,8 +210,9 @@ function SkeletonRiwayat() {
               <div className="sk-r" style={{ height: 13, width: "70%" }} />
               <div className="sk-r" style={{ height: 11, width: "55%" }} />
             </div>
-            <div className="sk-r" style={{ height: 24, width: 70, borderRadius: 20 }} />
-            <div className="sk-r" style={{ height: 32, width: 70, borderRadius: 8 }} />
+            <div className="sk-r" style={{ height: 28, width: 90, borderRadius: 20 }} />
+            <div className="sk-r" style={{ height: 28, width: 110, borderRadius: 20 }} />
+            <div className="sk-r" style={{ height: 32, width: 80, borderRadius: 8 }} />
           </div>
         ))}
       </div>
@@ -233,8 +242,55 @@ function StatusBadge({ status }: { status: string }) {
   };
   const { bg, color } = cfg[status?.toLowerCase()] ?? { bg: "#f5f5f5", color: "#888" };
   return (
-    <span style={{ padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, background: bg, color }}>
+    <span style={{
+      padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+      background: bg, color,
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      whiteSpace: "nowrap",
+    }}>
       {status?.charAt(0).toUpperCase() + status?.slice(1).replace(/_/g, " ")}
+    </span>
+  );
+}
+
+function PaymentBadge({ status, metode }: { status: string; metode?: string | null }) {
+  const cfg: Record<string, { bg: string; color: string; border: string; label: string; icon: React.ReactNode }> = {
+    lunas: {
+      bg: "#e8f5e9", color: G, border: "#a5d6a7", label: "Lunas",
+      icon: <CheckCircle size={11} color={G} />,
+    },
+    menunggu_pembayaran: {
+      bg: "#fff8e1", color: "#b45309", border: "#fcd34d", label: "Belum Bayar",
+      icon: <Clock size={11} color="#b45309" />,
+    },
+    menunggu: {
+      bg: "#fff8e1", color: "#b45309", border: "#fcd34d", label: "Belum Bayar",
+      icon: <Clock size={11} color="#b45309" />,
+    },
+    pending_cash: {
+      bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe", label: "Menunggu Kasir",
+      icon: <Banknote size={11} color="#1d4ed8" />,
+    },
+    pending_midtrans: {
+      bg: "#f5f3ff", color: "#7c3aed", border: "#ddd6fe", label: "Proses Digital",
+      icon: <Smartphone size={11} color="#7c3aed" />,
+    },
+    gagal: {
+      bg: "#fef2f2", color: "#dc2626", border: "#fecaca", label: "Gagal",
+      icon: <AlertCircle size={11} color="#dc2626" />,
+    },
+  };
+  const { bg, color, border, label, icon } =
+    cfg[status?.toLowerCase()] ?? { bg: "#f5f5f5", color: "#888", border: "#e0e0e0", label: status ?? "-", icon: null };
+  return (
+    <span style={{
+      padding: "5px 12px", borderRadius: 20, fontSize: 12,
+      fontWeight: 600, background: bg, color,
+      border: `1.5px solid ${border}`,
+      display: "inline-flex", alignItems: "center", gap: 5,
+      whiteSpace: "nowrap",
+    }}>
+      {icon}{label}
     </span>
   );
 }
@@ -282,24 +338,14 @@ function RekamMedisPlaceholder({ dokter }: { dokter?: DokterInfo | null }) {
           <ModalInfoRow icon={<Award       size={14} color={G} />} label="SPESIALISASI" value={dokter.spesialisasi} />
         </div>
       )}
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        padding: "28px 20px", textAlign: "center",
-        background: "linear-gradient(135deg,#f9fbe7,#f1f8e9)",
-        borderRadius: 12, border: "1.5px dashed #a5d6a7",
-      }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "28px 20px", textAlign: "center", background: "linear-gradient(135deg,#f9fbe7,#f1f8e9)", borderRadius: 12, border: "1.5px dashed #a5d6a7" }}>
         <div style={{ marginBottom: 10 }}><Stethoscope size={36} color="#81c784" /></div>
         <div style={{ fontSize: 14, fontWeight: 700, color: G, marginBottom: 6 }}>Rekam Medis Belum Tersedia</div>
         <div style={{ fontSize: 12, color: "#777", lineHeight: 1.6, maxWidth: 260 }}>
           Data rekam medis untuk kunjungan ini sedang disiapkan oleh dokter.
           Silakan periksa kembali setelah pemeriksaan selesai diinputkan.
         </div>
-        <div style={{
-          marginTop: 14, padding: "5px 14px", borderRadius: 20,
-          background: "#fff", border: "1.5px solid #c8e6c9",
-          fontSize: 11, fontWeight: 600, color: G,
-          display: "inline-flex", alignItems: "center", gap: 5,
-        }}>
+        <div style={{ marginTop: 14, padding: "5px 14px", borderRadius: 20, background: "#fff", border: "1.5px solid #c8e6c9", fontSize: 11, fontWeight: 600, color: G, display: "inline-flex", alignItems: "center", gap: 5 }}>
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: G, display: "inline-block", animation: "pulse 1.5s infinite" }} />
           Dalam proses pengisian
         </div>
@@ -323,19 +369,14 @@ function DetailModal({ item, loadingDetail, onClose }: { item: RiwayatItem; load
       : null);
 
   const tanggalFmt = item.tanggal
-    ? new Date(item.tanggal + "T00:00:00").toLocaleDateString("id-ID", {
-        weekday: "long", day: "numeric", month: "long", year: "numeric",
-      })
+    ? new Date(item.tanggal + "T00:00:00").toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : "-";
 
   const grandTotal   = getGrandTotal(item);
   const totalObat    = obat.reduce((s, o) => s + o.subtotal, 0);
   const totalLayanan = grandTotal - totalObat;
 
-  const cardS: React.CSSProperties = {
-    background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0",
-    padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-  };
+  const cardS: React.CSSProperties = { background: "#fff", borderRadius: 14, border: "1.5px solid #e0e0e0", padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" };
 
   const secTitle = (icon: React.ReactNode, label: string) => (
     <div style={{ fontWeight: 700, fontSize: 13, color: G, paddingBottom: 10, borderBottom: "1.5px solid #e8f5e9", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
@@ -346,6 +387,7 @@ function DetailModal({ item, loadingDetail, onClose }: { item: RiwayatItem; load
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 16px", overflowY: "auto" }}>
       <div onClick={e => e.stopPropagation()} style={{ background: "#f9f9f9", borderRadius: 16, width: 900, maxWidth: "100%", marginBottom: 24, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.2)" }}>
+
         {/* Header modal */}
         <div style={{ background: "#fff", padding: "14px 20px", borderBottom: "1px solid #ebebeb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -357,9 +399,7 @@ function DetailModal({ item, loadingDetail, onClose }: { item: RiwayatItem; load
                 <span style={{ padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: G_LIGHT, color: G, border: "1.5px solid #a5d6a7", display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <PawPrint size={11} color={G} /> {hewan?.umur} · {hewan?.berat}
                 </span>
-                <span style={{ padding: "3px 9px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#e3f2fd", color: "#1565c0", border: "1.5px solid #90caf9", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <ClipboardList size={11} color="#1565c0" /> Detail Kunjungan
-                </span>
+                <PaymentBadge status={item.status_bayar} metode={item.metode_bayar} />
               </div>
             </div>
           </div>
@@ -383,6 +423,32 @@ function DetailModal({ item, loadingDetail, onClose }: { item: RiwayatItem; load
               <div style={{ fontSize: 15, fontWeight: 700, color: G }}>{toRp(grandTotal)}</div>
             </div>
           </div>
+
+          {/* Status pembayaran banner */}
+          {item.status_bayar !== "lunas" && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 16px", borderRadius: 10, marginBottom: 16,
+              background: item.status_bayar === "pending_cash" ? "#eff6ff" : item.status_bayar === "pending_midtrans" ? "#f5f3ff" : "#fff8e1",
+              border: `1.5px solid ${item.status_bayar === "pending_cash" ? "#bfdbfe" : item.status_bayar === "pending_midtrans" ? "#ddd6fe" : "#fcd34d"}`,
+            }}>
+              {item.status_bayar === "pending_cash"     && <Banknote   size={16} color="#1d4ed8" />}
+              {item.status_bayar === "pending_midtrans" && <Smartphone size={16} color="#7c3aed" />}
+              {(item.status_bayar === "menunggu_pembayaran" || item.status_bayar === "menunggu") && <Clock size={16} color="#b45309" />}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: item.status_bayar === "pending_cash" ? "#1d4ed8" : item.status_bayar === "pending_midtrans" ? "#7c3aed" : "#b45309" }}>
+                  {item.status_bayar === "pending_cash"     && "Menunggu Konfirmasi Kasir"}
+                  {item.status_bayar === "pending_midtrans" && "Menunggu Pembayaran Digital"}
+                  {(item.status_bayar === "menunggu_pembayaran" || item.status_bayar === "menunggu") && "Pembayaran Belum Dilakukan"}
+                </div>
+                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>
+                  {item.status_bayar === "pending_cash"     && "Tunjukkan nomor invoice ke kasir klinik"}
+                  {item.status_bayar === "pending_midtrans" && "Selesaikan pembayaran melalui halaman Pembayaran"}
+                  {(item.status_bayar === "menunggu_pembayaran" || item.status_bayar === "menunggu") && "Segera lakukan pembayaran melalui halaman Pembayaran"}
+                </div>
+              </div>
+            </div>
+          )}
 
           {loadingDetail ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -572,34 +638,20 @@ function RiwayatLayananContent() {
   const [filterHewan,   setFilterHewan]   = useState("Semua Hewan");
   const [filterTanggal, setFilterTanggal] = useState("Semua");
   const [customDate,    setCustomDate]    = useState("");
+  const [filterBayar,   setFilterBayar]   = useState("Semua");
   const [currentPage,   setCurrentPage]   = useState(1);
   const [modalItem,     setModalItem]     = useState<RiwayatItem | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const token = getAuthToken();
 
-  // ── Helper filter tanggal ──────────────────────────────────────────────────
   function getDateRange(filter: string): { from: Date | null; to: Date | null } {
     const now   = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    if (filter === "Hari Ini") {
-      return { from: today, to: now };
-    }
-    if (filter === "1 Minggu") {
-      const from = new Date(today);
-      from.setDate(from.getDate() - 7);
-      return { from, to: now };
-    }
-    if (filter === "1 Bulan") {
-      const from = new Date(today);
-      from.setMonth(from.getMonth() - 1);
-      return { from, to: now };
-    }
-    if (filter === "Custom" && customDate) {
-      const from = new Date(customDate + "T00:00:00");
-      const to   = new Date(customDate + "T23:59:59");
-      return { from, to };
-    }
+    if (filter === "Hari Ini") return { from: today, to: now };
+    if (filter === "1 Minggu") { const from = new Date(today); from.setDate(from.getDate() - 7); return { from, to: now }; }
+    if (filter === "1 Bulan")  { const from = new Date(today); from.setMonth(from.getMonth() - 1); return { from, to: now }; }
+    if (filter === "Custom" && customDate) { return { from: new Date(customDate + "T00:00:00"), to: new Date(customDate + "T23:59:59") }; }
     return { from: null, to: null };
   }
 
@@ -640,15 +692,13 @@ function RiwayatLayananContent() {
       const json = await res.json();
       if (json.success) setModalItem(prev => prev ? { ...prev, ...json.data } : null);
     } catch {
-      // Modal tetap tampil dengan data list yang ada
+      // Modal tetap tampil dengan data list
     } finally {
       setLoadingDetail(false);
     }
   };
 
-  const kategoriUnik = Array.from(
-    new Set(riwayat.flatMap(r => r.layanans.map(l => l.kategori)).filter(Boolean))
-  ).sort();
+  const kategoriUnik = Array.from(new Set(riwayat.flatMap(r => r.layanans.map(l => l.kategori)).filter(Boolean))).sort();
 
   const statCards = [
     { icon: <Calendar size={22} color={G} />, label: "Total Booking Layanan", value: stats?.total ?? riwayat.length, key: "Semua" },
@@ -663,37 +713,31 @@ function RiwayatLayananContent() {
   const filtered = riwayat.filter(r => {
     const matchKat     = filterKat === "Semua" || r.layanans.some(l => l.kategori === filterKat);
     const matchHewan   = filterHewan === "Semua Hewan" || r.hewan?.jenis === filterHewan;
-    const { from, to } = getDateRange(filterTanggal);
-    const matchTanggal = !from || !to
+    const matchBayar   = filterBayar === "Semua"
       ? true
-      : (() => {
-          const tgl = new Date(r.tanggal + "T00:00:00");
-          return tgl >= from && tgl <= to;
-        })();
-    return matchKat && matchHewan && matchTanggal;
+      : filterBayar === "lunas"
+        ? r.status_bayar === "lunas"
+        : r.status_bayar !== "lunas";
+    const { from, to } = getDateRange(filterTanggal);
+    const matchTanggal = !from || !to ? true : (() => { const tgl = new Date(r.tanggal + "T00:00:00"); return tgl >= from && tgl <= to; })();
+    return matchKat && matchHewan && matchBayar && matchTanggal;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PAGE);
   const paginated  = filtered.slice((currentPage - 1) * ITEMS_PAGE, currentPage * ITEMS_PAGE);
 
-  const jenisHewanList      = ["Semua Hewan", ...Array.from(new Set(riwayat.map(r => r.hewan?.jenis).filter(Boolean) as string[]))];
+  const jenisHewanList       = ["Semua Hewan", ...Array.from(new Set(riwayat.map(r => r.hewan?.jenis).filter(Boolean) as string[]))];
   const filterLayananOptions = ["Semua", ...kategoriUnik];
   const filterTanggalOptions = ["Semua", "Hari Ini", "1 Minggu", "1 Bulan", "Custom"];
+  const filterBayarOptions   = [
+    { label: "Semua Status Bayar", value: "Semua" },
+    { label: "Lunas",              value: "lunas" },
+    { label: "Belum Lunas",        value: "belum" },
+  ];
 
-  const selectStyle: React.CSSProperties = {
-    padding: "6px 10px", border: "none", background: "transparent",
-    fontSize: 13, color: "#333", cursor: "pointer", outline: "none", fontWeight: 500,
-  };
-
-  const filterWrapStyle: React.CSSProperties = {
-    display: "flex", alignItems: "center", gap: 6,
-    background: "#f9f9f9", borderRadius: 8,
-    padding: "2px 4px 2px 10px", border: "1px solid #e0e0e0",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 12, color: "#666", fontWeight: 600, whiteSpace: "nowrap",
-  };
+  const selectStyle: React.CSSProperties = { padding: "6px 10px", border: "none", background: "transparent", fontSize: 13, color: "#333", cursor: "pointer", outline: "none", fontWeight: 500 };
+  const filterWrapStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, background: "#f9f9f9", borderRadius: 8, padding: "2px 4px 2px 10px", border: "1px solid #e0e0e0" };
+  const labelStyle: React.CSSProperties = { fontSize: 12, color: "#666", fontWeight: 600, whiteSpace: "nowrap" };
 
   return (
     <>
@@ -712,9 +756,7 @@ function RiwayatLayananContent() {
             {statCards.map(s => {
               const isActive = filterKat === s.key;
               return (
-                <div
-                  key={s.key}
-                  onClick={() => { setFilterKat(s.key); setCurrentPage(1); }}
+                <div key={s.key} onClick={() => { setFilterKat(s.key); setCurrentPage(1); }}
                   style={{ background: isActive ? "#f0faf2" : "#fff", borderRadius: 12, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 12, border: isActive ? `1.5px solid ${G}` : "1.5px solid transparent", cursor: "pointer", transition: "all .15s" }}
                 >
                   <span>{s.icon}</span>
@@ -735,53 +777,44 @@ function RiwayatLayananContent() {
               <Search size={14} color="#444" /> Filter:
             </span>
 
-            {/* Filter Jenis Layanan */}
             <div style={filterWrapStyle}>
-              <span style={labelStyle}>Jenis Layanan</span>
+              <span style={labelStyle}>Layanan</span>
               <select value={filterKat} onChange={e => { setFilterKat(e.target.value); setCurrentPage(1); }} style={selectStyle}>
                 {filterLayananOptions.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
 
-            {/* Filter Jenis Hewan */}
             <div style={filterWrapStyle}>
-              <span style={labelStyle}>Jenis Hewan</span>
+              <span style={labelStyle}>Hewan</span>
               <select value={filterHewan} onChange={e => { setFilterHewan(e.target.value); setCurrentPage(1); }} style={selectStyle}>
                 {jenisHewanList.map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
 
-            {/* Filter Periode */}
             <div style={filterWrapStyle}>
-              <Calendar size={13} color="#666" />
-              <span style={labelStyle}>Periode</span>
-              <select
-                value={filterTanggal}
-                onChange={e => { setFilterTanggal(e.target.value); setCurrentPage(1); if (e.target.value !== "Custom") setCustomDate(""); }}
-                style={selectStyle}
-              >
-                {filterTanggalOptions.map(o => (
-                  <option key={o} value={o}>{o === "Custom" ? "Pilih Tanggal" : o}</option>
-                ))}
+              <span style={labelStyle}>Bayar</span>
+              <select value={filterBayar} onChange={e => { setFilterBayar(e.target.value); setCurrentPage(1); }} style={selectStyle}>
+                {filterBayarOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
 
-            {/* Input tanggal custom */}
+            <div style={filterWrapStyle}>
+              <Calendar size={13} color="#666" />
+              <span style={labelStyle}>Periode</span>
+              <select value={filterTanggal} onChange={e => { setFilterTanggal(e.target.value); setCurrentPage(1); if (e.target.value !== "Custom") setCustomDate(""); }} style={selectStyle}>
+                {filterTanggalOptions.map(o => <option key={o} value={o}>{o === "Custom" ? "Pilih Tanggal" : o}</option>)}
+              </select>
+            </div>
+
             {filterTanggal === "Custom" && (
               <div style={filterWrapStyle}>
                 <Calendar size={13} color="#666" />
-                <input
-                  type="date"
-                  value={customDate}
-                  onChange={e => { setCustomDate(e.target.value); setCurrentPage(1); }}
-                  style={selectStyle}
-                />
+                <input type="date" value={customDate} onChange={e => { setCustomDate(e.target.value); setCurrentPage(1); }} style={selectStyle} />
               </div>
             )}
 
-            {/* Reset */}
             <button
-              onClick={() => { setFilterKat("Semua"); setFilterHewan("Semua Hewan"); setFilterTanggal("Semua"); setCustomDate(""); setCurrentPage(1); }}
+              onClick={() => { setFilterKat("Semua"); setFilterHewan("Semua Hewan"); setFilterTanggal("Semua"); setFilterBayar("Semua"); setCustomDate(""); setCurrentPage(1); }}
               style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#fce4ec", color: "#c62828", fontSize: 13, fontWeight: 700, cursor: "pointer", marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}
             >
               <RotateCcw size={13} color="#c62828" /> Reset
@@ -791,15 +824,16 @@ function RiwayatLayananContent() {
           {/* Tabel */}
           <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", overflow: "hidden" }}>
             {!error && filtered.length > 0 && (
-              <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0" }}>
                 <span style={{ fontSize: 13, color: "#888" }}>
                   Menampilkan <strong style={{ color: "#333" }}>{(currentPage - 1) * ITEMS_PAGE + 1}–{Math.min(currentPage * ITEMS_PAGE, filtered.length)}</strong> dari <strong style={{ color: "#333" }}>{filtered.length}</strong> data
                 </span>
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0" }}>
-              {["Tanggal", "Hewan", "Layanan", "Dokter / Petugas", "Status", "Aksi"].map(h => (
+            {/* Header tabel */}
+            <div style={{ display: "grid", gridTemplateColumns: GRID_COLS, gap: 12, padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0" }}>
+              {["Tanggal", "Hewan", "Layanan", "Dokter / Petugas", "Status", "Pembayaran", "Aksi"].map(h => (
                 <span key={h} style={{ fontSize: 13, fontWeight: 700, color: "#555" }}>{h}</span>
               ))}
             </div>
@@ -816,12 +850,25 @@ function RiwayatLayananContent() {
               paginated.map((item, i) => {
                 const rowTotal = getGrandTotal(item);
                 return (
-                  <div key={item.id_riwayat} style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < paginated.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center" }}>
+                  <div
+                    key={item.id_riwayat}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: GRID_COLS,
+                      gap: 12,
+                      padding: "16px 20px",
+                      borderBottom: i < paginated.length - 1 ? "1px solid #f0f0f0" : "none",
+                      alignItems: "center",
+                    }}
+                  >
+                    {/* Tanggal */}
                     <div>
                       <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>{item.tanggal_dd}</p>
                       <p style={{ margin: 0, fontSize: 13, color: "#555" }}>{item.bulan}</p>
                       <p style={{ margin: 0, fontSize: 11, color: "#aaa" }}>{item.hari}</p>
                     </div>
+
+                    {/* Hewan */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <HewanAvatar foto={item.hewan?.foto ?? null} jenis={item.hewan?.jenis} nama={item.hewan?.nama ?? "hewan"} />
                       <div>
@@ -830,6 +877,8 @@ function RiwayatLayananContent() {
                         <p style={{ margin: 0, fontSize: 12, color: "#888" }}>{item.hewan?.umur} · {item.hewan?.berat}</p>
                       </div>
                     </div>
+
+                    {/* Layanan */}
                     <div>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#1a1a1a" }}>{item.layanan_utama}</p>
                       {item.layanans.length > 1 && (
@@ -837,6 +886,8 @@ function RiwayatLayananContent() {
                       )}
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: G }}>{toRp(rowTotal)}</p>
                     </div>
+
+                    {/* Dokter */}
                     <div>
                       {item.nama_dokter && item.nama_dokter !== "-" ? (
                         <>
@@ -851,7 +902,18 @@ function RiwayatLayananContent() {
                         <p style={{ margin: 0, fontSize: 12, color: "#bbb", fontStyle: "italic" }}>–</p>
                       )}
                     </div>
-                    <StatusBadge status={item.status_booking} />
+
+                    {/* Status booking — kolom 120px */}
+                    <div>
+                      <StatusBadge status={item.status_booking} />
+                    </div>
+
+                    {/* Status pembayaran — kolom 160px, ada divider kiri */}
+                    <div style={{ borderLeft: "2px solid #f0f0f0", paddingLeft: 12 }}>
+                      <PaymentBadge status={item.status_bayar} metode={item.metode_bayar} />
+                    </div>
+
+                    {/* Aksi */}
                     <div>
                       <button
                         onClick={() => handleOpenDetail(item)}
@@ -871,27 +933,18 @@ function RiwayatLayananContent() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 16 }}>
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer", color: currentPage === 1 ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
-              >
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === 1 ? "not-allowed" : "pointer", color: currentPage === 1 ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <ChevronLeft size={14} /> Sebelumnya
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button
-                  key={page}
-                  onClick={() => setCurrentPage(page)}
-                  style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #d1d5db", background: currentPage === page ? G : "#fff", color: currentPage === page ? "#fff" : "#333", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                >
+                <button key={page} onClick={() => setCurrentPage(page)}
+                  style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid #d1d5db", background: currentPage === page ? G : "#fff", color: currentPage === page ? "#fff" : "#333", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                   {page}
                 </button>
               ))}
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer", color: currentPage === totalPages ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}
-              >
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                style={{ padding: "6px 14px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", fontSize: 13, cursor: currentPage === totalPages ? "not-allowed" : "pointer", color: currentPage === totalPages ? "#bbb" : "#333", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 Berikutnya <ChevronRight size={14} />
               </button>
             </div>
