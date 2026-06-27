@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Alamat;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
@@ -33,18 +34,28 @@ class AdminController extends Controller
             'nama'           => 'required|string',
             'email'          => 'required|email|unique:users,email,' . $user->id_user . ',id_user',
             'no_hp'          => 'nullable|string',
+            'kata_sandi'     => 'nullable|string|min:8',  // ← tambahan
             'provinsi'       => 'nullable|string',
             'kota'           => 'nullable|string',
             'kecamatan'      => 'nullable|string',
             'kode_pos'       => 'nullable|string',
             'alamat_lengkap' => 'nullable|string',
+        ], [
+            'kata_sandi.min' => 'Kata sandi minimal 8 karakter.',
         ]);
 
-        $user->update([
+        $updateUser = [
             'nama'  => $request->nama,
             'email' => $request->email,
             'no_hp' => $request->no_hp,
-        ]);
+        ];
+
+        // Hanya update password kalau kata_sandi diisi
+        if ($request->filled('kata_sandi')) {
+            $updateUser['password'] = Hash::make($request->kata_sandi);
+        }
+
+        $user->update($updateUser);
 
         $alamat = Alamat::where('id_user', $user->id_user)->first();
         if ($alamat) {
@@ -66,7 +77,7 @@ class AdminController extends Controller
             ]);
         }
 
-        return response()->json(['message' => 'Profil berhasil diperbarui']);
+        return response()->json(['success' => true, 'message' => 'Profil berhasil diperbarui']);
     }
 
     public function uploadFoto(Request $request)

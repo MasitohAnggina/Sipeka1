@@ -8,6 +8,7 @@ interface FormData {
   namaLengkap: string;
   email: string;
   noTelepon: string;
+  kataSandi: string;
   provinsi: string;
   kotaKabupaten: string;
   kecamatan: string;
@@ -42,6 +43,24 @@ const inputStyle: React.CSSProperties = {
   transition: "border-color .15s, background .15s",
 };
 
+// ── Eye Icon ──────────────────────────────────────────────────────────────────
+
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ) : (
+    <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+// ── InputField ────────────────────────────────────────────────────────────────
+
 interface InputFieldProps {
   label: string; name: string; value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -49,48 +68,70 @@ interface InputFieldProps {
 }
 
 function InputField({ label, name, value, onChange, type = "text", placeholder = "", readOnly = false }: InputFieldProps) {
+  const [show,    setShow]    = useState(false);
+  const [focused, setFocused] = useState(false);
+  const isPassword = type === "password";
+
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-      <input
-        type={type} name={name} value={value} onChange={onChange}
-        placeholder={placeholder} readOnly={readOnly}
-        style={{ ...inputStyle, background: readOnly ? "#f3f3f3" : "#fafafa", color: readOnly ? "#aaa" : "#1a1a1a", cursor: readOnly ? "not-allowed" : "text" }}
-        onFocus={e => { if (!readOnly) { e.currentTarget.style.borderColor = G; e.currentTarget.style.background = "#fff"; } }}
-        onBlur={e => { e.currentTarget.style.borderColor = "#e8e8e8"; e.currentTarget.style.background = readOnly ? "#f3f3f3" : "#fafafa"; }}
-      />
+      <div style={{ position: "relative" }}>
+        <input
+          type={isPassword ? (show ? "text" : "password") : type}
+          name={name} value={value} onChange={onChange}
+          placeholder={placeholder} readOnly={readOnly}
+          style={{
+            ...inputStyle,
+            background:   readOnly ? "#f3f3f3" : focused ? "#fff" : "#fafafa",
+            color:        readOnly ? "#aaa" : "#1a1a1a",
+            cursor:       readOnly ? "not-allowed" : "text",
+            borderColor:  focused ? G : "#e8e8e8",
+            paddingRight: isPassword ? 36 : undefined,
+          }}
+          onFocus={() => { if (!readOnly) setFocused(true); }}
+          onBlur={() => setFocused(false)}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow(s => !s)}
+            style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
+          >
+            <EyeIcon open={show} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function ProfileAdminPage() {
   const [formData, setFormData] = useState<FormData>({
-    namaLengkap: "", email: "", noTelepon: "",
+    namaLengkap: "", email: "", noTelepon: "", kataSandi: "",
     provinsi: "", kotaKabupaten: "", kecamatan: "", kodePos: "", alamatLengkap: "",
   });
 
-  const [avatarSrc,    setAvatarSrc]    = useState<string>("");
-  const [saveStatus,   setSaveStatus]   = useState<"idle" | "saving" | "saved">("idle");
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState("");
+  const [avatarSrc,     setAvatarSrc]     = useState<string>("");
+  const [saveStatus,    setSaveStatus]    = useState<"idle" | "saving" | "saved">("idle");
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState("");
   const [fotoUploading, setFotoUploading] = useState(false);
-  const [fotoError,    setFotoError]    = useState("");
-  const [fotoSuccess,  setFotoSuccess]  = useState("");
+  const [fotoError,     setFotoError]     = useState("");
+  const [fotoSuccess,   setFotoSuccess]   = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const token = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
   const authHeaders = { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" };
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/admin/profile", {
-      headers: authHeaders,
-    })
+    fetch("http://127.0.0.1:8000/api/admin/profile", { headers: authHeaders })
       .then(res => res.json())
       .then(data => {
         setFormData({
           namaLengkap:   data.nama           ?? "",
           email:         data.email          ?? "",
           noTelepon:     data.no_hp          ?? "",
+          kataSandi:     "",
           provinsi:      data.provinsi       ?? "",
           kotaKabupaten: data.kota           ?? "",
           kecamatan:     data.kecamatan      ?? "",
@@ -150,23 +191,30 @@ export default function ProfileAdminPage() {
     setError("");
 
     try {
+      const body: Record<string, string> = {
+        nama:           formData.namaLengkap,
+        email:          formData.email,
+        no_hp:          formData.noTelepon,
+        provinsi:       formData.provinsi,
+        kota:           formData.kotaKabupaten,
+        kecamatan:      formData.kecamatan,
+        kode_pos:       formData.kodePos,
+        alamat_lengkap: formData.alamatLengkap,
+      };
+
+      // Hanya kirim kata_sandi kalau diisi
+      if (formData.kataSandi) body.kata_sandi = formData.kataSandi;
+
       const res = await fetch("http://127.0.0.1:8000/api/admin/profile", {
         method: "PUT",
         headers: authHeaders,
-        body: JSON.stringify({
-          nama:            formData.namaLengkap,
-          email:           formData.email,
-          no_hp:           formData.noTelepon,
-          provinsi:        formData.provinsi,
-          kota:            formData.kotaKabupaten,
-          kecamatan:       formData.kecamatan,
-          kode_pos:        formData.kodePos,
-          alamat_lengkap:  formData.alamatLengkap,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
         setSaveStatus("saved");
+        // Reset field kata sandi setelah berhasil simpan
+        setFormData(prev => ({ ...prev, kataSandi: "" }));
         setTimeout(() => setSaveStatus("idle"), 3000);
       } else {
         const data = await res.json();
@@ -229,7 +277,7 @@ export default function ProfileAdminPage() {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 18, color: "#1a1a1a" }}>{formData.namaLengkap || "-"}</div>
               <div style={{ fontSize: 13, color: "#777", marginTop: 3 }}>Administrator</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}> {formData.kotaKabupaten || "-"}, {formData.provinsi || "-"}</div>
+              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>{formData.kotaKabupaten || "-"}, {formData.provinsi || "-"}</div>
               {fotoError   && <div style={{ marginTop: 6, fontSize: 11, color: "#c62828" }}>⚠ {fotoError}</div>}
               {fotoSuccess && <div style={{ marginTop: 6, fontSize: 11, color: G }}>✓ {fotoSuccess}</div>}
             </div>
@@ -239,19 +287,25 @@ export default function ProfileAdminPage() {
 
           {/* ── Informasi Akun ── */}
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}> Informasi Akun</h2>
+            <h2 style={sectionTitleStyle}>Informasi Akun</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <InputField label="Nama Lengkap" name="namaLengkap" value={formData.namaLengkap} onChange={handleChange} placeholder="Nama lengkap admin" />
-              <InputField label="Email"        name="email"        value={formData.email}        onChange={handleChange} type="email" placeholder="email@sipeka.com" />
-              <div style={{ gridColumn: "1 / -1" }}>
-                <InputField label="No. Telepon" name="noTelepon" value={formData.noTelepon} onChange={handleChange} placeholder="08xx-xxxx-xxxx" />
-              </div>
+              <InputField label="Nama Lengkap"    name="namaLengkap" value={formData.namaLengkap} onChange={handleChange} placeholder="Nama lengkap admin" />
+              <InputField label="Email"           name="email"       value={formData.email}       onChange={handleChange} type="email" placeholder="email@sipeka.com" />
+              <InputField label="No. Telepon"     name="noTelepon"   value={formData.noTelepon}   onChange={handleChange} placeholder="08xx-xxxx-xxxx" />
+              <InputField
+                label="Kata Sandi Baru"
+                name="kataSandi"
+                value={formData.kataSandi}
+                onChange={handleChange}
+                type="password"
+                placeholder="Kosongkan jika tidak ingin ubah"
+              />
             </div>
           </div>
 
           {/* ── Alamat ── */}
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}> Alamat</h2>
+            <h2 style={sectionTitleStyle}>Alamat</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <InputField label="Provinsi"       name="provinsi"      value={formData.provinsi}      onChange={handleChange} />
               <InputField label="Kota/Kabupaten" name="kotaKabupaten" value={formData.kotaKabupaten} onChange={handleChange} />
@@ -283,7 +337,7 @@ export default function ProfileAdminPage() {
             >
               {saveStatus === "saving" && <>⏳ Menyimpan...</>}
               {saveStatus === "saved"  && <>✓ Tersimpan!</>}
-              {saveStatus === "idle"   && <> Simpan Perubahan</>}
+              {saveStatus === "idle"   && <>Simpan Perubahan</>}
             </button>
           </div>
 
