@@ -149,7 +149,6 @@ function SkeletonRiwayat() {
         }
       `}</style>
 
-      {/* Stat cards skeleton */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
         {[0, 1, 2, 3, 4].map(i => (
           <div key={i} style={{ background: "#fff", borderRadius: 12, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 12, border: "1.5px solid transparent" }}>
@@ -163,7 +162,6 @@ function SkeletonRiwayat() {
         ))}
       </div>
 
-      {/* Filter bar skeleton */}
       <div style={{ background: "#fff", borderRadius: 12, padding: "12px 18px", marginBottom: 16, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <div className="sk-r" style={{ height: 14, width: 50 }} />
         <div className="sk-r" style={{ height: 34, width: 160, borderRadius: 8 }} />
@@ -171,33 +169,22 @@ function SkeletonRiwayat() {
         <div className="sk-r" style={{ height: 32, width: 80, borderRadius: 8, marginLeft: "auto" }} />
       </div>
 
-      {/* Tabel skeleton */}
       <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.07)", overflow: "hidden" }}>
-        {/* Info bar */}
         <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0" }}>
           <div className="sk-r" style={{ height: 13, width: 200 }} />
         </div>
-
-        {/* Header kolom */}
         <div style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "12px 20px", background: "#f9f9f9", borderBottom: "1px solid #f0f0f0", gap: 8 }}>
           {[80, 60, 60, 60, 50, 40].map((w, i) => (
             <div key={i} className="sk-r" style={{ height: 13, width: w }} />
           ))}
         </div>
-
-        {/* Row skeleton x3 */}
         {[0, 1, 2].map((i, _, arr) => (
-          <div
-            key={i}
-            style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center", gap: 8 }}
-          >
-            {/* Tanggal */}
+          <div key={i} style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < arr.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center", gap: 8 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <div className="sk-r" style={{ height: 24, width: 40 }} />
               <div className="sk-r" style={{ height: 13, width: 60 }} />
               <div className="sk-r" style={{ height: 11, width: 45 }} />
             </div>
-            {/* Hewan */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div className="sk-r" style={{ width: 44, height: 44, borderRadius: 8, flexShrink: 0 }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 5, flex: 1 }}>
@@ -206,26 +193,21 @@ function SkeletonRiwayat() {
                 <div className="sk-r" style={{ height: 11, width: "65%" }} />
               </div>
             </div>
-            {/* Layanan */}
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <div className="sk-r" style={{ height: 14, width: "75%" }} />
               <div className="sk-r" style={{ height: 11, width: "50%" }} />
               <div className="sk-r" style={{ height: 13, width: "60%" }} />
             </div>
-            {/* Dokter */}
             <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
               <div className="sk-r" style={{ height: 13, width: "70%" }} />
               <div className="sk-r" style={{ height: 11, width: "55%" }} />
             </div>
-            {/* Status badge */}
             <div className="sk-r" style={{ height: 24, width: 70, borderRadius: 20 }} />
-            {/* Tombol detail */}
             <div className="sk-r" style={{ height: 32, width: 70, borderRadius: 8 }} />
           </div>
         ))}
       </div>
 
-      {/* Pagination skeleton */}
       <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 6, marginTop: 16 }}>
         <div className="sk-r" style={{ height: 32, width: 100, borderRadius: 8 }} />
         {[0, 1, 2].map(i => (
@@ -329,15 +311,7 @@ function RekamMedisPlaceholder({ dokter }: { dokter?: DokterInfo | null }) {
 
 // ── Detail Modal ──────────────────────────────────────────────────────────────
 
-function DetailModal({
-  item,
-  loadingDetail,
-  onClose,
-}: {
-  item: RiwayatItem;
-  loadingDetail: boolean;
-  onClose: () => void;
-}) {
+function DetailModal({ item, loadingDetail, onClose }: { item: RiwayatItem; loadingDetail: boolean; onClose: () => void }) {
   const hewan = item.hewan;
   const rm    = item.rekam_medis;
   const obat  = item.obat ?? [];
@@ -370,14 +344,8 @@ function DetailModal({
   );
 
   return (
-    <div
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 16px", overflowY: "auto" }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{ background: "#f9f9f9", borderRadius: 16, width: 900, maxWidth: "100%", marginBottom: 24, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.2)" }}
-      >
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "24px 16px", overflowY: "auto" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#f9f9f9", borderRadius: 16, width: 900, maxWidth: "100%", marginBottom: 24, overflow: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,0.2)" }}>
         {/* Header modal */}
         <div style={{ background: "#fff", padding: "14px 20px", borderBottom: "1px solid #ebebeb", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -395,10 +363,7 @@ function DetailModal({
               </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: "#f5f5f5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-          >
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: "#f5f5f5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <X size={16} color="#888" />
           </button>
         </div>
@@ -422,16 +387,8 @@ function DetailModal({
           {loadingDetail ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <style>{`
-                @keyframes sk-riwayat {
-                  0%   { background-position: -600px 0; }
-                  100% { background-position:  600px 0; }
-                }
-                .sk-r {
-                  background: linear-gradient(90deg, #e8e8e8 25%, #f2f2f2 50%, #e8e8e8 75%);
-                  background-size: 1200px 100%;
-                  animation: sk-riwayat 1.5s ease-in-out infinite;
-                  border-radius: 6px;
-                }
+                @keyframes sk-riwayat { 0% { background-position: -600px 0; } 100% { background-position: 600px 0; } }
+                .sk-r { background: linear-gradient(90deg, #e8e8e8 25%, #f2f2f2 50%, #e8e8e8 75%); background-size: 1200px 100%; animation: sk-riwayat 1.5s ease-in-out infinite; border-radius: 6px; }
               `}</style>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 {[0, 1].map(col => (
@@ -445,7 +402,6 @@ function DetailModal({
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-
               {/* KOLOM KIRI */}
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div style={cardS}>
@@ -462,11 +418,7 @@ function DetailModal({
                   {item.layanans.length === 0 ? (
                     <p style={{ fontSize: 13, color: "#aaa", fontStyle: "italic" }}>Tidak ada data layanan.</p>
                   ) : item.layanans.map((l, idx) => (
-                    <div key={l.id_layanan} style={{
-                      background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 10,
-                      padding: "10px 13px", marginBottom: idx < item.layanans.length - 1 ? 8 : 0,
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                    }}>
+                    <div key={l.id_layanan} style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 10, padding: "10px 13px", marginBottom: idx < item.layanans.length - 1 ? 8 : 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{l.nama_layanan}</div>
                         <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{l.kategori}</div>
@@ -514,7 +466,6 @@ function DetailModal({
                         <ModalInfoRow icon={<Award       size={14} color={G} />} label="SPESIALISASI" value={dokterModal.spesialisasi} />
                       </div>
                     )}
-
                     <div style={cardS}>
                       {secTitle(<Search size={14} color={G} />, "Diagnosa")}
                       <div style={{ marginBottom: 14 }}>
@@ -567,11 +518,7 @@ function DetailModal({
                       <div style={cardS}>
                         {secTitle(<ShoppingBag size={14} color={G} />, "Obat & Vitamin")}
                         {obat.map((o, idx) => (
-                          <div key={idx} style={{
-                            background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 10,
-                            padding: "10px 13px", marginBottom: idx < obat.length - 1 ? 8 : 0,
-                            display: "flex", alignItems: "center", justifyContent: "space-between",
-                          }}>
+                          <div key={idx} style={{ background: "#f9f9f9", border: "1.5px solid #e0e0e0", borderRadius: 10, padding: "10px 13px", marginBottom: idx < obat.length - 1 ? 8 : 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{o.nama_obat}</div>
                               <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>×{o.jumlah}{o.satuan !== "-" ? ` ${o.satuan}` : ""}</div>
@@ -590,18 +537,10 @@ function DetailModal({
                   <RekamMedisPlaceholder dokter={dokterModal} />
                 )}
 
-                {/* Grand Total */}
-                <div style={{
-                  background: `linear-gradient(135deg, ${G}, #1b5e20)`,
-                  borderRadius: 12, padding: "16px 18px",
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  boxShadow: "0 4px 12px rgba(46,125,50,0.25)",
-                }}>
+                <div style={{ background: `linear-gradient(135deg, ${G}, #1b5e20)`, borderRadius: 12, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 4px 12px rgba(46,125,50,0.25)" }}>
                   <div>
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>
-                      {obat.length > 0
-                        ? `Layanan ${toRp(totalLayanan)} + Obat ${toRp(totalObat)}`
-                        : "Total Booking Layanan"}
+                      {obat.length > 0 ? `Layanan ${toRp(totalLayanan)} + Obat ${toRp(totalObat)}` : "Total Booking Layanan"}
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>Grand Total</div>
                   </div>
@@ -609,10 +548,7 @@ function DetailModal({
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <button
-                    onClick={onClose}
-                    style={{ padding: "10px 26px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
-                  >
+                  <button onClick={onClose} style={{ padding: "10px 26px", borderRadius: 8, border: `1.5px solid ${G}`, background: "#fff", color: G, fontWeight: 700, fontSize: 14, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <ChevronLeft size={16} color={G} /> Kembali
                   </button>
                 </div>
@@ -634,11 +570,38 @@ function RiwayatLayananContent() {
   const [error,         setError]         = useState<string | null>(null);
   const [filterKat,     setFilterKat]     = useState("Semua");
   const [filterHewan,   setFilterHewan]   = useState("Semua Hewan");
+  const [filterTanggal, setFilterTanggal] = useState("Semua");
+  const [customDate,    setCustomDate]    = useState("");
   const [currentPage,   setCurrentPage]   = useState(1);
   const [modalItem,     setModalItem]     = useState<RiwayatItem | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   const token = getAuthToken();
+
+  // ── Helper filter tanggal ──────────────────────────────────────────────────
+  function getDateRange(filter: string): { from: Date | null; to: Date | null } {
+    const now   = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (filter === "Hari Ini") {
+      return { from: today, to: now };
+    }
+    if (filter === "1 Minggu") {
+      const from = new Date(today);
+      from.setDate(from.getDate() - 7);
+      return { from, to: now };
+    }
+    if (filter === "1 Bulan") {
+      const from = new Date(today);
+      from.setMonth(from.getMonth() - 1);
+      return { from, to: now };
+    }
+    if (filter === "Custom" && customDate) {
+      const from = new Date(customDate + "T00:00:00");
+      const to   = new Date(customDate + "T23:59:59");
+      return { from, to };
+    }
+    return { from: null, to: null };
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -673,9 +636,7 @@ function RiwayatLayananContent() {
     if (item.id_riwayat < 0) { setLoadingDetail(false); return; }
     setLoadingDetail(true);
     try {
-      const res  = await fetch(`${API_URL}/api/riwayat/${item.id_riwayat}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res  = await fetch(`${API_URL}/api/riwayat/${item.id_riwayat}`, { headers: { Authorization: `Bearer ${token}` } });
       const json = await res.json();
       if (json.success) setModalItem(prev => prev ? { ...prev, ...json.data } : null);
     } catch {
@@ -700,20 +661,39 @@ function RiwayatLayananContent() {
   ];
 
   const filtered = riwayat.filter(r => {
-    const matchKat   = filterKat === "Semua" || r.layanans.some(l => l.kategori === filterKat);
-    const matchHewan = filterHewan === "Semua Hewan" || r.hewan?.jenis === filterHewan;
-    return matchKat && matchHewan;
+    const matchKat     = filterKat === "Semua" || r.layanans.some(l => l.kategori === filterKat);
+    const matchHewan   = filterHewan === "Semua Hewan" || r.hewan?.jenis === filterHewan;
+    const { from, to } = getDateRange(filterTanggal);
+    const matchTanggal = !from || !to
+      ? true
+      : (() => {
+          const tgl = new Date(r.tanggal + "T00:00:00");
+          return tgl >= from && tgl <= to;
+        })();
+    return matchKat && matchHewan && matchTanggal;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PAGE);
   const paginated  = filtered.slice((currentPage - 1) * ITEMS_PAGE, currentPage * ITEMS_PAGE);
 
-  const jenisHewanList = [
-    "Semua Hewan",
-    ...Array.from(new Set(riwayat.map(r => r.hewan?.jenis).filter(Boolean) as string[])),
-  ];
-
+  const jenisHewanList      = ["Semua Hewan", ...Array.from(new Set(riwayat.map(r => r.hewan?.jenis).filter(Boolean) as string[]))];
   const filterLayananOptions = ["Semua", ...kategoriUnik];
+  const filterTanggalOptions = ["Semua", "Hari Ini", "1 Minggu", "1 Bulan", "Custom"];
+
+  const selectStyle: React.CSSProperties = {
+    padding: "6px 10px", border: "none", background: "transparent",
+    fontSize: 13, color: "#333", cursor: "pointer", outline: "none", fontWeight: 500,
+  };
+
+  const filterWrapStyle: React.CSSProperties = {
+    display: "flex", alignItems: "center", gap: 6,
+    background: "#f9f9f9", borderRadius: 8,
+    padding: "2px 4px 2px 10px", border: "1px solid #e0e0e0",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12, color: "#666", fontWeight: 600, whiteSpace: "nowrap",
+  };
 
   return (
     <>
@@ -725,9 +705,7 @@ function RiwayatLayananContent() {
         />
       )}
 
-      {loading ? (
-        <SkeletonRiwayat />
-      ) : (
+      {loading ? <SkeletonRiwayat /> : (
         <>
           {/* Stat Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14, marginBottom: 20 }}>
@@ -737,14 +715,7 @@ function RiwayatLayananContent() {
                 <div
                   key={s.key}
                   onClick={() => { setFilterKat(s.key); setCurrentPage(1); }}
-                  style={{
-                    background: isActive ? "#f0faf2" : "#fff",
-                    borderRadius: 12, padding: "14px 18px",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.07)",
-                    display: "flex", alignItems: "center", gap: 12,
-                    border: isActive ? `1.5px solid ${G}` : "1.5px solid transparent",
-                    cursor: "pointer", transition: "all .15s",
-                  }}
+                  style={{ background: isActive ? "#f0faf2" : "#fff", borderRadius: 12, padding: "14px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", display: "flex", alignItems: "center", gap: 12, border: isActive ? `1.5px solid ${G}` : "1.5px solid transparent", cursor: "pointer", transition: "all .15s" }}
                 >
                   <span>{s.icon}</span>
                   <div>
@@ -763,19 +734,54 @@ function RiwayatLayananContent() {
             <span style={{ fontSize: 13, fontWeight: 700, color: "#444", marginRight: 4, display: "inline-flex", alignItems: "center", gap: 5 }}>
               <Search size={14} color="#444" /> Filter:
             </span>
-            {[
-              { label: "Jenis Layanan", value: filterKat,   options: filterLayananOptions, onChange: (v: string) => { setFilterKat(v);   setCurrentPage(1); } },
-              { label: "Jenis Hewan",   value: filterHewan, options: jenisHewanList,       onChange: (v: string) => { setFilterHewan(v); setCurrentPage(1); } },
-            ].map(f => (
-              <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 6, background: "#f9f9f9", borderRadius: 8, padding: "2px 4px 2px 10px", border: "1px solid #e0e0e0" }}>
-                <span style={{ fontSize: 12, color: "#666", fontWeight: 600, whiteSpace: "nowrap" }}>{f.label}</span>
-                <select value={f.value} onChange={e => f.onChange(e.target.value)} style={{ padding: "6px 10px", border: "none", background: "transparent", fontSize: 13, color: "#333", cursor: "pointer", outline: "none", fontWeight: 500 }}>
-                  {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-                </select>
+
+            {/* Filter Jenis Layanan */}
+            <div style={filterWrapStyle}>
+              <span style={labelStyle}>Jenis Layanan</span>
+              <select value={filterKat} onChange={e => { setFilterKat(e.target.value); setCurrentPage(1); }} style={selectStyle}>
+                {filterLayananOptions.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+
+            {/* Filter Jenis Hewan */}
+            <div style={filterWrapStyle}>
+              <span style={labelStyle}>Jenis Hewan</span>
+              <select value={filterHewan} onChange={e => { setFilterHewan(e.target.value); setCurrentPage(1); }} style={selectStyle}>
+                {jenisHewanList.map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+
+            {/* Filter Periode */}
+            <div style={filterWrapStyle}>
+              <Calendar size={13} color="#666" />
+              <span style={labelStyle}>Periode</span>
+              <select
+                value={filterTanggal}
+                onChange={e => { setFilterTanggal(e.target.value); setCurrentPage(1); if (e.target.value !== "Custom") setCustomDate(""); }}
+                style={selectStyle}
+              >
+                {filterTanggalOptions.map(o => (
+                  <option key={o} value={o}>{o === "Custom" ? "Pilih Tanggal" : o}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Input tanggal custom */}
+            {filterTanggal === "Custom" && (
+              <div style={filterWrapStyle}>
+                <Calendar size={13} color="#666" />
+                <input
+                  type="date"
+                  value={customDate}
+                  onChange={e => { setCustomDate(e.target.value); setCurrentPage(1); }}
+                  style={selectStyle}
+                />
               </div>
-            ))}
+            )}
+
+            {/* Reset */}
             <button
-              onClick={() => { setFilterKat("Semua"); setFilterHewan("Semua Hewan"); setCurrentPage(1); }}
+              onClick={() => { setFilterKat("Semua"); setFilterHewan("Semua Hewan"); setFilterTanggal("Semua"); setCustomDate(""); setCurrentPage(1); }}
               style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#fce4ec", color: "#c62828", fontSize: 13, fontWeight: 700, cursor: "pointer", marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}
             >
               <RotateCcw size={13} color="#c62828" /> Reset
@@ -810,10 +816,7 @@ function RiwayatLayananContent() {
               paginated.map((item, i) => {
                 const rowTotal = getGrandTotal(item);
                 return (
-                  <div
-                    key={item.id_riwayat}
-                    style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < paginated.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center" }}
-                  >
+                  <div key={item.id_riwayat} style={{ display: "grid", gridTemplateColumns: "120px 1fr 1fr 1fr 90px 90px", padding: "14px 20px", borderBottom: i < paginated.length - 1 ? "1px solid #f0f0f0" : "none", alignItems: "center" }}>
                     <div>
                       <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#1a1a1a" }}>{item.tanggal_dd}</p>
                       <p style={{ margin: 0, fontSize: 13, color: "#555" }}>{item.bulan}</p>
