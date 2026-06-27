@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { saveToken } from "@/lib/auth";
 
 export default function LoginPage() {
@@ -12,7 +12,6 @@ export default function LoginPage() {
   const [password, setPassword]         = useState("");
   const [error, setError]               = useState("");
   const [loading, setLoading]           = useState(false);
-  const router       = useRouter();
   const searchParams = useSearchParams();
 
   const handleLogin = async () => {
@@ -37,12 +36,15 @@ export default function LoginPage() {
       sessionStorage.setItem("user", JSON.stringify(data.user));
 
       const redirectTo = searchParams.get("redirect");
-      if (redirectTo) { router.push(redirectTo); return; }
+      if (redirectTo) {
+        window.location.href = redirectTo;
+        return;
+      }
 
-      if (data.user.role === "dokter")      router.push("/dokter/dashboard");
-      else if (data.user.role === "admin")  router.push("/admin/dashboard");
-      else if (data.user.role === "user")   router.push("/owner_pet/dashboard");
-      else                                  router.push("/");
+      if (data.user.role === "dokter")      window.location.href = "/dokter/dashboard";
+      else if (data.user.role === "admin")  window.location.href = "/admin/dashboard";
+      else if (data.user.role === "user")   window.location.href = "/owner_pet/dashboard";
+      else                                  window.location.href = "/";
     } catch {
       setError("Terjadi kesalahan, coba lagi");
     } finally {
@@ -55,119 +57,56 @@ export default function LoginPage() {
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; }
-
         .wrapper {
-          position: relative;
-          height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          position: relative; height: 100vh;
+          display: flex; align-items: center; justify-content: center;
         }
-
         .bg { position: absolute; inset: 0; z-index: 0; }
-
         .overlay {
-          position: absolute;
-          inset: 0;
+          position: absolute; inset: 0;
           backdrop-filter: blur(12px);
-          background: rgba(255,255,255,0.35);
-          z-index: 1;
+          background: rgba(255,255,255,0.35); z-index: 1;
         }
-
         .card {
-          position: relative;
-          z-index: 2;
-          width: 340px;
-          background: rgba(255,255,255,0.92);
-          border-radius: 14px;
-          padding: 26px 24px;
-          box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+          position: relative; z-index: 2; width: 340px;
+          background: rgba(255,255,255,0.92); border-radius: 14px;
+          padding: 26px 24px; box-shadow: 0 12px 35px rgba(0,0,0,0.15);
         }
-
         .logo     { text-align: center; font-size: 18px; font-weight: 600; margin-bottom: 6px; }
         .subtitle { text-align: center; font-size: 12px; color: #777; margin-bottom: 18px; }
-
         .input-group { margin-bottom: 12px; }
-
-        .label {
-          font-size: 11px;
-          color: #666;
-          margin-bottom: 4px;
-          display: block;
-        }
-
-        /* wrapper untuk input + icon */
-        .input-wrap {
-          position: relative;
-          display: flex;
-          align-items: center;
-        }
-
+        .label { font-size: 11px; color: #666; margin-bottom: 4px; display: block; }
+        .input-wrap { position: relative; display: flex; align-items: center; }
         .input-wrap .icon-left {
-          position: absolute;
-          left: 10px;
-          display: flex;
-          align-items: center;
-          pointer-events: none;
-          color: #aaa;
+          position: absolute; left: 10px;
+          display: flex; align-items: center;
+          pointer-events: none; color: #aaa;
         }
-
         .input-wrap .icon-right {
-          position: absolute;
-          right: 10px;
-          display: flex;
-          align-items: center;
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 0;
-          color: #aaa;
+          position: absolute; right: 10px;
+          display: flex; align-items: center;
+          background: none; border: none; cursor: pointer; padding: 0; color: #aaa;
         }
-
         .input-wrap .icon-right:hover { color: #2E7D32; }
-
         .input {
-          width: 100%;
-          padding: 10px 36px;   /* kiri & kanan untuk icon */
-          border-radius: 7px;
-          border: 1px solid #ddd;
-          font-size: 12.5px;
+          width: 100%; padding: 10px 36px;
+          border-radius: 7px; border: 1px solid #ddd; font-size: 12.5px;
         }
-
         .input:focus { border-color: #2E7D32; outline: none; }
-
         .row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 11px;
-          margin-bottom: 5px;
-          align-items: center;
+          display: flex; justify-content: space-between;
+          font-size: 11px; margin-bottom: 5px; align-items: center;
         }
-
         .row a { color: #2E7D32; text-decoration: none; }
-
         .btn {
-          width: 100%;
-          padding: 10px;
-          border-radius: 7px;
-          border: none;
-          background: #2E7D32;
-          color: white;
-          font-size: 13px;
-          font-weight: 600;
-          margin-top: 10px;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 7px;
+          width: 100%; padding: 10px; border-radius: 7px; border: none;
+          background: #2E7D32; color: white; font-size: 13px; font-weight: 600;
+          margin-top: 10px; cursor: pointer;
+          display: flex; align-items: center; justify-content: center; gap: 7px;
         }
-
         .btn:hover    { background: #1b5e20; }
         .btn:disabled { background: #a5d6a7; cursor: not-allowed; }
-
         .error { color: red; font-size: 11px; margin-top: 6px; text-align: center; }
-
         .bottom { text-align: center; font-size: 11.5px; margin-top: 14px; }
         .bottom a { color: #2E7D32; text-decoration: none; font-weight: 600; }
       `}</style>
@@ -182,12 +121,11 @@ export default function LoginPage() {
           <div className="logo">SIPEKA</div>
           <div className="subtitle">Sign in</div>
 
-          {/* ── Email ── */}
+          {/* Email */}
           <div className="input-group">
             <label className="label">Email</label>
             <div className="input-wrap">
               <span className="icon-left">
-                {/* mail icon */}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="2" y="4" width="20" height="16" rx="2"/>
                   <polyline points="2,4 12,13 22,4"/>
@@ -204,7 +142,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* ── Password ── */}
+          {/* Password */}
           <div className="input-group">
             <div className="row">
               <label className="label" style={{ marginBottom: 0 }}>Password</label>
@@ -212,7 +150,6 @@ export default function LoginPage() {
             </div>
             <div className="input-wrap" style={{ marginTop: 4 }}>
               <span className="icon-left">
-                {/* lock icon */}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2"/>
                   <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -228,7 +165,6 @@ export default function LoginPage() {
               />
               <button className="icon-right" onClick={() => setShowPassword(s => !s)} type="button" tabIndex={-1}>
                 {showPassword ? (
-                  // eye-off
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
                     <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
@@ -236,7 +172,6 @@ export default function LoginPage() {
                     <line x1="1" y1="1" x2="23" y2="23"/>
                   </svg>
                 ) : (
-                  // eye
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                     <circle cx="12" cy="12" r="3"/>

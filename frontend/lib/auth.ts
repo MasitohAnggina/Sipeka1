@@ -25,6 +25,8 @@ export function getToken(): string | null {
 
 export function clearToken() {
   document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Lax`;
+  document.cookie = `role=; path=/; max-age=0; SameSite=Lax`;
+
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(TOKEN_KEY);
 }
