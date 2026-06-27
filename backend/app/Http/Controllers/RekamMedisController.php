@@ -21,115 +21,133 @@ class RekamMedisController extends Controller
      * GET /dokter/rekam-medis
      */
     public function index(Request $request): JsonResponse
-{
-    $dokter = $this->getDokter($request);
-    if (!$dokter) return response()->json(['message' => 'Data dokter tidak ditemukan'], 404);
+    {
+        $dokter = $this->getDokter($request);
+        if (!$dokter) return response()->json(['message' => 'Data dokter tidak ditemukan'], 404);
 
-    // Ambil SEMUA booking ke dokter ini (termasuk yang sudah selesai)
-    $bookings = Booking::with(['hewan.user', 'jadwal'])
-    ->whereHas('jadwal', fn($q) => $q->where('id_dokter', $dokter->id_dokter))
-    ->whereIn('status', ['dikonfirmasi', 'selesai'])
-    ->orderBy('id_booking', 'desc')
-    ->get();
+        // Ambil SEMUA booking ke dokter ini (termasuk yang sudah selesai)
+        $bookings = Booking::with(['hewan.user', 'jadwal'])
+            ->whereHas('jadwal', fn($q) => $q->where('id_dokter', $dokter->id_dokter))
+            ->whereIn('status', ['dikonfirmasi', 'selesai'])
+            ->orderBy('id_booking', 'desc')
+            ->get();
 
-    $hewanMap = [];
-    foreach ($bookings as $booking) {
-        if (!$booking->hewan) continue;
-        $idHewan = $booking->hewan->id_hewan;
+        $hewanMap = [];
+        foreach ($bookings as $booking) {
+            if (!$booking->hewan) continue;
+            $idHewan = $booking->hewan->id_hewan;
 
-        if (!isset($hewanMap[$idHewan])) {
-            $hewanMap[$idHewan] = [
-                'id_hewan'     => $booking->hewan->id_hewan,
-                'id_booking'   => null,
-                'nama_hewan'   => $booking->hewan->nama_hewan,
-                'jenis'        => $booking->hewan->jenis,
-                'ras'          => $booking->hewan->ras,
-                'umur'         => $booking->hewan->umur,
-                'foto'         => $booking->hewan->foto
-                                    ? asset('storage/' . $booking->hewan->foto)
-                                    : null,
-                'nama_pemilik' => $booking->hewan->user->nama ?? '-',
-                'rekam_medis'  => [],
-                'sudah_dicatat'  => false, 
-            ];
-        }
+            if (!isset($hewanMap[$idHewan])) {
+                $hewanMap[$idHewan] = [
+                    'id_hewan'      => $booking->hewan->id_hewan,
+                    'id_booking'    => $booking->id_booking,
+                    'nama_hewan'    => $booking->hewan->nama_hewan,
+                    'jenis'         => $booking->hewan->jenis,
+                    'ras'           => $booking->hewan->ras,
+                    'umur'          => $booking->hewan->umur,
+                    'foto'          => $booking->hewan->foto
+                                        ? asset('storage/' . $booking->hewan->foto)
+                                        : null,
+                    'nama_pemilik'  => $booking->hewan->user->nama ?? '-',
+                    'rekam_medis'   => [],
+                    'sudah_dicatat' => false,
+                ];
+            }
 
-        // Cek rekam medis untuk booking ini
-        $riwayat = RiwayatLayanan::where('id_booking', $booking->id_booking)
-            ->with('rekamMedis.dokter')
-            ->first();
+            // Cek rekam medis untuk booking ini
+            $riwayat = RiwayatLayanan::where('id_booking', $booking->id_booking)
+                ->with('rekamMedis.dokter')
+                ->first();
 
-        if ($riwayat && $riwayat->rekamMedis) {
-            $rm = $riwayat->rekamMedis;
-            $hewanMap[$idHewan]['rekam_medis'][] = [
-                'id_rekam_medis'   => $rm->id_rekam_medis,
-                'tanggal'          => $riwayat->tanggal?->format('Y-m-d'),
-                'diagnosa'         => $rm->diagnosa,
-                'diagnosa_lengkap' => $rm->diagnosa_lengkap,
-                'catatan_dokter'   => $rm->catatan_dokter,
-                'nama_dokter'      => $rm->dokter->nama_dokter ?? '-',
-            ];
-            $hewanMap[$idHewan]['sudah_dicatat'] = true;
-        } else {
-            if (
-                $hewanMap[$idHewan]['id_booking'] === null &&
-                !in_array($booking->status, ['dibatalkan'])
-            ) {
-                $hewanMap[$idHewan]['id_booking'] = $booking->id_booking;
+            if ($riwayat && $riwayat->rekamMedis) {
+                $rm = $riwayat->rekamMedis;
+                $hewanMap[$idHewan]['rekam_medis'][] = [
+                    'id_rekam_medis'   => $rm->id_rekam_medis,
+                    'tanggal'          => $riwayat->tanggal?->format('Y-m-d'),
+                    'diagnosa'         => $rm->diagnosa,
+                    'diagnosa_lengkap' => $rm->diagnosa_lengkap,
+                    'catatan_dokter'   => $rm->catatan_dokter,
+                    'nama_dokter'      => $rm->dokter->nama_dokter ?? '-',
+                ];
+                $hewanMap[$idHewan]['sudah_dicatat'] = true;
+            } else {
+                if (
+                    $hewanMap[$idHewan]['id_booking'] === null &&
+                    !in_array($booking->status, ['dibatalkan'])
+                ) {
+                    $hewanMap[$idHewan]['id_booking'] = $booking->id_booking;
+                }
             }
         }
-    }
 
-    return response()->json([
-        'success' => true,
-        'data'    => array_values($hewanMap),
-    ]);
-}
+        // ── Sort: rekam medis terbaru di atas, belum tercatat di bawah ──
+        $result = array_values($hewanMap);
 
-public function store(Request $request): JsonResponse
-{
-    $dokter = $this->getDokter($request);
-    if (!$dokter) return response()->json(['message' => 'Data dokter tidak ditemukan'], 404);
+        usort($result, function ($a, $b) {
+            $latestA = !empty($a['rekam_medis'])
+                ? max(array_column($a['rekam_medis'], 'tanggal'))
+                : '0000-00-00';
 
-    $request->validate([
-        'id_booking'       => 'required|integer|exists:booking,id_booking',
-        'diagnosa'         => 'required|string',
-        'diagnosa_lengkap' => 'nullable|string',
-        'catatan_dokter'   => 'nullable|string',
-        'tanggal'          => 'required|date',
-    ]);
+            $latestB = !empty($b['rekam_medis'])
+                ? max(array_column($b['rekam_medis'], 'tanggal'))
+                : '0000-00-00';
 
-    $riwayat = RiwayatLayanan::firstOrCreate(
-        ['id_booking' => $request->id_booking],
-        ['tanggal' => $request->tanggal, 'grand_total' => 0]
-    );
+            return strcmp($latestB, $latestA); // desc: terbaru di atas
+        });
 
-    $existing = RekamMedis::where('id_riwayat', $riwayat->id_riwayat)->first();
-    if ($existing) {
         return response()->json([
-            'success' => false,
-            'message' => 'Rekam medis untuk booking ini sudah ada.',
-        ], 422);
+            'success' => true,
+            'data'    => $result,
+        ]);
     }
 
-    $rekamMedis = RekamMedis::create([
-    'id_riwayat'       => $riwayat->id_riwayat,
-    'id_dokter'        => $dokter->id_dokter,
-    'diagnosa'         => $request->diagnosa,
-    'diagnosa_lengkap' => $request->diagnosa_lengkap,
-    'catatan_dokter'   => $request->catatan_dokter,
-    'tindakan'         => $request->tindakan,
-]);
+    /**
+     * POST /dokter/rekam-medis
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $dokter = $this->getDokter($request);
+        if (!$dokter) return response()->json(['message' => 'Data dokter tidak ditemukan'], 404);
 
-    Booking::where('id_booking', $request->id_booking)
-        ->update(['status' => 'selesai']);
+        $request->validate([
+            'id_booking'       => 'required|integer|exists:booking,id_booking',
+            'diagnosa'         => 'required|string',
+            'diagnosa_lengkap' => 'nullable|string',
+            'catatan_dokter'   => 'nullable|string',
+            'tanggal'          => 'required|date',
+        ]);
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Rekam medis berhasil disimpan.',
-        'data'    => $rekamMedis,
-    ], 201);
-}
+        $riwayat = RiwayatLayanan::firstOrCreate(
+            ['id_booking' => $request->id_booking],
+            ['tanggal' => $request->tanggal, 'grand_total' => 0]
+        );
+
+        $existing = RekamMedis::where('id_riwayat', $riwayat->id_riwayat)->first();
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rekam medis untuk booking ini sudah ada.',
+            ], 422);
+        }
+
+        $rekamMedis = RekamMedis::create([
+            'id_riwayat'       => $riwayat->id_riwayat,
+            'id_dokter'        => $dokter->id_dokter,
+            'diagnosa'         => $request->diagnosa,
+            'diagnosa_lengkap' => $request->diagnosa_lengkap,
+            'catatan_dokter'   => $request->catatan_dokter,
+            'tindakan'         => $request->tindakan,
+        ]);
+
+        Booking::where('id_booking', $request->id_booking)
+            ->update(['status' => 'selesai']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rekam medis berhasil disimpan.',
+            'data'    => $rekamMedis,
+        ], 201);
+    }
 
     /**
      * GET /dokter/rekam-medis/{id}
@@ -161,9 +179,8 @@ public function store(Request $request): JsonResponse
                 'jenis_hewan'      => $hewan->jenis      ?? '-',
                 'ras_hewan'        => $hewan->ras         ?? '-',
                 'nama_pemilik'     => $hewan->user->nama  ?? '-',
-                'tindakan' => $rm->tindakan,
+                'tindakan'         => $rm->tindakan,
             ],
         ]);
-        
     }
 }

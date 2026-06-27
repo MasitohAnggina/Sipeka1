@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar_dokter";
 import Header from "@/components/Header";
@@ -40,7 +40,7 @@ const STORAGE_URL = "http://127.0.0.1:8000/storage/";
 
 interface HewanRow {
   id_hewan:      number;
-  id_booking:    number | null;   // ← tambah field ini agar tidak perlu cast
+  id_booking:    number | null;
   nama_hewan:    string;
   jenis:         string;
   ras:           string;
@@ -48,7 +48,7 @@ interface HewanRow {
   foto:          string | null;
   nama_pemilik:  string;
   rekam_medis:   RekamMedisItem[];
-  sudah_dicatat: boolean;         // ← flag dari backend
+  sudah_dicatat: boolean;
 }
 
 interface RekamMedisItem {
@@ -59,6 +59,7 @@ interface RekamMedisItem {
   catatan_dokter:   string;
   nama_dokter:      string;
 }
+
 
 type ViewMode = "table" | "form" | "detail";
 
@@ -192,6 +193,12 @@ function HewanInfoBar({ namaHewan, jenisHewan, rasHewan, namaPemilik, foto, labe
 
 // ── TABLE VIEW ────────────────────────────────────────────────────────────────
 
+// 1 baris per rekam medis — hewan yang sama tampil di baris terpisah masing-masing lengkap
+interface FlatRow {
+  hewan: HewanRow;
+  rm:    RekamMedisItem | null; // null = hewan belum punya rekam medis sama sekali
+}
+
 function TableView({ hewanList, loading, onCatat, onDetail }: {
   hewanList: HewanRow[];
   loading:   boolean;
@@ -200,10 +207,23 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
 }) {
   const [search, setSearch] = useState("");
 
-  const filtered = hewanList.filter(h =>
-    h.nama_pemilik.toLowerCase().includes(search.toLowerCase()) ||
-    h.nama_hewan.toLowerCase().includes(search.toLowerCase())
-  );
+  const flatRows = useMemo<FlatRow[]>(() => {
+    const filtered = hewanList.filter(h =>
+      h.nama_pemilik.toLowerCase().includes(search.toLowerCase()) ||
+      h.nama_hewan.toLowerCase().includes(search.toLowerCase())
+    );
+    const rows: FlatRow[] = [];
+    for (const h of filtered) {
+      if (h.rekam_medis.length === 0) {
+        rows.push({ hewan: h, rm: null });
+      } else {
+        for (const rm of h.rekam_medis) {
+          rows.push({ hewan: h, rm });
+        }
+      }
+    }
+    return rows;
+  }, [hewanList, search]);
 
   return (
     <div style={{ padding: "24px 28px" }}>
@@ -230,30 +250,29 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: G }}>
-                  {["Hewan", "Jenis / Ras", "Pemilik", "Rekam Medis", "Aksi"].map(h => (
-                    <th key={h} style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "left", whiteSpace: "nowrap", fontFamily: "inherit" }}>{h}</th>
+                  {["Hewan", "Jenis / Ras", "Pemilik", "Tanggal", "Aksi"].map(col => (
+                    <th key={col} style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "left", whiteSpace: "nowrap", fontFamily: "inherit" }}>{col}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {flatRows.length === 0 ? (
                   <tr>
                     <td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "#999", fontSize: 14 }}>
                       <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
                       {search ? `Tidak ditemukan hasil untuk "${search}"` : "Belum ada data hewan"}
                     </td>
                   </tr>
-                ) : filtered.map(h => {
-                  const latest = h.rekam_medis[0] ?? null;
-                  const total  = h.rekam_medis.length;
+                ) : flatRows.map(({ hewan: h, rm }, idx) => {
+                  const rowBg = idx % 2 === 0 ? "#fff" : "#fafffe";
                   return (
                     <tr
-                      key={h.id_hewan}
-                      style={{ borderBottom: "1px solid #f0f0f0" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#f9f9f9")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      key={`${h.id_hewan}-${rm?.id_rekam_medis ?? "none"}-${idx}`}
+                      style={{ borderBottom: "1px solid #f0f0f0", background: rowBg }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "#f4fbf4")}
+                      onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
                     >
-                      {/* Hewan */}
+                      {/* ── Hewan ── */}
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <FotoHewan foto={h.foto} nama={h.nama_hewan} jenis={h.jenis} size={40} />
@@ -261,13 +280,13 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
                         </div>
                       </td>
 
-                      {/* Jenis / Ras */}
+                      {/* ── Jenis / Ras ── */}
                       <td style={{ padding: "12px 16px", fontSize: 13, color: "#555" }}>
                         <div>{h.jenis}</div>
                         <div style={{ fontSize: 12, color: "#aaa" }}>{h.ras}</div>
                       </td>
 
-                      {/* Pemilik */}
+                      {/* ── Pemilik ── */}
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                           <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#e8f5e9", border: "1.5px solid #a5d6a7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -277,39 +296,34 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
                         </div>
                       </td>
 
-                      {/* Rekam Medis */}
-                      <td style={{ padding: "12px 16px" }}>
-                        {total > 0 ? (
-                          <div>
-                            <Badge>{total} Rekam Medis</Badge>
-                            <div style={{ fontSize: 11, color: "#888", marginTop: 4 }}>Terakhir: {latest!.tanggal}</div>
+                      {/* ── Tanggal ── */}
+                      <td style={{ padding: "12px 16px", fontSize: 13, color: "#555", whiteSpace: "nowrap" }}>
+                        {rm ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <Icon name="calendar" size={13} color="#aaa" />
+                            <span>{rm.tanggal}</span>
                           </div>
                         ) : (
                           <span style={{ fontSize: 12, color: "#bbb", fontStyle: "italic" }}>Belum ada</span>
                         )}
                       </td>
 
-                      {/* Aksi */}
+                      {/* ── Aksi ── */}
                       <td style={{ padding: "12px 16px" }}>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          {h.sudah_dicatat ? (
-                            <div style={{
-                              display: "inline-flex", alignItems: "center", gap: 5,
-                              padding: "7px 12px", borderRadius: 8,
-                              border: "1.5px solid #e0e0e0",
-                              background: "#f5f5f5", color: "#bbb",
-                              fontSize: 12, whiteSpace: "nowrap",
-                              cursor: "not-allowed",
-                            }}>
-                              <Icon name="check" size={12} color="#bbb" /> Tercatat
-                            </div>
-                          ) : (
-                            <HoverBtn onClick={() => onCatat(h)} variant="green">
-                              <Icon name="clipboard" size={12} color="currentColor" /> Catat
-                            </HoverBtn>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
+                          {rm === null && (
+                            h.sudah_dicatat ? (
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#f5f5f5", color: "#bbb", fontSize: 12, whiteSpace: "nowrap", cursor: "not-allowed" }}>
+                                <Icon name="check" size={12} color="#bbb" /> Tercatat
+                              </div>
+                            ) : (
+                              <HoverBtn onClick={() => onCatat(h)} variant="green">
+                                <Icon name="clipboard" size={12} color="currentColor" /> Catat
+                              </HoverBtn>
+                            )
                           )}
-                          {latest && (
-                            <HoverBtn onClick={() => onDetail(h, latest)} variant="blue">
+                          {rm && (
+                            <HoverBtn onClick={() => onDetail(h, rm)} variant="blue">
                               <Icon name="eye" size={12} color="currentColor" /> Detail
                             </HoverBtn>
                           )}
@@ -721,11 +735,11 @@ function RekamMedisInner() {
   const namaPemilikParam = searchParams.get("nama_pemilik");
   const fotoParam        = searchParams.get("foto") ?? null;
 
-  const [view,           setView]           = useState<ViewMode>(idBookingParam ? "form" : "table");
-  const [hewanList,      setHewanList]      = useState<HewanRow[]>([]);
-  const [activeHewan,    setActiveHewan]    = useState<HewanRow | null>(null);
-  const [activeRecord,   setActiveRecord]   = useState<RekamMedisItem | null>(null);
-  const [loading,        setLoading]        = useState(true);
+  const [view,            setView]            = useState<ViewMode>(idBookingParam ? "form" : "table");
+  const [hewanList,       setHewanList]       = useState<HewanRow[]>([]);
+  const [activeHewan,     setActiveHewan]     = useState<HewanRow | null>(null);
+  const [activeRecord,    setActiveRecord]    = useState<RekamMedisItem | null>(null);
+  const [loading,         setLoading]         = useState(true);
   const [activeIdBooking, setActiveIdBooking] = useState<string | null>(idBookingParam);
 
   const token   = typeof window !== "undefined" ? sessionStorage.getItem("token") : null;
@@ -744,7 +758,6 @@ function RekamMedisInner() {
   useEffect(() => {
     fetchHewan();
     if (idBookingParam && namaHewanParam) {
-      // ← Perbaikan: sudah_dicatat dan id_booking ditambahkan agar sesuai HewanRow
       setActiveHewan({
         id_hewan:      0,
         id_booking:    idBookingParam ? Number(idBookingParam) : null,
@@ -789,7 +802,6 @@ function RekamMedisInner() {
             loading={loading}
             onCatat={h => {
               setActiveHewan(h);
-              // ← Perbaikan: gunakan h.id_booking langsung, tidak perlu cast
               setActiveIdBooking(h.id_booking != null ? String(h.id_booking) : null);
               setView("form");
             }}
