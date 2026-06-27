@@ -6,6 +6,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use App\Mail\ResetPasswordMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -75,4 +79,55 @@ class AuthController extends Controller
             'message' => 'Logout berhasil',
         ]);
     }
+
+    public function forgotPassword(Request $request)
+{
+    $request->validate(['email' => 'required|email']);
+
+    $user = User::where('email', $request->email)->first();
+    if (!$user) {
+        // pesan generik, jangan bocorkan email terdaftar atau tidak
+        return response()->json(['message' => 'Jika email terdaftar, link reset sudah dikirim']);
+    }
+
+    $token = Str::random(60);
+
+    DB::table('password_reset_tokens')->updateOrInsert(
+        ['email' => $request->email],
+        ['token' => Hash::make($token), 'created_at' => now()]
+    );
+
+    $resetUrl = config('app.frontend_url') . '/auth/reset-password?token=' . $token . '&email=' . urlencode($request->email);
+
+    Mail::to($request->email)->send(new ResetPasswordMail($resetUrl));
+
+    return response()->json(['message' => 'Jika email terdaftar, link reset sudah dikirim']);
+}
+
+public function resetPassword(Request $request)
+{
+    $request->validate([
+        'email'    => 'required|email',
+        'token'    => 'required',
+        'password' => 'required|min:6|confirmed',
+    ]);
+
+    $record = DB::table('password_reset_tokens')->where('email', $request->email)->first();
+
+    if (!$record || !Hash::check($request->token, $record->token)) {
+        return response()->json(['message' => 'Token tidak valid atau sudah expired'], 400);
+    }
+
+    if (now()->diffInMinutes($record->created_at) > 60) {
+        return response()->json(['message' => 'Token sudah expired, minta ulang'], 400);
+    }
+
+    $user = User::where('email', $request->email)->first();
+    $user->password = $request->password; // otomatis di-hash karena casts 'hashed'
+    $user->save();
+
+    DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+    return response()->json(['message' => 'Password berhasil direset, silakan login']);
+}
 }
