@@ -8,6 +8,7 @@ interface FormData {
   namaLengkap: string;
   email: string;
   noTelepon: string;
+  kataSandi: string;
   spesialisasi: string;
   institusiPendidikan: string;
   provinsi: string;
@@ -59,6 +60,24 @@ const inputStyle: React.CSSProperties = {
   transition: "border-color .15s",
 };
 
+// ── Eye Icon ──────────────────────────────────────────────────────────────────
+
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ) : (
+    <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#888" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
+// ── InputField ────────────────────────────────────────────────────────────────
+
 interface InputFieldProps {
   label: string;
   name: string;
@@ -69,15 +88,43 @@ interface InputFieldProps {
 }
 
 function InputField({ label, name, value, onChange, type = "text", placeholder = "" }: InputFieldProps) {
+  const [show,    setShow]    = useState(false);
+  const [focused, setFocused] = useState(false);
+  const isPassword = type === "password";
+
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-      <input
-        type={type} name={name} value={value} onChange={onChange} placeholder={placeholder}
-        style={inputStyle}
-        onFocus={e => e.currentTarget.style.borderColor = G}
-        onBlur={e => e.currentTarget.style.borderColor = "#e0e0e0"}
-      />
+      <div style={{ position: "relative" }}>
+        <input
+          type={isPassword ? (show ? "text" : "password") : type}
+          name={name}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          style={{
+            ...inputStyle,
+            borderColor: focused ? G : "#e0e0e0",
+            paddingRight: isPassword ? 36 : undefined,
+          }}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow(s => !s)}
+            style={{
+              position: "absolute", right: 10, top: "50%",
+              transform: "translateY(-50%)", background: "none",
+              border: "none", cursor: "pointer", padding: 0,
+              display: "flex", alignItems: "center",
+            }}
+          >
+            <EyeIcon open={show} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -87,6 +134,7 @@ export default function ProfileDokterPage() {
     namaLengkap:         "",
     email:               "",
     noTelepon:           "",
+    kataSandi:           "",
     spesialisasi:        "",
     institusiPendidikan: "",
     provinsi:            "",
@@ -96,14 +144,14 @@ export default function ProfileDokterPage() {
     alamatLengkap:       "",
   });
 
-  const [saved, setSaved]                   = useState(false);
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState("");
-  const [fotoUrl, setFotoUrl]               = useState<string | null>(null);
-  const [fotoUploading, setFotoUploading]   = useState(false);
-  const [fotoError, setFotoError]           = useState("");
-  const [fotoSuccess, setFotoSuccess]       = useState("");
-  const fileInputRef                        = useRef<HTMLInputElement>(null);
+  const [saved,          setSaved]          = useState(false);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState("");
+  const [fotoUrl,        setFotoUrl]        = useState<string | null>(null);
+  const [fotoUploading,  setFotoUploading]  = useState(false);
+  const [fotoError,      setFotoError]      = useState("");
+  const [fotoSuccess,    setFotoSuccess]    = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const token = sessionStorage.getItem("token");
@@ -119,6 +167,7 @@ export default function ProfileDokterPage() {
           namaLengkap:         data.nama               ?? "",
           email:               data.email              ?? "",
           noTelepon:           data.no_hp              ?? "",
+          kataSandi:           "",
           spesialisasi:        data.spesialisasi        ?? "",
           institusiPendidikan: data.pendidikan_terakhir ?? "",
           provinsi:            data.provinsi           ?? "",
@@ -199,28 +248,35 @@ export default function ProfileDokterPage() {
     setError("");
 
     try {
+      const body: Record<string, string> = {
+        nama:                formData.namaLengkap,
+        email:               formData.email,
+        no_hp:               formData.noTelepon,
+        spesialisasi:        formData.spesialisasi,
+        pendidikan_terakhir: formData.institusiPendidikan,
+        provinsi:            formData.provinsi,
+        kota:                formData.kotaKabupaten,
+        kecamatan:           formData.kecamatan,
+        kode_pos:            formData.kodePos,
+        alamat_lengkap:      formData.alamatLengkap,
+      };
+
+      // Hanya kirim kata_sandi kalau diisi
+      if (formData.kataSandi) body.kata_sandi = formData.kataSandi;
+
       const res = await fetch("http://127.0.0.1:8000/api/dokter/profile", {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          nama:                formData.namaLengkap,
-          email:               formData.email,
-          no_hp:               formData.noTelepon,
-          spesialisasi:        formData.spesialisasi,
-          pendidikan_terakhir: formData.institusiPendidikan,
-          provinsi:            formData.provinsi,
-          kota:                formData.kotaKabupaten,
-          kecamatan:           formData.kecamatan,
-          kode_pos:            formData.kodePos,
-          alamat_lengkap:      formData.alamatLengkap,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (res.ok) {
         setSaved(true);
+        // Reset field kata sandi setelah berhasil simpan
+        setFormData(prev => ({ ...prev, kataSandi: "" }));
         setTimeout(() => setSaved(false), 3000);
       } else {
         const data = await res.json();
@@ -287,7 +343,7 @@ export default function ProfileDokterPage() {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 17, color: "#1a1a1a" }}>{formData.namaLengkap || "-"}</div>
               <div style={{ fontSize: 13, color: "#888", marginTop: 3 }}>Dokter Hewan · {formData.spesialisasi || "-"}</div>
-              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}> {formData.kotaKabupaten || "-"}, {formData.provinsi || "-"}</div>
+              <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>{formData.kotaKabupaten || "-"}, {formData.provinsi || "-"}</div>
               {fotoError   && <div style={{ marginTop: 6, fontSize: 11, color: "#c62828" }}>⚠ {fotoError}</div>}
               {fotoSuccess && <div style={{ marginTop: 6, fontSize: 11, color: G }}>✓ {fotoSuccess}</div>}
               {fotoUploading && <div style={{ marginTop: 6, fontSize: 11, color: "#888" }}>Mengupload foto...</div>}
@@ -298,21 +354,27 @@ export default function ProfileDokterPage() {
 
           {/* ── Informasi Akun ── */}
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}> Informasi Akun</h2>
+            <h2 style={sectionTitleStyle}>Informasi Akun</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <InputField label="Nama Lengkap"        name="namaLengkap"         value={formData.namaLengkap}         onChange={handleChange} />
-              <InputField label="Email"               name="email"               value={formData.email}               onChange={handleChange} type="email" />
-              <InputField label="No. Telepon"         name="noTelepon"           value={formData.noTelepon}           onChange={handleChange} />
+              <InputField label="Nama Lengkap"    name="namaLengkap"  value={formData.namaLengkap}  onChange={handleChange} />
+              <InputField label="Email"           name="email"        value={formData.email}        onChange={handleChange} type="email" />
+              <InputField label="No. Telepon"     name="noTelepon"    value={formData.noTelepon}    onChange={handleChange} />
+              <InputField
+                label="Kata Sandi Baru"
+                name="kataSandi"
+                value={formData.kataSandi}
+                onChange={handleChange}
+                type="password"
+                placeholder="Kosongkan jika tidak ingin ubah"
+              />
               <InputField label="Spesialisasi"        name="spesialisasi"        value={formData.spesialisasi}        onChange={handleChange} placeholder="cth. Hewan Kecil & Eksotis" />
-              <div style={{ gridColumn: "1 / -1" }}>
-                <InputField label="Institusi Pendidikan" name="institusiPendidikan" value={formData.institusiPendidikan} onChange={handleChange} placeholder="cth. Universitas Airlangga" />
-              </div>
+              <InputField label="Institusi Pendidikan" name="institusiPendidikan" value={formData.institusiPendidikan} onChange={handleChange} placeholder="cth. Universitas Airlangga" />
             </div>
           </div>
 
           {/* ── Alamat ── */}
           <div style={cardStyle}>
-            <h2 style={sectionTitleStyle}> Alamat</h2>
+            <h2 style={sectionTitleStyle}>Alamat</h2>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <InputField label="Provinsi"       name="provinsi"      value={formData.provinsi}      onChange={handleChange} />
               <InputField label="Kota/Kabupaten" name="kotaKabupaten" value={formData.kotaKabupaten} onChange={handleChange} />
@@ -340,12 +402,13 @@ export default function ProfileDokterPage() {
             >
               Batalkan
             </button>
-            <button onClick={handleSubmit}
+            <button
+              onClick={handleSubmit}
               style={{ padding: "10px 26px", borderRadius: 9, border: "none", background: saved ? "#4caf50" : G, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 7, transition: "background .2s" }}
               onMouseEnter={e => { if (!saved) e.currentTarget.style.background = "#1b5e20"; }}
               onMouseLeave={e => { if (!saved) e.currentTarget.style.background = saved ? "#4caf50" : G; }}
             >
-              {saved ? <>✓ Tersimpan!</> : <> Simpan Perubahan</>}
+              {saved ? <>✓ Tersimpan!</> : <>Simpan Perubahan</>}
             </button>
           </div>
 

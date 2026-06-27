@@ -164,4 +164,109 @@ class ProfileController extends Controller
             'message' => 'Foto profil berhasil dihapus.',
         ]);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  GET /api/dokter/profile
+    // ─────────────────────────────────────────────────────────────────────────
+    public function getDokterProfile(Request $request)
+    {
+        $user   = $request->user();
+        $dokter = \App\Models\Dokter::where('id_user', $user->id_user)->first();
+
+        $alamat = Alamat::where('id_user', $user->id_user)->first();
+        if (!$alamat) {
+            $alamat = Alamat::create([
+                'id_user'        => $user->id_user,
+                'provinsi'       => '',
+                'kota'           => '',
+                'kecamatan'      => '',
+                'kode_pos'       => '',
+                'alamat_lengkap' => '',
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'nama'    => $dokter->nama_dokter       ?? $user->nama,
+            'email'   => $user->email,
+            'no_hp'   => $user->no_hp               ?? '',
+            'foto'    => $dokter && $dokter->foto
+                            ? asset('storage/' . $dokter->foto)
+                            : null,
+            'spesialisasi'        => $dokter->spesialisasi        ?? '',
+            'pendidikan_terakhir' => $dokter->pendidikan_terakhir ?? '',
+            'provinsi'            => $alamat->provinsi            ?? '',
+            'kota'                => $alamat->kota                ?? '',
+            'kecamatan'           => $alamat->kecamatan           ?? '',
+            'kode_pos'            => $alamat->kode_pos            ?? '',
+            'alamat_lengkap'      => $alamat->alamat_lengkap      ?? '',
+        ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  PUT /api/dokter/profile
+    // ─────────────────────────────────────────────────────────────────────────
+    public function updateDokterProfile(Request $request)
+    {
+        $user   = $request->user();
+        $dokter = \App\Models\Dokter::where('id_user', $user->id_user)->first();
+
+        $request->validate([
+            'nama'                => 'required|string|max:255',
+            'email'               => 'required|email:rfc,dns|unique:users,email,' . $user->id_user . ',id_user',
+            'no_hp'               => 'nullable|string|max:20',
+            'kata_sandi'          => 'nullable|string|min:8',
+            'spesialisasi'        => 'nullable|string|max:255',
+            'pendidikan_terakhir' => 'nullable|string|max:255',
+            'provinsi'            => 'nullable|string|max:100',
+            'kota'                => 'nullable|string|max:100',
+            'kecamatan'           => 'nullable|string|max:100',
+            'kode_pos'            => 'nullable|string|max:10',
+            'alamat_lengkap'      => 'nullable|string|max:500',
+        ], [
+            'nama.required'   => 'Nama lengkap wajib diisi.',
+            'email.required'  => 'Email wajib diisi.',
+            'email.email'     => 'Format email tidak valid.',
+            'email.unique'    => 'Email sudah digunakan oleh akun lain.',
+            'kata_sandi.min'  => 'Kata sandi minimal 8 karakter.',
+        ]);
+
+        // Update tabel users
+        $updateUser = [
+            'nama'  => $request->nama,
+            'email' => $request->email,
+            'no_hp' => $request->no_hp,
+        ];
+        // Hanya update password kalau kata_sandi diisi
+        if ($request->filled('kata_sandi')) {
+            $updateUser['password'] = Hash::make($request->kata_sandi);
+        }
+        $user->update($updateUser);
+
+        // Update tabel dokter
+        if ($dokter) {
+            $dokter->update([
+                'nama_dokter'         => $request->nama,
+                'spesialisasi'        => $request->spesialisasi        ?? $dokter->spesialisasi,
+                'pendidikan_terakhir' => $request->pendidikan_terakhir ?? $dokter->pendidikan_terakhir,
+            ]);
+        }
+
+        // Update alamat
+        Alamat::updateOrCreate(
+            ['id_user' => $user->id_user],
+            [
+                'provinsi'       => $request->provinsi       ?? '',
+                'kota'           => $request->kota           ?? '',
+                'kecamatan'      => $request->kecamatan      ?? '',
+                'kode_pos'       => $request->kode_pos       ?? '',
+                'alamat_lengkap' => $request->alamat_lengkap ?? '',
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profil dokter berhasil diperbarui',
+        ]);
+    }
 }
