@@ -10,6 +10,7 @@ use App\Models\Resep;
 use App\Models\DetailResep;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DokterLayananObatController extends Controller
 {
@@ -67,10 +68,9 @@ class DokterLayananObatController extends Controller
                 ->orderBy('id_booking', 'desc')
                 ->get();
 
-            // Ambil semua id_booking yang sudah punya resep sekaligus
             $bookingIds     = $bookings->pluck('id_booking')->toArray();
             $resepByBooking = Resep::whereIn('id_booking', $bookingIds)
-                ->pluck('id_resep', 'id_booking'); // key=id_booking, value=id_resep
+                ->pluck('id_resep', 'id_booking');
 
             $pemilikMap = [];
 
@@ -110,8 +110,8 @@ class DokterLayananObatController extends Controller
                         'foto'       => $hewan->foto
                             ? asset('storage/' . $hewan->foto)
                             : null,
-                        'id_resep'   => $idResep,
-                        'has_resep'  => $idResep !== null,
+                        'id_resep'  => $idResep,
+                        'has_resep' => $idResep !== null,
                     ];
                 }
             }
@@ -151,7 +151,10 @@ class DokterLayananObatController extends Controller
         $resep = Resep::with(['details', 'hewan.user'])->find($id);
 
         if (!$resep) {
-            return response()->json(['success' => false, 'message' => 'Resep tidak ditemukan'], 404);
+            return response()->json([
+                'success' => false,
+                'message' => 'Resep tidak ditemukan',
+            ], 404);
         }
 
         return response()->json([
@@ -190,7 +193,7 @@ class DokterLayananObatController extends Controller
         ]);
     }
 
-    // ── Simpan resep (layanan + obat) ─────────────────────────────────────
+    // ── Simpan resep (layanan + obat) + kurangi stok obat ─────────────────
     public function simpanResep(Request $request): JsonResponse
     {
         try {
@@ -218,7 +221,7 @@ class DokterLayananObatController extends Controller
                 'items.*.subtotal'     => 'required|integer',
             ]);
 
-            // ── Cegah duplikat resep untuk booking yang sama ──────────────
+            // ── Cegah duplikat resep ──────────────────────────────────────
             $existing = Resep::where('id_booking', $validated['id_booking'])->first();
             if ($existing) {
                 return response()->json([
@@ -228,25 +231,60 @@ class DokterLayananObatController extends Controller
                 ], 422);
             }
 
-            $resep = Resep::create([
-                'id_booking'  => $validated['id_booking'],
-                'id_dokter'   => $dokter->id_dokter,
-                'id_hewan'    => $validated['id_hewan'],
-                'id_user'     => $validated['id_user'],
-                'catatan'     => $validated['catatan'] ?? null,
-                'grand_total' => $validated['grand_total'],
-            ]);
+            // ── Validasi stok obat sebelum disimpan ───────────────────────
+            $itemObat = collect($validated['items'])->where('tipe', 'obat');
+            foreach ($itemObat as $item) {
+                $obat = Obat::find($item['id_referensi']);
+                if (!$obat) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Obat dengan ID {$item['id_referensi']} tidak ditemukan.",
+                    ], 422);
+                }
+                if ($obat->stok < $item['qty']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Stok {$obat->nama_obat} tidak mencukupi. "
+                            . "Tersedia: {$obat->stok}, dibutuhkan: {$item['qty']}.",
+                    ], 422);
+                }
+            }
 
-            foreach ($validated['items'] as $item) {
-                DetailResep::create([
-                    'id_resep'     => $resep->id_resep,
-                    'tipe'         => $item['tipe'],
-                    'id_referensi' => $item['id_referensi'],
-                    'nama_item'    => $item['nama_item'],
-                    'harga_satuan' => $item['harga_satuan'],
-                    'qty'          => $item['qty'],
-                    'subtotal'     => $item['subtotal'],
+            // ── Simpan semua dalam satu transaksi ─────────────────────────
+            DB::beginTransaction();
+            try {
+                $resep = Resep::create([
+                    'id_booking'  => $validated['id_booking'],
+                    'id_dokter'   => $dokter->id_dokter,
+                    'id_hewan'    => $validated['id_hewan'],
+                    'id_user'     => $validated['id_user'],
+                    'catatan'     => $validated['catatan'] ?? null,
+                    'grand_total' => $validated['grand_total'],
                 ]);
+
+                foreach ($validated['items'] as $item) {
+                    DetailResep::create([
+                        'id_resep'     => $resep->id_resep,
+                        'tipe'         => $item['tipe'],
+                        'id_referensi' => $item['id_referensi'],
+                        'nama_item'    => $item['nama_item'],
+                        'harga_satuan' => $item['harga_satuan'],
+                        'qty'          => $item['qty'],
+                        'subtotal'     => $item['subtotal'],
+                    ]);
+
+                    // ── Kurangi stok obat ─────────────────────────────────
+                    if ($item['tipe'] === 'obat') {
+                        Obat::where('id_obat', $item['id_referensi'])
+                            ->decrement('stok', $item['qty']);
+                    }
+                }
+
+                DB::commit();
+
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                throw $e;
             }
 
             return response()->json([
