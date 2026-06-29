@@ -166,8 +166,6 @@ const cardStyle = (active: boolean): React.CSSProperties => ({
   background: active ? "#f1f8f1" : "#fff",
 });
 
-// Helper: generate slot tiap N menit dalam rentang jam dokter
-// Menggunakan < (bukan <=) agar jam terakhir tidak ditawarkan
 function generateSlots(
   jamMulai: string,
   jamSelesai: string,
@@ -1201,13 +1199,11 @@ function Step4Jadwal({
   selectedJam: string;
   setSelectedJam(t: string): void;
 }) {
-  // Generate shortcut slots setiap 30 menit dalam rentang jadwal dokter
   const slotShortcuts =
     selectedJadwal?.jam_mulai && selectedJadwal?.jam_selesai
       ? generateSlots(selectedJadwal.jam_mulai, selectedJadwal.jam_selesai, 30)
       : [];
 
-  // Validasi jam yang diinput manual masih dalam rentang
   const jamValid =
     !selectedJam ||
     !selectedJadwal?.jam_mulai ||
@@ -1221,7 +1217,6 @@ function Step4Jadwal({
         Pilih Jadwal Kunjungan
       </h2>
 
-      {/* Pilih Tanggal */}
       <div style={{ marginBottom: 24 }}>
         <label
           style={{
@@ -1269,7 +1264,7 @@ function Step4Jadwal({
                   key={j.id_jadwal}
                   onClick={() => {
                     setSelectedJadwal(j);
-                    setSelectedJam(""); // reset jam saat ganti tanggal
+                    setSelectedJam("");
                   }}
                   style={{
                     padding: "12px 14px",
@@ -1349,7 +1344,6 @@ function Step4Jadwal({
         )}
       </div>
 
-      {/* Pilih Jam — input bebas + shortcut 30 menit */}
       {selectedJadwal && (
         <div style={{ marginBottom: 24 }}>
           <label
@@ -1370,7 +1364,6 @@ function Step4Jadwal({
             </span>
           </label>
 
-          {/* Input waktu bebas */}
           <input
             type="time"
             value={selectedJam}
@@ -1382,15 +1375,7 @@ function Step4Jadwal({
                 setSelectedJam("");
                 return;
               }
-              // Validasi dalam rentang; jam_selesai sendiri tidak valid (< bukan <=)
-              if (
-                val >= selectedJadwal.jam_mulai! &&
-                val < selectedJadwal.jam_selesai!
-              ) {
-                setSelectedJam(val);
-              } else {
-                setSelectedJam(val); // tetap set agar user lihat, error ditampilkan
-              }
+              setSelectedJam(val);
             }}
             style={{
               padding: "9px 14px",
@@ -1409,7 +1394,6 @@ function Step4Jadwal({
             }}
           />
 
-          {/* Pesan error jika di luar rentang */}
           {selectedJam && !jamValid && (
             <div
               style={{
@@ -1427,7 +1411,6 @@ function Step4Jadwal({
             </div>
           )}
 
-          {/* Shortcut slot setiap 30 menit */}
           {slotShortcuts.length > 0 && (
             <div>
               <div
@@ -1463,7 +1446,6 @@ function Step4Jadwal({
         </div>
       )}
 
-      {/* Ringkasan Layanan */}
       <h3 style={{ color: G, fontWeight: 700, fontSize: 15, marginBottom: 10 }}>
         Ringkasan Layanan
       </h3>
@@ -2154,6 +2136,101 @@ function ConflictDialog({
   );
 }
 
+// ── Kapasitas Dialog ──────────────────────────────────────────────────────────
+
+function KapasitasDialog({
+  message,
+  onPilihTanggalLain,
+  onTetapBooking,
+}: {
+  message: string;
+  onPilihTanggalLain(): void;
+  onTetapBooking(): void;
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 999,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 14,
+          padding: "24px 28px",
+          maxWidth: 440,
+          width: "90%",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 12,
+          }}
+        >
+          <AlertTriangle size={22} color="#e53935" />
+          <span style={{ fontWeight: 700, fontSize: 16, color: "#c62828" }}>
+            Kapasitas Layanan Penuh
+          </span>
+        </div>
+        <p
+          style={{
+            fontSize: 14,
+            color: "#555",
+            lineHeight: 1.6,
+            marginBottom: 20,
+          }}
+        >
+          {message}
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onPilihTanggalLain}
+            style={{
+              flex: 1,
+              padding: "10px 0",
+              borderRadius: 8,
+              border: `1.5px solid ${G}`,
+              background: "#fff",
+              color: G,
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Pilih Tanggal Lain
+          </button>
+          <button
+            onClick={onTetapBooking}
+            style={{
+              flex: 1,
+              padding: "10px 0",
+              borderRadius: 8,
+              border: "none",
+              background: "#e53935",
+              color: "#fff",
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Tetap Booking
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function BookingPage() {
@@ -2168,9 +2245,13 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // State untuk conflict dialog
+  // Dialog states
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictMessage, setConflictMessage] = useState("");
+  const [showKapasitasDialog, setShowKapasitasDialog] = useState(false);
+  const [kapasitasMessage, setKapasitasMessage] = useState("");
+  // FIX 1: simpan nilai `force` terakhir agar bisa dipakai di onTetapBooking
+  const [lastForce, setLastForce] = useState(false);
 
   const [apiBookings, setApiBookings] = useState<
     Array<{ no_booking: string; no_antrian: number; id_hewan: number }>
@@ -2294,7 +2375,6 @@ export default function BookingPage() {
     });
   };
 
-  // Validasi jam dalam rentang (< jam_selesai, bukan <=)
   const jamValid =
     !selectedJam ||
     !selectedJadwal?.jam_mulai ||
@@ -2308,16 +2388,16 @@ export default function BookingPage() {
     (step === 4 && (!selectedJadwal || !selectedJam || !jamValid))
   );
 
-  // Fungsi confirm yang menerima parameter force
-  const confirm = async (force = false) => {
+  const confirm = async (force = false, forceKapasitas = false) => {
+    // FIX 1: simpan nilai force agar bisa dipakai oleh onTetapBooking di KapasitasDialog
+    setLastForce(force);
+
     if (!selectedJadwal || !selectedJam) {
       setError("Pilih tanggal dan jam kunjungan terlebih dahulu.");
       return;
     }
     if (!jamValid) {
-      setError(
-        `Jam ${selectedJam} di luar rentang jadwal dokter (${selectedJadwal.jam_mulai} – ${selectedJadwal.jam_selesai}).`
-      );
+      setError(`Jam ${selectedJam} di luar rentang jadwal dokter.`);
       return;
     }
 
@@ -2329,14 +2409,14 @@ export default function BookingPage() {
       tanggal_booking: selectedJadwal.tanggal,
       jam: selectedJam,
       id_jadwal: selectedJadwal.id_jadwal,
-      force, // flag untuk bypass konflik slot
+      force,
+      force_kapasitas: forceKapasitas,
       items: sel.map((id) => {
         const pet = pets.find((p) => p.id === id)!;
         const photos = condPhotos[id] ?? [];
-        const id_layanans = (svc[id] ?? []).map(Number);
         return {
           id_hewan: pet.id_hewan ?? Number(pet.id),
-          id_layanans,
+          id_layanans: (svc[id] ?? []).map(Number),
           catatan: notes[id] ?? "",
           foto_before: photos.find((p) => p.label === "before")?.dataUrl,
           foto_after: photos.find((p) => p.label === "after")?.dataUrl,
@@ -2359,16 +2439,16 @@ export default function BookingPage() {
         setApiBookings(data.bookings);
         setDone(true);
       } else if (data.conflict) {
-        // Tampilkan dialog konflik
         setConflictMessage(data.message);
         setShowConflictDialog(true);
+      } else if (data.conflict_kapasitas) {
+        setKapasitasMessage(data.message);
+        setShowKapasitasDialog(true);
       } else {
         setError(data.message ?? "Terjadi kesalahan saat membuat booking.");
       }
     } catch {
-      setError(
-        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
-      );
+      setError("Tidak dapat terhubung ke server.");
     } finally {
       setLoading(false);
     }
@@ -2399,6 +2479,7 @@ export default function BookingPage() {
     downloadPDF(data);
   };
 
+  // FIX 2: reset semua state termasuk state baru kapasitas dan lastForce
   const reset = () => {
     setStep(1);
     setDone(false);
@@ -2412,6 +2493,9 @@ export default function BookingPage() {
     setError(null);
     setShowConflictDialog(false);
     setConflictMessage("");
+    setShowKapasitasDialog(false);
+    setKapasitasMessage("");
+    setLastForce(false);
   };
 
   // ── Loading Screen ──────────────────────────────────────────────────────────
@@ -2555,7 +2639,7 @@ export default function BookingPage() {
               </div>
             )}
 
-            {/* Conflict Dialog */}
+            {/* Conflict Dialog — slot jam bentrok */}
             {showConflictDialog && (
               <ConflictDialog
                 message={conflictMessage}
@@ -2567,6 +2651,24 @@ export default function BookingPage() {
                 onTetapJamIni={() => {
                   setShowConflictDialog(false);
                   confirm(true);
+                }}
+              />
+            )}
+
+            {/* Kapasitas Dialog — kapasitas layanan penuh */}
+            {showKapasitasDialog && (
+              <KapasitasDialog
+                message={kapasitasMessage}
+                onPilihTanggalLain={() => {
+                  setShowKapasitasDialog(false);
+                  setStep(4);
+                  setSelectedJadwal(null);
+                  setSelectedJam("");
+                }}
+                // FIX 1: pakai lastForce (bukan variabel `force` yang tidak ada di scope ini)
+                onTetapBooking={() => {
+                  setShowKapasitasDialog(false);
+                  confirm(lastForce, true);
                 }}
               />
             )}
