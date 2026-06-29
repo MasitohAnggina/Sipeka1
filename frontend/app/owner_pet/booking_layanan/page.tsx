@@ -76,18 +76,6 @@ type ConditionPhoto = {
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const STORAGE_URL = `${API_URL}/storage/`;
 
-const JAM_SLOTS = [
-  "08:00",
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-];
 const STEPS = [
   "Pilih Hewan",
   "Pilih Layanan",
@@ -143,7 +131,6 @@ const fmtDate = (d: string) =>
         .replace(/\//g, "-")
     : "–";
 
-// Ganti fungsi fileToBase64 yang lama dengan ini
 async function fileToBase64Compressed(
   file: File,
   maxWidth = 800,
@@ -152,29 +139,24 @@ async function fileToBase64Compressed(
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
-
     img.onload = () => {
       URL.revokeObjectURL(url);
       const canvas = document.createElement("canvas");
-
-      // Resize proporsional, max 800px lebar
       let { width, height } = img;
       if (width > maxWidth) {
         height = Math.round((height * maxWidth) / width);
         width = maxWidth;
       }
-
       canvas.width = width;
       canvas.height = height;
       canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
-
       resolve(canvas.toDataURL("image/jpeg", quality));
     };
-
     img.onerror = reject;
     img.src = url;
   });
 }
+
 const cardStyle = (active: boolean): React.CSSProperties => ({
   borderRadius: 10,
   padding: "13px 15px",
@@ -183,6 +165,28 @@ const cardStyle = (active: boolean): React.CSSProperties => ({
   border: `2px solid ${active ? G : "#e0e0e0"}`,
   background: active ? "#f1f8f1" : "#fff",
 });
+
+// Helper: generate slot tiap N menit dalam rentang jam dokter
+// Menggunakan < (bukan <=) agar jam terakhir tidak ditawarkan
+function generateSlots(
+  jamMulai: string,
+  jamSelesai: string,
+  intervalMenit = 30
+): string[] {
+  const slots: string[] = [];
+  const [hStart, mStart] = jamMulai.split(":").map(Number);
+  const [hEnd, mEnd] = jamSelesai.split(":").map(Number);
+  let totalMulai = hStart * 60 + mStart;
+  const totalSelesai = hEnd * 60 + mEnd;
+
+  while (totalMulai < totalSelesai) {
+    const h = Math.floor(totalMulai / 60).toString().padStart(2, "0");
+    const m = (totalMulai % 60).toString().padStart(2, "0");
+    slots.push(`${h}:${m}`);
+    totalMulai += intervalMenit;
+  }
+  return slots;
+}
 
 // ── Icon Components ───────────────────────────────────────────────────────────
 
@@ -564,7 +568,7 @@ function Step1({
   );
 }
 
-// ── Step 2: Pilih Layanan (tampil seperti admin) ──────────────────────────────
+// ── Step 2: Pilih Layanan ─────────────────────────────────────────────────────
 
 function Step2({
   pets,
@@ -608,7 +612,6 @@ function Step2({
         </span>
       </div>
 
-      {/* Tab hewan */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         {sel.map((id) => {
           const p = pets.find((x) => x.id === id)!;
@@ -656,7 +659,6 @@ function Step2({
         })}
       </div>
 
-      {/* Info hewan aktif */}
       <div
         style={{
           padding: "9px 13px",
@@ -677,7 +679,6 @@ function Step2({
         </div>
       </div>
 
-      {/* Daftar layanan spesifik — persis seperti tampilan admin */}
       {services.length === 0 ? (
         <div
           style={{
@@ -716,7 +717,6 @@ function Step2({
                   transition: "background .12s",
                 }}
               >
-                {/* Checkbox */}
                 <div
                   style={{
                     width: 20,
@@ -733,8 +733,6 @@ function Step2({
                 >
                   {checked && <Check size={11} color="#fff" strokeWidth={3} />}
                 </div>
-
-                {/* Icon kategori */}
                 <span
                   style={{
                     flexShrink: 0,
@@ -748,8 +746,6 @@ function Step2({
                     color={katColor.text}
                   />
                 </span>
-
-                {/* Nama & detail layanan */}
                 <div style={{ flex: 1 }}>
                   <div
                     style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}
@@ -760,8 +756,6 @@ function Step2({
                     {layanan.deskripsi && <span>{layanan.deskripsi}</span>}
                   </div>
                 </div>
-
-                {/* Badge kategori */}
                 <span
                   style={{
                     fontSize: 11,
@@ -798,7 +792,7 @@ function Step2({
             {selected.length} layanan dipilih untuk {pet.name}:{" "}
             {selected
               .map(
-                (id) => services.find((s) => String(s.id_layanan) === id)?.name,
+                (id) => services.find((s) => String(s.id_layanan) === id)?.name
               )
               .join(", ")}
           </span>
@@ -1207,13 +1201,19 @@ function Step4Jadwal({
   selectedJam: string;
   setSelectedJam(t: string): void;
 }) {
-  const availableJam = selectedJadwal
-    ? JAM_SLOTS.filter((t) => {
-        if (!selectedJadwal.jam_mulai || !selectedJadwal.jam_selesai)
-          return false;
-        return t >= selectedJadwal.jam_mulai && t <= selectedJadwal.jam_selesai;
-      })
-    : [];
+  // Generate shortcut slots setiap 30 menit dalam rentang jadwal dokter
+  const slotShortcuts =
+    selectedJadwal?.jam_mulai && selectedJadwal?.jam_selesai
+      ? generateSlots(selectedJadwal.jam_mulai, selectedJadwal.jam_selesai, 30)
+      : [];
+
+  // Validasi jam yang diinput manual masih dalam rentang
+  const jamValid =
+    !selectedJam ||
+    !selectedJadwal?.jam_mulai ||
+    !selectedJadwal?.jam_selesai ||
+    (selectedJam >= selectedJadwal.jam_mulai &&
+      selectedJam < selectedJadwal.jam_selesai);
 
   return (
     <div>
@@ -1221,6 +1221,7 @@ function Step4Jadwal({
         Pilih Jadwal Kunjungan
       </h2>
 
+      {/* Pilih Tanggal */}
       <div style={{ marginBottom: 24 }}>
         <label
           style={{
@@ -1268,14 +1269,16 @@ function Step4Jadwal({
                   key={j.id_jadwal}
                   onClick={() => {
                     setSelectedJadwal(j);
-                    setSelectedJam("");
+                    setSelectedJam(""); // reset jam saat ganti tanggal
                   }}
                   style={{
                     padding: "12px 14px",
                     borderRadius: 10,
                     cursor: "pointer",
                     transition: "all .15s",
-                    border: active ? `2px solid ${G}` : "1.5px solid #e0e0e0",
+                    border: active
+                      ? `2px solid ${G}`
+                      : "1.5px solid #e0e0e0",
                     background: active ? "#f1f8f1" : "#fff",
                     position: "relative",
                   }}
@@ -1346,6 +1349,7 @@ function Step4Jadwal({
         )}
       </div>
 
+      {/* Pilih Jam — input bebas + shortcut 30 menit */}
       {selectedJadwal && (
         <div style={{ marginBottom: 24 }}>
           <label
@@ -1355,44 +1359,111 @@ function Step4Jadwal({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              marginBottom: 10,
+              marginBottom: 6,
               color: "#333",
             }}
           >
             <Clock size={16} color={G} /> Pilih Jam Kunjungan
+            <span style={{ fontWeight: 400, fontSize: 12, color: "#888" }}>
+              (rentang: {selectedJadwal.jam_mulai} –{" "}
+              {selectedJadwal.jam_selesai})
+            </span>
           </label>
-          {availableJam.length === 0 ? (
-            <div style={{ fontSize: 13, color: "#999" }}>
-              Tidak ada slot jam tersedia untuk jadwal ini.
+
+          {/* Input waktu bebas */}
+          <input
+            type="time"
+            value={selectedJam}
+            min={selectedJadwal.jam_mulai}
+            max={selectedJadwal.jam_selesai}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) {
+                setSelectedJam("");
+                return;
+              }
+              // Validasi dalam rentang; jam_selesai sendiri tidak valid (< bukan <=)
+              if (
+                val >= selectedJadwal.jam_mulai! &&
+                val < selectedJadwal.jam_selesai!
+              ) {
+                setSelectedJam(val);
+              } else {
+                setSelectedJam(val); // tetap set agar user lihat, error ditampilkan
+              }
+            }}
+            style={{
+              padding: "9px 14px",
+              borderRadius: 8,
+              fontSize: 15,
+              border: `1.5px solid ${
+                !selectedJam ? "#e0e0e0" : jamValid ? G : "#e53935"
+              }`,
+              background: "#fff",
+              color: "#1a1a1a",
+              outline: "none",
+              fontFamily: "inherit",
+              width: 160,
+              display: "block",
+              marginBottom: 6,
+            }}
+          />
+
+          {/* Pesan error jika di luar rentang */}
+          {selectedJam && !jamValid && (
+            <div
+              style={{
+                fontSize: 12,
+                color: "#c62828",
+                marginBottom: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <AlertCircle size={13} color="#c62828" />
+              Jam harus antara {selectedJadwal.jam_mulai} –{" "}
+              {selectedJadwal.jam_selesai} (tidak termasuk jam selesai)
             </div>
-          ) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {availableJam.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setSelectedJam(t)}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    fontSize: 13,
-                    border:
-                      selectedJam === t
-                        ? `2px solid ${G}`
-                        : "1.5px solid #e0e0e0",
-                    background: selectedJam === t ? "#e8f5e9" : "#fff",
-                    color: selectedJam === t ? G : "#333",
-                    fontWeight: selectedJam === t ? 700 : 400,
-                  }}
-                >
-                  {t}
-                </button>
-              ))}
+          )}
+
+          {/* Shortcut slot setiap 30 menit */}
+          {slotShortcuts.length > 0 && (
+            <div>
+              <div
+                style={{ fontSize: 12, color: "#888", marginBottom: 6 }}
+              >
+                Atau pilih slot cepat (tiap 30 menit):
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {slotShortcuts.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setSelectedJam(t)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      border:
+                        selectedJam === t
+                          ? `2px solid ${G}`
+                          : "1.5px solid #e0e0e0",
+                      background: selectedJam === t ? "#e8f5e9" : "#fff",
+                      color: selectedJam === t ? G : "#333",
+                      fontWeight: selectedJam === t ? 700 : 400,
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
       )}
 
+      {/* Ringkasan Layanan */}
       <h3 style={{ color: G, fontWeight: 700, fontSize: 15, marginBottom: 10 }}>
         Ringkasan Layanan
       </h3>
@@ -1420,7 +1491,7 @@ function Step4Jadwal({
         {sel.map((id) => {
           const p = pets.find((x) => x.id === id)!;
           const layananDipilih = services.filter((s) =>
-            (svc[id] ?? []).includes(String(s.id_layanan)),
+            (svc[id] ?? []).includes(String(s.id_layanan))
           );
           return (
             <div
@@ -1639,7 +1710,7 @@ function Step6Konfirmasi({
       {sel.map((id) => {
         const p = pets.find((x) => x.id === id)!;
         const layananDipilih = services.filter((s) =>
-          (svc[id] ?? []).includes(String(s.id_layanan)),
+          (svc[id] ?? []).includes(String(s.id_layanan))
         );
         const cphs = condPhotos[id] ?? [];
         return (
@@ -1855,7 +1926,7 @@ function Success({
       {sel.map((id) => {
         const p = pets.find((x) => x.id === id)!;
         const layananDipilih = services.filter((s) =>
-          (svc[id] ?? []).includes(String(s.id_layanan)),
+          (svc[id] ?? []).includes(String(s.id_layanan))
         );
         return (
           <div
@@ -1988,6 +2059,101 @@ function Success({
   );
 }
 
+// ── Conflict Dialog ───────────────────────────────────────────────────────────
+
+function ConflictDialog({
+  message,
+  onPilihJamLain,
+  onTetapJamIni,
+}: {
+  message: string;
+  onPilihJamLain(): void;
+  onTetapJamIni(): void;
+}) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 999,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 14,
+          padding: "24px 28px",
+          maxWidth: 440,
+          width: "90%",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 12,
+          }}
+        >
+          <AlertTriangle size={22} color="#f57f17" />
+          <span style={{ fontWeight: 700, fontSize: 16, color: "#e65100" }}>
+            Slot Jam Sudah Dipesan
+          </span>
+        </div>
+        <p
+          style={{
+            fontSize: 14,
+            color: "#555",
+            lineHeight: 1.6,
+            marginBottom: 20,
+          }}
+        >
+          {message}
+        </p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={onPilihJamLain}
+            style={{
+              flex: 1,
+              padding: "10px 0",
+              borderRadius: 8,
+              border: `1.5px solid ${G}`,
+              background: "#fff",
+              color: G,
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Pilih Jam Lain
+          </button>
+          <button
+            onClick={onTetapJamIni}
+            style={{
+              flex: 1,
+              padding: "10px 0",
+              borderRadius: 8,
+              border: "none",
+              background: "#f57f17",
+              color: "#fff",
+              fontWeight: 600,
+              fontSize: 14,
+              cursor: "pointer",
+            }}
+          >
+            Tetap Jam Ini
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function BookingPage() {
@@ -2002,11 +2168,14 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // State untuk conflict dialog
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflictMessage, setConflictMessage] = useState("");
+
   const [apiBookings, setApiBookings] = useState<
     Array<{ no_booking: string; no_antrian: number; id_hewan: number }>
   >([]);
 
-  // svc sekarang menyimpan id_layanan (string) bukan kategori
   const [sel, setSel] = useState<string[]>([]);
   const [svc, setSvc] = useState<Record<string, string[]>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -2015,7 +2184,7 @@ export default function BookingPage() {
   >({});
 
   const [selectedJadwal, setSelectedJadwal] = useState<JadwalTersedia | null>(
-    null,
+    null
   );
   const [selectedJam, setSelectedJam] = useState("");
 
@@ -2029,7 +2198,6 @@ export default function BookingPage() {
       setFetchError(null);
 
       try {
-        // fix: semua fetch jalan parallel sekaligus
         const [hewanRes, layananRes, jadwalRes] = await Promise.all([
           fetch(`${API_URL}/api/owner_pet/data_hewan`, {
             headers: { Authorization: `Bearer ${token ?? ""}` },
@@ -2040,7 +2208,6 @@ export default function BookingPage() {
           }),
         ]);
 
-        // cek auth error lebih awal
         if (hewanRes.status === 401) {
           setFetchError("Sesi login habis. Silakan login ulang.");
           return;
@@ -2050,7 +2217,6 @@ export default function BookingPage() {
           return;
         }
 
-        // fix: parse semua response parallel
         const [hewanData, layananData, jadwalData] = await Promise.all([
           hewanRes.json(),
           layananRes.json(),
@@ -2069,11 +2235,11 @@ export default function BookingPage() {
               weight: h.berat ?? h.weight ?? "-",
               emoji: h.emoji ?? "",
               photo: normalizeFotoUrl(h.foto_hewan ?? h.photo),
-            })),
+            }))
           );
         } else {
           setFetchError(
-            hewanData.message ?? "Gagal memuat data hewan dari server.",
+            hewanData.message ?? "Gagal memuat data hewan dari server."
           );
         }
 
@@ -2087,7 +2253,7 @@ export default function BookingPage() {
               kategori: l.kategori ?? "-",
               harga: Number(l.harga ?? 0),
               deskripsi: l.deskripsi ?? undefined,
-            })),
+            }))
           );
         }
 
@@ -2100,12 +2266,12 @@ export default function BookingPage() {
               jam_mulai: j.jam_mulai,
               jam_selesai: j.jam_selesai,
               nama_dokter: j.nama_dokter ?? undefined,
-            })),
+            }))
           );
         }
       } catch (e) {
         setFetchError(
-          "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
+          "Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
         );
       } finally {
         setLoadingData(false);
@@ -2118,7 +2284,6 @@ export default function BookingPage() {
   const togglePet = (id: string) =>
     setSel((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
-  // Toggle berdasarkan id_layanan (string)
   const toggleSvc = (petId: string, layananId: string) => {
     setSvc((prev) => {
       const current = prev[petId] ?? [];
@@ -2129,17 +2294,33 @@ export default function BookingPage() {
     });
   };
 
+  // Validasi jam dalam rentang (< jam_selesai, bukan <=)
+  const jamValid =
+    !selectedJam ||
+    !selectedJadwal?.jam_mulai ||
+    !selectedJadwal?.jam_selesai ||
+    (selectedJam >= selectedJadwal.jam_mulai &&
+      selectedJam < selectedJadwal.jam_selesai);
+
   const disabled = !!(
     (step === 1 && sel.length === 0) ||
     (step === 2 && sel.some((id) => (svc[id] ?? []).length === 0)) ||
-    (step === 4 && (!selectedJadwal || !selectedJam))
+    (step === 4 && (!selectedJadwal || !selectedJam || !jamValid))
   );
 
-  const confirm = async () => {
+  // Fungsi confirm yang menerima parameter force
+  const confirm = async (force = false) => {
     if (!selectedJadwal || !selectedJam) {
       setError("Pilih tanggal dan jam kunjungan terlebih dahulu.");
       return;
     }
+    if (!jamValid) {
+      setError(
+        `Jam ${selectedJam} di luar rentang jadwal dokter (${selectedJadwal.jam_mulai} – ${selectedJadwal.jam_selesai}).`
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
     const token = getAuthToken();
@@ -2148,10 +2329,10 @@ export default function BookingPage() {
       tanggal_booking: selectedJadwal.tanggal,
       jam: selectedJam,
       id_jadwal: selectedJadwal.id_jadwal,
+      force, // flag untuk bypass konflik slot
       items: sel.map((id) => {
         const pet = pets.find((p) => p.id === id)!;
         const photos = condPhotos[id] ?? [];
-        // kirim id_layanan langsung (sudah berupa array number)
         const id_layanans = (svc[id] ?? []).map(Number);
         return {
           id_hewan: pet.id_hewan ?? Number(pet.id),
@@ -2173,15 +2354,20 @@ export default function BookingPage() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+
       if (data.success) {
         setApiBookings(data.bookings);
         setDone(true);
+      } else if (data.conflict) {
+        // Tampilkan dialog konflik
+        setConflictMessage(data.message);
+        setShowConflictDialog(true);
       } else {
         setError(data.message ?? "Terjadi kesalahan saat membuat booking.");
       }
     } catch {
       setError(
-        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda.",
+        "Tidak dapat terhubung ke server. Periksa koneksi internet Anda."
       );
     } finally {
       setLoading(false);
@@ -2199,7 +2385,7 @@ export default function BookingPage() {
       pets: sel.map((id) => {
         const p = pets.find((x) => x.id === id)!;
         const layananDipilih = services.filter((s) =>
-          (svc[id] ?? []).includes(String(s.id_layanan)),
+          (svc[id] ?? []).includes(String(s.id_layanan))
         );
         return {
           name: p.name,
@@ -2224,6 +2410,8 @@ export default function BookingPage() {
     setSelectedJam("");
     setApiBookings([]);
     setError(null);
+    setShowConflictDialog(false);
+    setConflictMessage("");
   };
 
   // ── Loading Screen ──────────────────────────────────────────────────────────
@@ -2367,6 +2555,22 @@ export default function BookingPage() {
               </div>
             )}
 
+            {/* Conflict Dialog */}
+            {showConflictDialog && (
+              <ConflictDialog
+                message={conflictMessage}
+                onPilihJamLain={() => {
+                  setShowConflictDialog(false);
+                  setStep(4);
+                  setSelectedJam("");
+                }}
+                onTetapJamIni={() => {
+                  setShowConflictDialog(false);
+                  confirm(true);
+                }}
+              />
+            )}
+
             {done ? (
               <Success
                 pets={pets}
@@ -2433,7 +2637,7 @@ export default function BookingPage() {
                   step={step}
                   onBack={() => setStep((s) => Math.max(1, s - 1))}
                   onNext={() => setStep((s) => Math.min(TOTAL_STEPS, s + 1))}
-                  onConfirm={confirm}
+                  onConfirm={() => confirm(false)}
                   disabled={disabled}
                   loading={loading}
                 />
