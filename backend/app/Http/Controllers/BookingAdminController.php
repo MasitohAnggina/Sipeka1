@@ -77,6 +77,62 @@ class BookingAdminController extends Controller
         ]);
     }
 
+    /**
+     * Daftar booking yang menunggu konfirmasi pembatalan dari owner.
+     * Dipakai oleh bell notifikasi "Pembatalan dari Owner" di Header admin/dokter.
+     */
+    public function cancelRequests(): JsonResponse
+    {
+        $bookings = Booking::with(['hewan', 'user', 'jadwal.dokter', 'layanans'])
+            ->where('status', 'menunggu_pembatalan')
+            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->map(function ($b) {
+                return [
+                    'id'              => $b->id_booking,
+                    'no_booking'      => $b->no_booking,
+                    'nama_hewan'      => $b->hewan?->nama_hewan ?? '-',
+                    'nama_pemilik'    => $b->user?->nama  ?? $b->user?->name  ?? '-',
+                    'no_hp'           => $b->user?->no_hp ?? '-',
+                    'layanan_nama'    => $b->layanans->first()?->nama_layanan ?? '-',
+                    'tanggal_booking' => $b->tanggal_booking?->format('Y-m-d'),
+                    'jam'             => $b->jam,
+                    'no_antrian'      => $b->no_antrian,
+                    'nama_dokter'     => $b->jadwal?->dokter?->nama_dokter ?? '-',
+                    // pakai updated_at sebagai fallback jika kolom cancelled_at belum ada di tabel
+                    'cancelled_at'    => $b->cancelled_at?->toIso8601String()
+                                          ?? $b->updated_at?->toIso8601String(),
+                ];
+            });
+
+        return response()->json(['success' => true, 'data' => $bookings]);
+    }
+
+    /**
+     * Konfirmasi pembatalan booking oleh admin (dipanggil dari modal detail
+     * notifikasi pembatalan di Header). Mengubah status jadi 'dibatalkan'.
+     */
+    public function confirmCancel(int $idBooking): JsonResponse
+    {
+        $booking = Booking::where('id_booking', $idBooking)
+            ->where('status', 'menunggu_pembatalan')
+            ->first();
+
+        if (!$booking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Booking tidak ditemukan atau bukan status menunggu pembatalan.',
+            ], 404);
+        }
+
+        $booking->update(['status' => 'dibatalkan']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pembatalan berhasil dikonfirmasi.',
+        ]);
+    }
+
     public function summary(): JsonResponse
     {
         return response()->json([

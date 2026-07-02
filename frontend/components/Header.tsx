@@ -6,7 +6,7 @@ import {
   UserX, Phone,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useNotifContext } from "@/context/NotifContext";
 import { useCancelNotifContext, timeAgo } from "@/context/CancelNotifContext";
 import type { BookingNotif } from "@/hooks/useBookingNotif";
@@ -454,26 +454,29 @@ export default function Header({ title, subtitle, role }: HeaderProps) {
   const [confirmSuccess,     setConfirmSuccess]     = useState(false);
   const [detectedRole,       setDetectedRole]       = useState<string | null>(null);
 
-  // FIX: pathname diambil di useEffect agar server & client render sama (mencegah hydration error)
-  const [pathname, setPathname] = useState("");
-  useEffect(() => {
-    setPathname(window.location.pathname);
-  }, []);
+  // FIX #1: pakai usePathname() dari next/navigation, bukan window.location.pathname
+  // di dalam useEffect([]). Cara lama membuat `pathname` beku (stale) begitu Header
+  // di-mount sekali dan tidak ikut berubah saat pindah halaman lewat client-side
+  // navigation (Link / router.push) tanpa full reload — akibatnya isAdminPage /
+  // isDokterPage bisa salah dan showCancelBell jadi tidak pernah true.
+  const pathname = usePathname() ?? "";
 
   const isMobile = useIsMobile();
 
   // ── Deteksi role otomatis dari sessionStorage ───────────────────────────────
+  // FIX #2: tambahkan pathname sebagai dependency agar role ikut dibaca ulang
+  // setiap kali route berubah (mis. setelah login/redirect client-side yang
+  // menulis sessionStorage tepat sebelum navigasi ke halaman admin/dokter).
   useEffect(() => {
     const r = sessionStorage.getItem("role");
     setDetectedRole(r);
-  }, []);
+  }, [pathname]);
 
   const isAdminPage  = pathname.startsWith("/admin");
   const isDokterPage = pathname.startsWith("/dokter");
 
   const activeRole     = role ?? (isAdminPage ? "admin" : isDokterPage ? "dokter" : detectedRole);
   const showCancelBell = activeRole === "admin" || activeRole === "dokter";
-  // FIX: hapus "activeRole === 'admin'" agar bell notif tidak muncul di halaman admin
   const showNotifBell  = activeRole === "owner" || !activeRole;
 
   const toggleSidebar = () => {
