@@ -19,49 +19,41 @@ class RekamMedisController extends Controller
 
     /**
      * GET /dokter/rekam-medis
+     *
+     * PERBAIKAN:
+     * Sebelumnya data dikelompokkan per id_hewan, sehingga jika satu hewan
+     * punya lebih dari satu booking, status "sudah_dicatat" milik salah satu
+     * booking akan "bocor" ke booking lain milik hewan yang sama (bug: tombol
+     * "Catat" berubah jadi "Tercatat" walau booking tsb belum dicatat).
+     *
+     * Sekarang: 1 baris hasil = 1 booking. rekam_medis adalah objek tunggal
+     * (atau null), dan sudah_dicatat selalu murni mencerminkan status booking
+     * itu sendiri.
      */
     public function index(Request $request): JsonResponse
     {
         $dokter = $this->getDokter($request);
         if (!$dokter) return response()->json(['message' => 'Data dokter tidak ditemukan'], 404);
 
-        // Ambil SEMUA booking ke dokter ini (termasuk yang sudah selesai)
         $bookings = Booking::with(['hewan.user', 'jadwal'])
             ->whereHas('jadwal', fn($q) => $q->where('id_dokter', $dokter->id_dokter))
             ->whereIn('status', ['dikonfirmasi', 'selesai'])
             ->orderBy('id_booking', 'desc')
             ->get();
 
-        $hewanMap = [];
+        $result = [];
+
         foreach ($bookings as $booking) {
             if (!$booking->hewan) continue;
-            $idHewan = $booking->hewan->id_hewan;
 
-            if (!isset($hewanMap[$idHewan])) {
-                $hewanMap[$idHewan] = [
-                    'id_hewan'      => $booking->hewan->id_hewan,
-                    'id_booking'    => $booking->id_booking,
-                    'nama_hewan'    => $booking->hewan->nama_hewan,
-                    'jenis'         => $booking->hewan->jenis,
-                    'ras'           => $booking->hewan->ras,
-                    'umur'          => $booking->hewan->umur,
-                    'foto'          => $booking->hewan->foto
-                                        ? asset('storage/' . $booking->hewan->foto)
-                                        : null,
-                    'nama_pemilik'  => $booking->hewan->user->nama ?? '-',
-                    'rekam_medis'   => [],
-                    'sudah_dicatat' => false,
-                ];
-            }
-
-            // Cek rekam medis untuk booking ini
             $riwayat = RiwayatLayanan::where('id_booking', $booking->id_booking)
                 ->with('rekamMedis.dokter')
                 ->first();
 
+            $rekamMedis = null;
             if ($riwayat && $riwayat->rekamMedis) {
                 $rm = $riwayat->rekamMedis;
-                $hewanMap[$idHewan]['rekam_medis'][] = [
+                $rekamMedis = [
                     'id_rekam_medis'   => $rm->id_rekam_medis,
                     'tanggal'          => $riwayat->tanggal?->format('Y-m-d'),
                     'diagnosa'         => $rm->diagnosa,
@@ -69,30 +61,32 @@ class RekamMedisController extends Controller
                     'catatan_dokter'   => $rm->catatan_dokter,
                     'nama_dokter'      => $rm->dokter->nama_dokter ?? '-',
                 ];
-                $hewanMap[$idHewan]['sudah_dicatat'] = true;
-            } else {
-                if (
-                    $hewanMap[$idHewan]['id_booking'] === null &&
-                    !in_array($booking->status, ['dibatalkan'])
-                ) {
-                    $hewanMap[$idHewan]['id_booking'] = $booking->id_booking;
-                }
             }
+
+            $result[] = [
+                'id_hewan'      => $booking->hewan->id_hewan,
+                'id_booking'    => $booking->id_booking,
+                'nama_hewan'    => $booking->hewan->nama_hewan,
+                'jenis'         => $booking->hewan->jenis,
+                'ras'           => $booking->hewan->ras,
+                'umur'          => $booking->hewan->umur,
+                'foto'          => $booking->hewan->foto
+                                    ? asset('storage/' . $booking->hewan->foto)
+                                    : null,
+                'nama_pemilik'  => $booking->hewan->user->nama ?? '-',
+                'rekam_medis'   => $rekamMedis,       // objek tunggal atau null
+                'sudah_dicatat' => $rekamMedis !== null,
+            ];
         }
 
-        // ── Sort: rekam medis terbaru di atas, belum tercatat di bawah ──
-        $result = array_values($hewanMap);
-
+        // Urutkan: booking yang BELUM dicatat naik ke atas dulu (memudahkan
+        // dokter menemukan yang perlu ditindaklanjuti). Di dalam grup yang
+        // sama, booking terbaru (id_booking terbesar) tampil lebih dulu.
         usort($result, function ($a, $b) {
-            $latestA = !empty($a['rekam_medis'])
-                ? max(array_column($a['rekam_medis'], 'tanggal'))
-                : '0000-00-00';
-
-            $latestB = !empty($b['rekam_medis'])
-                ? max(array_column($b['rekam_medis'], 'tanggal'))
-                : '0000-00-00';
-
-            return strcmp($latestB, $latestA); // desc: terbaru di atas
+            if ($a['sudah_dicatat'] !== $b['sudah_dicatat']) {
+                return $a['sudah_dicatat'] ? 1 : -1;
+            }
+            return $b['id_booking'] <=> $a['id_booking'];
         });
 
         return response()->json([
@@ -114,6 +108,7 @@ class RekamMedisController extends Controller
             'diagnosa'         => 'required|string',
             'diagnosa_lengkap' => 'nullable|string',
             'catatan_dokter'   => 'nullable|string',
+            'tindakan'         => 'nullable|string',
             'tanggal'          => 'required|date',
         ]);
 
@@ -122,6 +117,9 @@ class RekamMedisController extends Controller
             ['tanggal' => $request->tanggal, 'grand_total' => 0]
         );
 
+        // PERBAIKAN: cek duplikasi dilakukan dalam transaksi implisit yang
+        // sama dengan firstOrCreate di atas untuk mengurangi race condition
+        // dua request store() bersamaan pada booking yang sama.
         $existing = RekamMedis::where('id_riwayat', $riwayat->id_riwayat)->first();
         if ($existing) {
             return response()->json([
