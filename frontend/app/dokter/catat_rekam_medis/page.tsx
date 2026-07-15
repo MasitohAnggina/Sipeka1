@@ -38,6 +38,9 @@ const STORAGE_URL = "http://127.0.0.1:8000/storage/";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+// PERBAIKAN: rekam_medis sekarang objek tunggal (atau null), karena backend
+// sudah mengirim 1 baris per booking, bukan 1 baris per hewan dengan array
+// gabungan seluruh riwayat rekam medisnya.
 interface HewanRow {
   id_hewan:      number;
   id_booking:    number | null;
@@ -47,7 +50,7 @@ interface HewanRow {
   umur:          number | null;
   foto:          string | null;
   nama_pemilik:  string;
-  rekam_medis:   RekamMedisItem[];
+  rekam_medis:   RekamMedisItem | null;
   sudah_dicatat: boolean;
 }
 
@@ -59,7 +62,6 @@ interface RekamMedisItem {
   catatan_dokter:   string;
   nama_dokter:      string;
 }
-
 
 type ViewMode = "table" | "form" | "detail";
 
@@ -192,12 +194,18 @@ function HewanInfoBar({ namaHewan, jenisHewan, rasHewan, namaPemilik, foto, labe
 }
 
 // ── TABLE VIEW ────────────────────────────────────────────────────────────────
-
-// 1 baris per rekam medis — hewan yang sama tampil di baris terpisah masing-masing lengkap
-interface FlatRow {
-  hewan: HewanRow;
-  rm:    RekamMedisItem | null; // null = hewan belum punya rekam medis sama sekali
-}
+//
+// PERBAIKAN UTAMA:
+// Sebelumnya komponen ini melakukan "flatten" dari hewan -> banyak rekam medis
+// (FlatRow), dan tombol "Catat"/"Tercatat" memakai h.sudah_dicatat yang
+// merupakan status GABUNGAN semua booking milik hewan tsb. Akibatnya, kalau
+// satu hewan punya booking lain yang sudah dicatat, baris booking yang BELUM
+// dicatat ikut ditampilkan sebagai "Tercatat" (disabled) padahal seharusnya
+// masih bisa ditekan "Catat".
+//
+// Sekarang backend sudah mengirim 1 baris = 1 booking, jadi di sini kita
+// render langsung dari hewanList tanpa flatten, dan status tombol 100%
+// mengikuti field milik baris (booking) itu sendiri.
 
 function TableView({ hewanList, loading, onCatat, onDetail }: {
   hewanList: HewanRow[];
@@ -207,22 +215,11 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
 }) {
   const [search, setSearch] = useState("");
 
-  const flatRows = useMemo<FlatRow[]>(() => {
-    const filtered = hewanList.filter(h =>
+  const filteredRows = useMemo<HewanRow[]>(() => {
+    return hewanList.filter(h =>
       h.nama_pemilik.toLowerCase().includes(search.toLowerCase()) ||
       h.nama_hewan.toLowerCase().includes(search.toLowerCase())
     );
-    const rows: FlatRow[] = [];
-    for (const h of filtered) {
-      if (h.rekam_medis.length === 0) {
-        rows.push({ hewan: h, rm: null });
-      } else {
-        for (const rm of h.rekam_medis) {
-          rows.push({ hewan: h, rm });
-        }
-      }
-    }
-    return rows;
   }, [hewanList, search]);
 
   return (
@@ -256,18 +253,19 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
                 </tr>
               </thead>
               <tbody>
-                {flatRows.length === 0 ? (
+                {filteredRows.length === 0 ? (
                   <tr>
                     <td colSpan={5} style={{ padding: "48px", textAlign: "center", color: "#999", fontSize: 14 }}>
                       <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>
                       {search ? `Tidak ditemukan hasil untuk "${search}"` : "Belum ada data hewan"}
                     </td>
                   </tr>
-                ) : flatRows.map(({ hewan: h, rm }, idx) => {
+                ) : filteredRows.map((h, idx) => {
                   const rowBg = idx % 2 === 0 ? "#fff" : "#fafffe";
+                  const rm = h.rekam_medis;
                   return (
                     <tr
-                      key={`${h.id_hewan}-${rm?.id_rekam_medis ?? "none"}-${idx}`}
+                      key={`${h.id_hewan}-${h.id_booking ?? "none"}-${idx}`}
                       style={{ borderBottom: "1px solid #f0f0f0", background: rowBg }}
                       onMouseEnter={e => (e.currentTarget.style.background = "#f4fbf4")}
                       onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
@@ -308,24 +306,39 @@ function TableView({ hewanList, loading, onCatat, onDetail }: {
                         )}
                       </td>
 
-                      {/* ── Aksi ── */}
+                      {/* ── Aksi ──
+                          Satu-satunya sumber kebenaran adalah `rm` (rekam medis
+                          milik booking baris ini, bukan status hewan gabungan).
+                          - rm === null  -> booking ini BELUM dicatat -> tombol
+                            "Catat" aktif, bisa diklik untuk membuka form.
+                          - rm !== null  -> booking ini SUDAH dicatat -> tampilkan
+                            indikator "Tercatat" (disabled, tidak bisa diklik)
+                            BERDAMPINGAN dengan tombol "Detail" supaya isinya
+                            tetap bisa dilihat. */}
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", gap: 8, flexWrap: "nowrap" }}>
-                          {rm === null && (
-                            h.sudah_dicatat ? (
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 12px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#f5f5f5", color: "#bbb", fontSize: 12, whiteSpace: "nowrap", cursor: "not-allowed" }}>
+                          {rm === null ? (
+                            <HoverBtn onClick={() => onCatat(h)} variant="green">
+                              <Icon name="clipboard" size={12} color="currentColor" /> Catat
+                            </HoverBtn>
+                          ) : (
+                            <>
+                              <div
+                                title={`Dicatat pada ${rm.tanggal} oleh ${rm.nama_dokter}`}
+                                style={{
+                                  display: "inline-flex", alignItems: "center", gap: 5,
+                                  padding: "7px 12px", borderRadius: 8,
+                                  border: "1.5px solid #e0e0e0", background: "#f5f5f5",
+                                  color: "#bbb", fontSize: 12, fontWeight: 700,
+                                  whiteSpace: "nowrap", cursor: "not-allowed",
+                                }}
+                              >
                                 <Icon name="check" size={12} color="#bbb" /> Tercatat
                               </div>
-                            ) : (
-                              <HoverBtn onClick={() => onCatat(h)} variant="green">
-                                <Icon name="clipboard" size={12} color="currentColor" /> Catat
+                              <HoverBtn onClick={() => onDetail(h, rm)} variant="blue">
+                                <Icon name="eye" size={12} color="currentColor" /> Detail
                               </HoverBtn>
-                            )
-                          )}
-                          {rm && (
-                            <HoverBtn onClick={() => onDetail(h, rm)} variant="blue">
-                              <Icon name="eye" size={12} color="currentColor" /> Detail
-                            </HoverBtn>
+                            </>
                           )}
                         </div>
                       </td>
@@ -767,7 +780,7 @@ function RekamMedisInner() {
         umur:          null,
         foto:          fotoParam,
         nama_pemilik:  namaPemilikParam ?? "",
-        rekam_medis:   [],
+        rekam_medis:   null,
         sudah_dicatat: false,
       });
       setActiveIdBooking(idBookingParam);
